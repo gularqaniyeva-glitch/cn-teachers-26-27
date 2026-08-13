@@ -1,5 +1,4 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, StickyNote } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { getTeacherAverageScore } from '../../utils/stats';
@@ -13,6 +12,7 @@ interface TeacherTableProps {
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
+  onRowClick: (id: string) => void;
 }
 
 function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 'neutral' {
@@ -29,8 +29,8 @@ export function TeacherTable({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
+  onRowClick,
 }: TeacherTableProps) {
-  const navigate = useNavigate();
   const t = useT();
   const allOnPageSelected = teachers.length > 0 && teachers.every((tt) => selectedIds.has(tt.id));
   const someOnPageSelected = teachers.some((tt) => selectedIds.has(tt.id));
@@ -88,7 +88,7 @@ export function TeacherTable({
             return (
               <tr
                 key={teacher.id}
-                onClick={() => navigate(`/teachers/${teacher.id}`)}
+                onClick={() => onRowClick(teacher.id)}
                 className={`cursor-pointer transition-colors hover:bg-brand-50/60 ${isSelected ? 'bg-brand-50/40' : ''}`}
               >
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>

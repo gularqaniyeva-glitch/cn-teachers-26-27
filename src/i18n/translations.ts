@@ -82,6 +82,10 @@ export interface Dict {
     title: string;
     subtitle: string;
   };
+  tabs: {
+    allTeachers: string;
+    moduleReport: string;
+  };
   filters: {
     treeTitle: string;
     locationSection: string;
@@ -125,6 +129,7 @@ export interface Dict {
     internalNote: string;
     editTitle: string;
     saveChanges: string;
+    openFullProfile: string;
     fields: {
       fullName: string;
       fin: string;
@@ -255,6 +260,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       title: '10–11 классы',
       subtitle: 'Отдельная программа и модули для старших классов',
     },
+    tabs: {
+      allTeachers: 'Все учителя',
+      moduleReport: 'Отчёт по модулю',
+    },
     filters: {
       treeTitle: 'Дерево фильтров',
       locationSection: 'Район / город и школа',
@@ -298,6 +307,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       internalNote: 'Внутренняя заметка',
       editTitle: 'Редактирование данных',
       saveChanges: 'Сохранить изменения',
+      openFullProfile: 'Открыть полную карточку',
       fields: {
         fullName: 'ФИО',
         fin: 'FIN',
@@ -426,6 +436,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       title: '10–11-ci siniflər',
       subtitle: 'Yuxarı siniflər üçün ayrıca proqram və modullar',
     },
+    tabs: {
+      allTeachers: 'Bütün müəllimlər',
+      moduleReport: 'Modul üzrə hesabat',
+    },
     filters: {
       treeTitle: 'Filtr ağacı',
       locationSection: 'Rayon / şəhər və məktəb',
@@ -469,6 +483,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       internalNote: 'Daxili qeyd',
       editTitle: 'Məlumatların redaktəsi',
       saveChanges: 'Dəyişiklikləri yadda saxla',
+      openFullProfile: 'Tam kartı aç',
       fields: {
         fullName: 'Ad, soyad',
         fin: 'FİN',

@@ -9,6 +9,7 @@ import { useT } from '../../i18n/useLocaleStore';
 interface ModuleQuickListPanelProps {
   teachers: Teacher[];
   gradeGroupOptions: GradeGroup[];
+  onRowClick: (id: string) => void;
 }
 
 const STATUS_VARIANT = { passed: 'success', failed: 'danger', not_started: 'neutral' } as const;
@@ -16,7 +17,7 @@ const ALL_STATUSES: ModuleStatus[] = ['passed', 'failed', 'not_started'];
 
 type GradeGroupSelection = GradeGroup | 'all';
 
-export function ModuleQuickListPanel({ teachers, gradeGroupOptions }: ModuleQuickListPanelProps) {
+export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }: ModuleQuickListPanelProps) {
   const t = useT();
   const canSelectAllGroups = gradeGroupOptions.length > 1;
   const [gradeGroupSelection, setGradeGroupSelection] = useState<GradeGroupSelection>(
@@ -161,8 +162,14 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions }: ModuleQuic
             </thead>
             <tbody className="divide-y divide-slate-100">
               {matched.map(({ teacher, status, score }) => (
-                <tr key={teacher.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">{teacher.fullName}</td>
+                <tr
+                  key={teacher.id}
+                  onClick={() => onRowClick(teacher.id)}
+                  className="cursor-pointer hover:bg-brand-50/60"
+                >
+                  <td className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap">
+                    {teacher.fullName}
+                  </td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>

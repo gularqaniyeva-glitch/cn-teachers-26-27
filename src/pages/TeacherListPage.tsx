@@ -7,6 +7,7 @@ import { TeacherTable } from '../components/teachers/TeacherTable';
 import { BulkActionBar } from '../components/teachers/BulkActionBar';
 import { ModuleQuickListPanel } from '../components/teachers/ModuleQuickListPanel';
 import { Pagination } from '../components/teachers/Pagination';
+import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
 import { DEFAULT_FILTERS, filterTeachers, sortTeachers } from '../utils/teacherFilters';
 import type { SortKey, SortState } from '../utils/teacherFilters';
 import { exportTeachersToCsv } from '../utils/csvExport';
@@ -21,15 +22,19 @@ interface TeacherListPageProps {
   subtitle: string;
 }
 
+type PageTab = 'all' | 'moduleReport';
+
 export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
   const t = useT();
   const { teachers: allTeachers, loading, load, updateManyTeachers } = useTeacherStore();
+  const [activeTab, setActiveTab] = useState<PageTab>('all');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [quickViewId, setQuickViewId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -38,6 +43,11 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   const scopedTeachers = useMemo(
     () => allTeachers.filter((teacher) => gradeGroups.includes(teacher.gradeGroup)),
     [allTeachers, gradeGroups],
+  );
+
+  const quickViewTeacher = useMemo(
+    () => scopedTeachers.find((teacher) => teacher.id === quickViewId) ?? null,
+    [scopedTeachers, quickViewId],
   );
 
   const allSchools = useMemo(() => Array.from(new Set(scopedTeachers.map((t) => t.school))).sort(), [scopedTeachers]);
@@ -137,104 +147,131 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
-          <p className="mt-1 text-sm text-slate-500">
-            {t.common.found} {sorted.length} {t.common.of} {scopedTeachers.length}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
+        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+      </div>
+
+      <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
         <button
-          onClick={() => exportTeachersToCsv(sorted, t)}
-          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          onClick={() => setActiveTab('all')}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            activeTab === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <Download size={16} />
-          {t.common.exportCsv}
+          {t.tabs.allTeachers}
+        </button>
+        <button
+          onClick={() => setActiveTab('moduleReport')}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            activeTab === 'moduleReport' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {t.tabs.moduleReport}
         </button>
       </div>
 
-      <ModuleQuickListPanel teachers={scopedTeachers} gradeGroupOptions={gradeGroups} />
+      {activeTab === 'all' ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-slate-500">
+              {t.common.found} {sorted.length} {t.common.of} {scopedTeachers.length}
+            </p>
+            <button
+              onClick={() => exportTeachersToCsv(sorted, t)}
+              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
+              <Download size={16} />
+              {t.common.exportCsv}
+            </button>
+          </div>
 
-      <div className="relative">
-        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          value={filters.search}
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-          placeholder={t.common.search}
-          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-        />
-      </div>
+          <div className="relative">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)}
+              placeholder={t.common.search}
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </div>
 
-      <button
-        onClick={() => setFiltersOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
-        <Settings2 size={15} />
-        {t.common.filtersToggle}
-      </button>
+          <button
+            onClick={() => setFiltersOpen((v) => !v)}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Settings2 size={15} />
+            {t.common.filtersToggle}
+          </button>
 
-      {filtersOpen && (
-        <div className="fixed inset-0 z-40">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setFiltersOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-slate-50 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">{t.filters.treeTitle}</h2>
-              <button
-                onClick={() => setFiltersOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                aria-label={t.common.close}
-              >
-                <X size={18} />
-              </button>
+          {filtersOpen && (
+            <div className="fixed inset-0 z-40">
+              <div className="absolute inset-0 bg-black/30" onClick={() => setFiltersOpen(false)} />
+              <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-slate-50 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+                  <h2 className="text-sm font-semibold text-slate-900">{t.filters.treeTitle}</h2>
+                  <button
+                    onClick={() => setFiltersOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                    aria-label={t.common.close}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="flex-1 space-y-4 p-4">
+                  <TeacherFilterTree
+                    teachers={scopedTeachers}
+                    filters={filters}
+                    gradeGroupOptions={gradeGroups}
+                    onToggleDistrict={(d) => toggleArrayValue('districts', d)}
+                    onToggleSchool={(s) => toggleArrayValue('schools', s)}
+                    onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
+                    onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
+                    onModuleChange={(id) => handleFilterChange('moduleId', id)}
+                    onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
+                    onSectorChange={(sector) => handleFilterChange('sector', sector)}
+                  />
+                  <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
+                </div>
+              </aside>
             </div>
-            <div className="flex-1 space-y-4 p-4">
-              <TeacherFilterTree
-                teachers={scopedTeachers}
-                filters={filters}
-                gradeGroupOptions={gradeGroups}
-                onToggleDistrict={(d) => toggleArrayValue('districts', d)}
-                onToggleSchool={(s) => toggleArrayValue('schools', s)}
-                onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
-                onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
-                onModuleChange={(id) => handleFilterChange('moduleId', id)}
-                onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
-                onSectorChange={(sector) => handleFilterChange('sector', sector)}
-              />
-              <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
-            </div>
-          </aside>
+          )}
+
+          <BulkActionBar
+            count={selectedIds.size}
+            modules={scopedModules}
+            schools={allSchools}
+            onClear={() => setSelectedIds(new Set())}
+            onApplyModuleStatus={handleApplyModuleStatus}
+            onAssign={handleAssign}
+          />
+
+          <TeacherTable
+            teachers={pageItems}
+            sort={sort}
+            onSort={handleSort}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAllOnPage}
+            onRowClick={setQuickViewId}
+          />
+
+          <Pagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={sorted.length}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
         </div>
+      ) : (
+        <ModuleQuickListPanel teachers={scopedTeachers} gradeGroupOptions={gradeGroups} onRowClick={setQuickViewId} />
       )}
 
-      <BulkActionBar
-        count={selectedIds.size}
-        modules={scopedModules}
-        schools={allSchools}
-        onClear={() => setSelectedIds(new Set())}
-        onApplyModuleStatus={handleApplyModuleStatus}
-        onAssign={handleAssign}
-      />
-
-      <TeacherTable
-        teachers={pageItems}
-        sort={sort}
-        onSort={handleSort}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-        onToggleSelectAll={toggleSelectAllOnPage}
-      />
-
-      <Pagination
-        page={currentPage}
-        pageSize={pageSize}
-        total={sorted.length}
-        onPageChange={setPage}
-        onPageSizeChange={(size) => {
-          setPageSize(size);
-          setPage(1);
-        }}
-      />
+      <TeacherQuickViewModal teacher={quickViewTeacher} onClose={() => setQuickViewId(null)} />
     </div>
   );
 }
