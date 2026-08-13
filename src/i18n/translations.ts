@@ -106,6 +106,7 @@ export interface Dict {
     columnScore: string;
     columnFormat: string;
     empty: string;
+    allGradeGroups: string;
   };
   bulk: {
     changeModuleStatus: string;
@@ -277,6 +278,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       exportButton: 'Экспорт в Excel/CSV',
       columnScore: 'Результат / Статус',
       columnFormat: 'Формат',
+      allGradeGroups: 'Все параллели',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -447,6 +449,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       exportButton: 'Excel/CSV ixracı',
       columnScore: 'Nəticə / Status',
       columnFormat: 'Format',
+      allGradeGroups: 'Bütün paralellər',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {
