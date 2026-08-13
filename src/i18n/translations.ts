@@ -33,6 +33,7 @@ export interface Dict {
     filtersToggle: string;
     of: string;
     found: string;
+    close: string;
   };
   moduleStatus: {
     passed: string;
@@ -67,6 +68,7 @@ export interface Dict {
     successRateHint: string;
     ofTotal: string;
     moduleStatsTitle: string;
+    moduleDetailTitle: string;
     passedOf: string;
     successRateTooltip: string;
     enteredTooltip: string;
@@ -102,6 +104,7 @@ export interface Dict {
     resultCount: string;
     exportButton: string;
     columnScore: string;
+    columnFormat: string;
     empty: string;
   };
   bulk: {
@@ -191,6 +194,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       filtersToggle: 'Фильтры ⚙️',
       of: 'из',
       found: 'Найдено',
+      close: 'Закрыть',
     },
     moduleStatus: {
       passed: '🟢 Сдал',
@@ -236,6 +240,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       successRateHint: 'доля пройденных результатов среди начатых',
       ofTotal: 'от общего числа',
       moduleStatsTitle: 'Статистика по модулям (по группам классов)',
+      moduleDetailTitle: 'Детализация по каждому модулю',
       passedOf: 'сдали',
       successRateTooltip: 'Доля модулей со статусом «Сдал» среди всех модулей, которые учителя уже начали проходить (не считая «Не начал»).',
       enteredTooltip: 'Учителя, которые хотя бы раз заходили на обучающую платформу.',
@@ -270,7 +275,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       statusLabel: 'Статус',
       resultCount: 'учителей в списке',
       exportButton: 'Экспорт в Excel/CSV',
-      columnScore: 'Результат',
+      columnScore: 'Результат / Статус',
+      columnFormat: 'Формат',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -358,6 +364,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       filtersToggle: 'Filtrlər ⚙️',
       of: '/',
       found: 'Tapıldı',
+      close: 'Bağla',
     },
     moduleStatus: {
       passed: '🟢 Keçdi',
@@ -403,6 +410,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       successRateHint: 'başlanmış nəticələr arasında keçilmiş faiz',
       ofTotal: 'ümumi sayın',
       moduleStatsTitle: 'Modullar üzrə statistika (sinif qrupları üzrə)',
+      moduleDetailTitle: 'Hər modul üzrə təfərrüat',
       passedOf: 'keçdi',
       successRateTooltip: 'Müəllimlərin artıq başladığı modullar arasında (Başlamayıb hesaba alınmır) «Keçdi» statuslu modulların payı.',
       enteredTooltip: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlər.',
@@ -437,7 +445,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       statusLabel: 'Status',
       resultCount: 'müəllim siyahıda',
       exportButton: 'Excel/CSV ixracı',
-      columnScore: 'Nəticə',
+      columnScore: 'Nəticə / Status',
+      columnFormat: 'Format',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {

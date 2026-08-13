@@ -71,6 +71,27 @@ export function DashboardPage() {
           ))}
         </div>
       </Card>
+
+      <Card title={t.dashboard.moduleDetailTitle}>
+        <div className="space-y-6">
+          {groupStats.map((g) => (
+            <div key={g.group}>
+              <h4 className="mb-3 text-sm font-semibold text-slate-800">{t.gradeGroup[g.group]}</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {g.modules.map((m) => (
+                  <Bar
+                    key={m.moduleId}
+                    label={`${m.shortTitle} · ${t.dashboard.passedOf} ${m.passed} ${t.common.of} ${m.started}`}
+                    count={m.passed}
+                    percent={m.passRate}
+                    color={m.passRate >= 60 ? '#059669' : m.passRate >= 40 ? '#d97706' : '#e11d48'}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

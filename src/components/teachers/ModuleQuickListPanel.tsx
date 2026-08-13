@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
 import type { GradeGroup, ModuleStatus, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
-import { getTeacherAverageScore } from '../../utils/stats';
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { Badge } from '../ui/Badge';
 import { useT } from '../../i18n/useLocaleStore';
@@ -110,13 +109,20 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions }: ModuleQuic
         {matched.length} {t.quickList.resultCount}
       </p>
 
-      {matched.length > 0 && (
-        <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-100">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-medium uppercase tracking-wide text-slate-500">
+      {matched.length === 0 ? (
+        <p className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-6 text-center text-sm text-slate-400">
+          {t.quickList.empty}
+        </p>
+      ) : (
+        <div className="mt-2 max-h-[480px] overflow-auto rounded-lg border border-slate-100">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="sticky top-0">
+              <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-2">{t.columns.fullName}</th>
                 <th className="px-3 py-2">{t.columns.school}</th>
+                <th className="px-3 py-2">{t.columns.district}</th>
+                <th className="px-3 py-2">{t.filters.sectorSection}</th>
+                <th className="px-3 py-2">{t.quickList.columnFormat}</th>
                 <th className="px-3 py-2">{t.quickList.columnScore}</th>
               </tr>
             </thead>
@@ -124,13 +130,17 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions }: ModuleQuic
               {matched.map((teacher) => {
                 const result = teacher.moduleResults.find((r) => r.moduleId === moduleId);
                 return (
-                  <tr key={teacher.id}>
-                    <td className="px-3 py-2 font-medium text-slate-800">{teacher.fullName}</td>
-                    <td className="px-3 py-2 text-slate-600">{teacher.school}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant={STATUS_VARIANT[status]}>
-                        {result ? `${result.score}%` : getTeacherAverageScore(teacher)}
-                      </Badge>
+                  <tr key={teacher.id} className="hover:bg-slate-50">
+                    <td className="px-3 py-2 font-medium text-slate-800 whitespace-nowrap">{teacher.fullName}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.language[teacher.language]}</td>
+                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.trainingType[teacher.trainingType]}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-700">{result?.score ?? 0}%</span>
+                        <Badge variant={STATUS_VARIANT[status]}>{t.moduleStatus[status === 'not_started' ? 'notStarted' : status]}</Badge>
+                      </div>
                     </td>
                   </tr>
                 );

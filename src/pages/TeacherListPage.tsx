@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Search, Settings2 } from 'lucide-react';
+import { Download, Search, Settings2, X } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { TeacherFiltersBar } from '../components/teachers/TeacherFilters';
 import { TeacherFilterTree } from '../components/teachers/TeacherFilterTree';
@@ -175,20 +175,35 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
       </button>
 
       {filtersOpen && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
-          <TeacherFilterTree
-            teachers={scopedTeachers}
-            filters={filters}
-            gradeGroupOptions={gradeGroups}
-            onToggleDistrict={(d) => toggleArrayValue('districts', d)}
-            onToggleSchool={(s) => toggleArrayValue('schools', s)}
-            onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
-            onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
-            onModuleChange={(id) => handleFilterChange('moduleId', id)}
-            onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
-            onSectorChange={(sector) => handleFilterChange('sector', sector)}
-          />
-          <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setFiltersOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-slate-50 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">{t.filters.treeTitle}</h2>
+              <button
+                onClick={() => setFiltersOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                aria-label={t.common.close}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 space-y-4 p-4">
+              <TeacherFilterTree
+                teachers={scopedTeachers}
+                filters={filters}
+                gradeGroupOptions={gradeGroups}
+                onToggleDistrict={(d) => toggleArrayValue('districts', d)}
+                onToggleSchool={(s) => toggleArrayValue('schools', s)}
+                onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
+                onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
+                onModuleChange={(id) => handleFilterChange('moduleId', id)}
+                onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
+                onSectorChange={(sector) => handleFilterChange('sector', sector)}
+              />
+              <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
+            </div>
+          </aside>
         </div>
       )}
 
