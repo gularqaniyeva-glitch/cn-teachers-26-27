@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Save, Check } from 'lucide-react';
+import { useT } from '../../i18n/useLocaleStore';
 
 interface NotesPanelProps {
   note: string;
@@ -7,6 +8,7 @@ interface NotesPanelProps {
 }
 
 export function NotesPanel({ note, onSave }: NotesPanelProps) {
+  const t = useT();
   const [value, setValue] = useState(note);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -30,7 +32,7 @@ export function NotesPanel({ note, onSave }: NotesPanelProps) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={4}
-        placeholder="Внутренняя заметка администратора — не видна учителю…"
+        placeholder={t.detail.notePlaceholder}
         className="w-full resize-none rounded-lg border border-slate-200 p-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
       />
       <div className="flex items-center gap-3">
@@ -40,11 +42,11 @@ export function NotesPanel({ note, onSave }: NotesPanelProps) {
           className="flex items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-brand-700"
         >
           <Save size={14} />
-          Сохранить заметку
+          {t.common.saveNote}
         </button>
         {saved && (
           <span className="flex items-center gap-1 text-sm text-emerald-600">
-            <Check size={14} /> Сохранено
+            <Check size={14} /> {t.common.saved}
           </span>
         )}
       </div>

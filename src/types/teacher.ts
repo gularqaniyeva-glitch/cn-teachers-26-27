@@ -12,10 +12,13 @@ export type TeachingLanguage = 'az' | 'ru';
 
 export type PlatformStatus = 'entered' | 'not_entered';
 
+/** Три статуса прохождения модуля — без промежуточных подкатегорий */
+export type ModuleStatus = 'passed' | 'failed' | 'not_started';
+
 export interface ModuleResult {
   moduleId: string;
-  passed: boolean;
-  /** Процент результата модуля, 0–100 */
+  status: ModuleStatus;
+  /** Процент результата модуля, 0–100 (0 при статусе "не начал") */
   score: number;
 }
 
@@ -41,7 +44,8 @@ export interface Teacher {
 
 export interface ModuleDefinition {
   id: string;
-  title: string;
+  /** Отображаемый короткий код в рамках своей группы классов, напр. "M1" */
   shortTitle: string;
-  group: 'common' | GradeGroup;
+  group: GradeGroup;
+  index: number;
 }

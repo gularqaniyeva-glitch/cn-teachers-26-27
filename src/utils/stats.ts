@@ -1,25 +1,30 @@
-import type { Teacher } from '../types/teacher';
+import type { GradeGroup, Teacher } from '../types/teacher';
 import { MODULES, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
   total: number;
   entered: number;
   notEntered: number;
-  /** Доля пройденных результатов модулей среди всех имеющихся результатов, % */
+  /** Доля "Сдал" среди уже начатых модулей (без учёта "Не начал"), % */
   successRate: number;
+}
+
+function passRateOf(results: { status: string }[]): number {
+  const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
+  if (started.length === 0) return 0;
+  const passed = started.filter((r) => r.status === 'passed').length;
+  return Math.round((passed / started.length) * 100);
 }
 
 export function getOverviewStats(teachers: Teacher[]): OverviewStats {
   const total = teachers.length;
   const entered = teachers.filter((t) => t.platformStatus === 'entered').length;
   const allResults = teachers.flatMap((t) => t.moduleResults);
-  const passed = allResults.filter((r) => r.passed).length;
-  const successRate = allResults.length > 0 ? Math.round((passed / allResults.length) * 100) : 0;
 
-  return { total, entered, notEntered: total - entered, successRate };
+  return { total, entered, notEntered: total - entered, successRate: passRateOf(allResults) };
 }
 
-/** Средний результат учителя по всем пройденным/непройденным модулям, % (null — нет данных) */
+/** Средний результат учителя по всем модулям его программы (0 — за "не начал"), % */
 export function getTeacherAverageScore(teacher: Teacher): number | null {
   if (teacher.moduleResults.length === 0) return null;
   const sum = teacher.moduleResults.reduce((acc, r) => acc + r.score, 0);
@@ -28,32 +33,61 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
 
 export interface ModuleStat {
   moduleId: string;
-  title: string;
   shortTitle: string;
+  group: GradeGroup;
   /** Сколько учителей должны проходить этот модуль (входит в их программу) */
   assigned: number;
-  /** Сколько уже сдавали (есть результат) */
-  completed: number;
+  /** Сколько уже начали сдавать (сдал или не сдал) */
+  started: number;
   passed: number;
-  /** Доля прошедших среди сдававших, % */
+  /** Доля прошедших среди начавших, % */
   passRate: number;
 }
 
 export function getModuleStats(teachers: Teacher[]): ModuleStat[] {
   return MODULES.map((module) => {
-    const assigned = teachers.filter(
-      (t) => module.group === 'common' || t.gradeGroup === module.group,
-    ).length;
+    const assigned = teachers.filter((t) => t.gradeGroup === module.group).length;
     const results = teachers.flatMap((t) => t.moduleResults).filter((r) => r.moduleId === module.id);
-    const passed = results.filter((r) => r.passed).length;
+    const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
+    const passed = started.filter((r) => r.status === 'passed').length;
     return {
       moduleId: module.id,
-      title: module.title,
       shortTitle: module.shortTitle,
+      group: module.group,
       assigned,
-      completed: results.length,
+      started: started.length,
       passed,
-      passRate: results.length > 0 ? Math.round((passed / results.length) * 100) : 0,
+      passRate: passRateOf(results),
+    };
+  });
+}
+
+export interface GradeGroupModuleStat {
+  group: GradeGroup;
+  assigned: number;
+  started: number;
+  passed: number;
+  passRate: number;
+  modules: ModuleStat[];
+}
+
+/** Статистика модулей, агрегированная по группам классов — для Главной и Статистики */
+export function getModuleStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupModuleStat[] {
+  const allModuleStats = getModuleStats(teachers);
+  return groups.map((group) => {
+    const modules = allModuleStats.filter((m) => m.group === group);
+    const results = teachers
+      .filter((t) => t.gradeGroup === group)
+      .flatMap((t) => t.moduleResults);
+    const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
+    const passed = started.filter((r) => r.status === 'passed').length;
+    return {
+      group,
+      assigned: teachers.filter((t) => t.gradeGroup === group).length,
+      started: started.length,
+      passed,
+      passRate: passRateOf(results),
+      modules,
     };
   });
 }

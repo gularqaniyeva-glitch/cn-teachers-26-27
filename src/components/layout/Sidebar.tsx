@@ -1,11 +1,6 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, BarChart3, GraduationCap, X } from 'lucide-react';
-
-const NAV_ITEMS = [
-  { to: '/', label: 'Главная', icon: LayoutDashboard, end: true },
-  { to: '/teachers', label: 'Учителя', icon: Users, end: false },
-  { to: '/statistics', label: 'Статистика', icon: BarChart3, end: false },
-];
+import { LayoutDashboard, Users, GraduationCap as SeniorIcon, BarChart3, GraduationCap, X } from 'lucide-react';
+import { useT } from '../../i18n/useLocaleStore';
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -13,6 +8,15 @@ interface SidebarProps {
 }
 
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useT();
+
+  const navItems = [
+    { to: '/', label: t.nav.home, icon: LayoutDashboard, end: true },
+    { to: '/teachers', label: t.nav.teachers, icon: Users, end: false },
+    { to: '/senior', label: t.nav.seniorGrades, icon: SeniorIcon, end: false },
+    { to: '/statistics', label: t.nav.statistics, icon: BarChart3, end: false },
+  ];
+
   return (
     <>
       <div className="flex items-center gap-2.5 px-5 py-5">
@@ -21,12 +25,12 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div>
           <p className="text-sm font-semibold text-white">ЦН обучение</p>
-          <p className="text-xs text-slate-400">26/27 · панель администратора</p>
+          <p className="text-xs text-slate-400">26/27</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        {navItems.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -46,9 +50,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="px-5 py-4 text-xs text-slate-500">
-        Тестовые данные · 50 учителей
-      </div>
+      <div className="px-5 py-4 text-xs text-slate-500">{t.nav.footerNote}</div>
     </>
   );
 }

@@ -2,29 +2,9 @@ import { ArrowDown, ArrowUp, ArrowUpDown, StickyNote } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
-import {
-  GRADE_GROUP_LABELS,
-  PLATFORM_STATUS_LABELS,
-  TRAINING_TYPE_LABELS,
-} from '../../data/constants';
 import { getTeacherAverageScore } from '../../utils/stats';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
-
-interface Column {
-  key: SortKey;
-  label: string;
-}
-
-const COLUMNS: Column[] = [
-  { key: 'fullName', label: 'ФИО' },
-  { key: 'school', label: 'Школа' },
-  { key: 'district', label: 'Район' },
-  { key: 'gradeGroup', label: 'Классы' },
-  { key: 'trainingType', label: 'Тип обучения' },
-  { key: 'lifecycleStatus', label: 'OLD/NEW' },
-  { key: 'platformStatus', label: 'Платформа' },
-  { key: 'averageScore', label: 'Результат' },
-];
+import { useT } from '../../i18n/useLocaleStore';
 
 interface TeacherTableProps {
   teachers: Teacher[];
@@ -51,8 +31,20 @@ export function TeacherTable({
   onToggleSelectAll,
 }: TeacherTableProps) {
   const navigate = useNavigate();
-  const allOnPageSelected = teachers.length > 0 && teachers.every((t) => selectedIds.has(t.id));
-  const someOnPageSelected = teachers.some((t) => selectedIds.has(t.id));
+  const t = useT();
+  const allOnPageSelected = teachers.length > 0 && teachers.every((tt) => selectedIds.has(tt.id));
+  const someOnPageSelected = teachers.some((tt) => selectedIds.has(tt.id));
+
+  const columns: { key: SortKey; label: string }[] = [
+    { key: 'fullName', label: t.columns.fullName },
+    { key: 'school', label: t.columns.school },
+    { key: 'district', label: t.columns.district },
+    { key: 'gradeGroup', label: t.columns.gradeGroup },
+    { key: 'trainingType', label: t.columns.trainingType },
+    { key: 'lifecycleStatus', label: t.columns.lifecycleStatus },
+    { key: 'platformStatus', label: t.columns.platformStatus },
+    { key: 'averageScore', label: t.columns.result },
+  ];
 
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -68,10 +60,10 @@ export function TeacherTable({
                 }}
                 onChange={onToggleSelectAll}
                 className="accent-brand-600"
-                aria-label="Выбрать всех на странице"
+                aria-label={t.common.selectAllOnPage}
               />
             </th>
-            {COLUMNS.map((col) => (
+            {columns.map((col) => (
               <th key={col.key} className="px-4 py-3 whitespace-nowrap">
                 <button
                   onClick={() => onSort(col.key)}
@@ -90,42 +82,42 @@ export function TeacherTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {teachers.map((t) => {
-            const score = getTeacherAverageScore(t);
-            const isSelected = selectedIds.has(t.id);
+          {teachers.map((teacher) => {
+            const score = getTeacherAverageScore(teacher);
+            const isSelected = selectedIds.has(teacher.id);
             return (
               <tr
-                key={t.id}
-                onClick={() => navigate(`/teachers/${t.id}`)}
+                key={teacher.id}
+                onClick={() => navigate(`/teachers/${teacher.id}`)}
                 className={`cursor-pointer transition-colors hover:bg-brand-50/60 ${isSelected ? 'bg-brand-50/40' : ''}`}
               >
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => onToggleSelect(t.id)}
+                    onChange={() => onToggleSelect(teacher.id)}
                     className="accent-brand-600"
-                    aria-label={`Выбрать ${t.fullName}`}
+                    aria-label={teacher.fullName}
                   />
                 </td>
-                <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{t.fullName}</td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{t.school}</td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{t.district}</td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{GRADE_GROUP_LABELS[t.gradeGroup]}</td>
-                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{TRAINING_TYPE_LABELS[t.trainingType]}</td>
+                <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{teacher.fullName}</td>
+                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{teacher.school}</td>
+                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{teacher.district}</td>
+                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>
+                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{t.trainingType[teacher.trainingType]}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Badge variant={t.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>{t.lifecycleStatus}</Badge>
+                  <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>{teacher.lifecycleStatus}</Badge>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Badge variant={t.platformStatus === 'entered' ? 'success' : 'danger'} dot>
-                    {PLATFORM_STATUS_LABELS[t.platformStatus]}
+                  <Badge variant={teacher.platformStatus === 'entered' ? 'success' : 'danger'} dot>
+                    {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
                   </Badge>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Badge variant={scoreVariant(score)}>{score === null ? 'нет данных' : `${score}%`}</Badge>
+                  <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>
                 </td>
                 <td className="px-4 py-3 text-slate-400">
-                  {t.note && <StickyNote size={15} aria-label="Есть заметка" />}
+                  {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}
                 </td>
               </tr>
             );
@@ -134,9 +126,7 @@ export function TeacherTable({
       </table>
 
       {teachers.length === 0 && (
-        <div className="py-12 text-center text-sm text-slate-500">
-          Ничего не найдено — попробуйте изменить фильтры
-        </div>
+        <div className="py-12 text-center text-sm text-slate-500">{t.quickList.empty}</div>
       )}
     </div>
   );

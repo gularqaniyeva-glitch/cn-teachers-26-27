@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type {
   GradeGroup,
   ModuleResult,
+  ModuleStatus,
   PlatformStatus,
   Teacher,
   TeacherLifecycleStatus,
@@ -10,15 +11,13 @@ import type {
 } from '../../types/teacher';
 import {
   DISTRICTS,
-  GRADE_GROUP_LABELS,
   GRADE_GROUPS,
-  LANGUAGE_LABELS,
   LIFECYCLE_STATUSES,
-  PLATFORM_STATUS_LABELS,
-  TRAINING_TYPE_LABELS,
   TRAINING_TYPES,
+  getModule,
   modulesForGrade,
 } from '../../data/constants';
+import { useT } from '../../i18n/useLocaleStore';
 
 interface TeacherEditFormProps {
   teacher: Teacher;
@@ -42,18 +41,19 @@ interface FormState {
 
 interface ModuleFormRow {
   moduleId: string;
-  hasResult: boolean;
+  status: ModuleStatus;
   score: number;
 }
 
 function buildModuleRows(teacher: Teacher, gradeGroup: GradeGroup): ModuleFormRow[] {
   return modulesForGrade(gradeGroup).map((m) => {
     const existing = teacher.moduleResults.find((r) => r.moduleId === m.id);
-    return { moduleId: m.id, hasResult: Boolean(existing), score: existing?.score ?? 60 };
+    return { moduleId: m.id, status: existing?.status ?? 'not_started', score: existing?.score ?? 0 };
   });
 }
 
 export function TeacherEditForm({ teacher, onSave, onCancel }: TeacherEditFormProps) {
+  const t = useT();
   const [form, setForm] = useState<FormState>({
     fullName: teacher.fullName,
     district: teacher.district,
@@ -83,9 +83,11 @@ export function TeacherEditForm({ teacher, onSave, onCancel }: TeacherEditFormPr
 
   async function handleSubmit() {
     setSaving(true);
-    const moduleResults: ModuleResult[] = moduleRows
-      .filter((r) => r.hasResult)
-      .map((r) => ({ moduleId: r.moduleId, score: r.score, passed: r.score >= 60 }));
+    const moduleResults: ModuleResult[] = moduleRows.map((r) => ({
+      moduleId: r.moduleId,
+      status: r.status,
+      score: r.status === 'not_started' ? 0 : r.score,
+    }));
     try {
       await onSave({ ...form, moduleResults });
     } finally {
@@ -96,79 +98,80 @@ export function TeacherEditForm({ teacher, onSave, onCancel }: TeacherEditFormPr
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TextField label="ФИО" value={form.fullName} onChange={(v) => updateField('fullName', v)} />
-        <TextField label="FIN" value={form.fin} onChange={(v) => updateField('fin', v)} />
-        <TextField label="Телефон" value={form.phone} onChange={(v) => updateField('phone', v)} />
-        <TextField label="LMS ID" value={form.lmsId} onChange={(v) => updateField('lmsId', v)} />
+        <TextField label={t.detail.fields.fullName} value={form.fullName} onChange={(v) => updateField('fullName', v)} />
+        <TextField label={t.detail.fields.fin} value={form.fin} onChange={(v) => updateField('fin', v)} />
+        <TextField label={t.detail.fields.phone} value={form.phone} onChange={(v) => updateField('phone', v)} />
+        <TextField label={t.detail.fields.lmsId} value={form.lmsId} onChange={(v) => updateField('lmsId', v)} />
         <SelectField
-          label="Район"
+          label={t.detail.fields.district}
           value={form.district}
           onChange={(v) => updateField('district', v)}
           options={DISTRICTS.map((d) => ({ value: d, label: d }))}
         />
-        <TextField label="Школа" value={form.school} onChange={(v) => updateField('school', v)} />
+        <TextField label={t.detail.fields.school} value={form.school} onChange={(v) => updateField('school', v)} />
         <SelectField
-          label="Язык"
+          label={t.detail.fields.language}
           value={form.language}
           onChange={(v) => updateField('language', v as TeachingLanguage)}
           options={[
-            { value: 'az', label: LANGUAGE_LABELS.az },
-            { value: 'ru', label: LANGUAGE_LABELS.ru },
+            { value: 'az', label: t.language.az },
+            { value: 'ru', label: t.language.ru },
           ]}
         />
         <SelectField
-          label="Тип обучения"
+          label={t.detail.fields.trainingType}
           value={form.trainingType}
           onChange={(v) => updateField('trainingType', v as TrainingType)}
-          options={TRAINING_TYPES.map((t) => ({ value: t, label: TRAINING_TYPE_LABELS[t] }))}
+          options={TRAINING_TYPES.map((type) => ({ value: type, label: t.trainingType[type] }))}
         />
         <SelectField
-          label="Классы"
+          label={t.detail.fields.gradeGroup}
           value={form.gradeGroup}
           onChange={(v) => updateField('gradeGroup', v as GradeGroup)}
-          options={GRADE_GROUPS.map((g) => ({ value: g, label: GRADE_GROUP_LABELS[g] }))}
+          options={GRADE_GROUPS.map((g) => ({ value: g, label: t.gradeGroup[g] }))}
         />
         <SelectField
-          label="OLD / NEW"
+          label={t.detail.fields.lifecycleStatus}
           value={form.lifecycleStatus}
           onChange={(v) => updateField('lifecycleStatus', v as TeacherLifecycleStatus)}
           options={LIFECYCLE_STATUSES.map((s) => ({ value: s, label: s }))}
         />
         <SelectField
-          label="Статус платформы"
+          label={t.detail.fields.platformStatus}
           value={form.platformStatus}
           onChange={(v) => updateField('platformStatus', v as PlatformStatus)}
           options={[
-            { value: 'entered', label: PLATFORM_STATUS_LABELS.entered },
-            { value: 'not_entered', label: PLATFORM_STATUS_LABELS.not_entered },
+            { value: 'entered', label: t.platformStatus.entered },
+            { value: 'not_entered', label: t.platformStatus.notEntered },
           ]}
         />
       </div>
 
       <div>
-        <h4 className="mb-2 text-sm font-semibold text-slate-900">Результаты модулей</h4>
+        <h4 className="mb-2 text-sm font-semibold text-slate-900">{t.detail.moduleResults}</h4>
         <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
           {moduleRows.map((row) => (
-            <div key={row.moduleId} className="flex items-center gap-4 px-3 py-2.5">
-              <label className="flex w-40 shrink-0 items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={row.hasResult}
-                  onChange={(e) => updateModuleRow(row.moduleId, { hasResult: e.target.checked })}
-                  className="rounded border-slate-300"
-                />
-                {row.moduleId}
-              </label>
+            <div key={row.moduleId} className="flex items-center gap-3 px-3 py-2.5">
+              <span className="w-10 shrink-0 text-sm font-medium text-slate-700">{getModule(row.moduleId)?.shortTitle}</span>
+              <select
+                value={row.status}
+                onChange={(e) => updateModuleRow(row.moduleId, { status: e.target.value as ModuleStatus })}
+                className="rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
+              >
+                <option value="passed">{t.moduleStatus.passed}</option>
+                <option value="failed">{t.moduleStatus.failed}</option>
+                <option value="not_started">{t.moduleStatus.notStarted}</option>
+              </select>
               <input
                 type="number"
                 min={0}
                 max={100}
                 value={row.score}
-                disabled={!row.hasResult}
+                disabled={row.status === 'not_started'}
                 onChange={(e) => updateModuleRow(row.moduleId, { score: Number(e.target.value) })}
-                className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-400"
+                className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-50 disabled:text-slate-400"
               />
-              <span className="text-xs text-slate-400">% результат</span>
+              <span className="text-xs text-slate-400">%</span>
             </div>
           ))}
         </div>
@@ -180,13 +183,13 @@ export function TeacherEditForm({ teacher, onSave, onCancel }: TeacherEditFormPr
           disabled={saving}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
         >
-          Сохранить изменения
+          {t.detail.saveChanges}
         </button>
         <button
           onClick={onCancel}
           className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
         >
-          Отмена
+          {t.common.cancel}
         </button>
       </div>
     </div>

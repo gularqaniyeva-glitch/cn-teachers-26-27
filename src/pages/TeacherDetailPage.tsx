@@ -7,14 +7,9 @@ import { Badge } from '../components/ui/Badge';
 import { TeacherEditForm } from '../components/teacher/TeacherEditForm';
 import { ModuleResultsPanel } from '../components/teacher/ModuleResultsPanel';
 import { NotesPanel } from '../components/teacher/NotesPanel';
-import {
-  GRADE_GROUP_LABELS,
-  LANGUAGE_LABELS,
-  PLATFORM_STATUS_LABELS,
-  TRAINING_TYPE_LABELS,
-} from '../data/constants';
 import { getTeacherAverageScore } from '../utils/stats';
 import type { Teacher } from '../types/teacher';
+import { useT } from '../i18n/useLocaleStore';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
@@ -28,6 +23,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export function TeacherDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const t = useT();
   const { teachers, loading, load, updateTeacher } = useTeacherStore();
   const [editing, setEditing] = useState(false);
 
@@ -38,14 +34,14 @@ export function TeacherDetailPage() {
   const teacher = teachers.find((t) => t.id === id);
 
   if (loading && teachers.length === 0) {
-    return <p className="text-slate-500">Загрузка данных…</p>;
+    return <p className="text-slate-500">{t.common.loading}</p>;
   }
 
   if (!teacher) {
     return (
       <div className="space-y-4">
-        <BackButton onClick={() => navigate('/teachers')} />
-        <p className="text-slate-500">Учитель не найден.</p>
+        <BackButton onClick={() => navigate('/teachers')} label={t.common.backToList} />
+        <p className="text-slate-500">{t.common.notFound}</p>
       </div>
     );
   }
@@ -61,7 +57,7 @@ export function TeacherDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <BackButton onClick={() => navigate('/teachers')} />
+          <BackButton onClick={() => navigate('/teachers')} label={t.common.backToList} />
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">{teacher.fullName}</h1>
             <p className="text-sm text-slate-500">{teacher.school}</p>
@@ -73,53 +69,53 @@ export function TeacherDetailPage() {
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <Pencil size={15} />
-            Редактировать
+            {t.common.edit}
           </button>
         )}
       </div>
 
       {editing ? (
-        <Card title="Редактирование данных">
+        <Card title={t.detail.editTitle}>
           <TeacherEditForm teacher={teacher} onSave={handleSave} onCancel={() => setEditing(false)} />
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title="Основная информация">
-            <InfoRow label="ФИО" value={teacher.fullName} />
-            <InfoRow label="FIN" value={teacher.fin} />
-            <InfoRow label="Телефон" value={teacher.phone} />
-            <InfoRow label="LMS ID" value={teacher.lmsId} />
-            <InfoRow label="Язык" value={LANGUAGE_LABELS[teacher.language]} />
+          <Card title={t.detail.basicInfo}>
+            <InfoRow label={t.detail.fields.fullName} value={teacher.fullName} />
+            <InfoRow label={t.detail.fields.fin} value={teacher.fin} />
+            <InfoRow label={t.detail.fields.phone} value={teacher.phone} />
+            <InfoRow label={t.detail.fields.lmsId} value={teacher.lmsId} />
+            <InfoRow label={t.detail.fields.language} value={t.language[teacher.language]} />
           </Card>
 
-          <Card title="Школа и обучение">
-            <InfoRow label="Школа" value={teacher.school} />
-            <InfoRow label="Район" value={teacher.district} />
-            <InfoRow label="Классы" value={GRADE_GROUP_LABELS[teacher.gradeGroup]} />
-            <InfoRow label="Тип обучения" value={TRAINING_TYPE_LABELS[teacher.trainingType]} />
+          <Card title={t.detail.schoolAndTraining}>
+            <InfoRow label={t.detail.fields.school} value={teacher.school} />
+            <InfoRow label={t.detail.fields.district} value={teacher.district} />
+            <InfoRow label={t.detail.fields.gradeGroup} value={t.gradeGroup[teacher.gradeGroup]} />
+            <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />
             <div className="flex items-center justify-between gap-4 py-2 text-sm">
-              <span className="text-slate-500">OLD / NEW</span>
+              <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>
               <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>
                 {teacher.lifecycleStatus}
               </Badge>
             </div>
             <div className="flex items-center justify-between gap-4 py-2 text-sm">
-              <span className="text-slate-500">Статус платформы</span>
+              <span className="text-slate-500">{t.detail.fields.platformStatus}</span>
               <Badge variant={teacher.platformStatus === 'entered' ? 'success' : 'danger'} dot>
-                {PLATFORM_STATUS_LABELS[teacher.platformStatus]}
+                {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
               </Badge>
             </div>
           </Card>
 
           <Card
-            title="Результаты модулей"
+            title={t.detail.moduleResults}
             action={
               avgScore !== null ? (
                 <Badge variant={avgScore >= 70 ? 'success' : avgScore >= 50 ? 'warning' : 'danger'}>
-                  Средний результат: {avgScore}%
+                  {t.detail.averageResult}: {avgScore}%
                 </Badge>
               ) : (
-                <Badge variant="neutral">Нет данных</Badge>
+                <Badge variant="neutral">{t.common.noData}</Badge>
               )
             }
             className="lg:col-span-2"
@@ -127,7 +123,7 @@ export function TeacherDetailPage() {
             <ModuleResultsPanel teacher={teacher} />
           </Card>
 
-          <Card title="Внутренняя заметка" className="lg:col-span-2">
+          <Card title={t.detail.internalNote} className="lg:col-span-2">
             <NotesPanel note={teacher.note} onSave={(note) => updateTeacher(teacher.id, { note })} />
           </Card>
         </div>
@@ -136,12 +132,12 @@ export function TeacherDetailPage() {
   );
 }
 
-function BackButton({ onClick }: { onClick: () => void }) {
+function BackButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
       className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-      aria-label="Назад к списку"
+      aria-label={label}
     >
       <ArrowLeft size={16} />
     </button>

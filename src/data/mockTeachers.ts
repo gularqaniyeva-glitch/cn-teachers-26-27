@@ -1,4 +1,4 @@
-import type { Teacher, TrainingType, TeacherLifecycleStatus, TeachingLanguage, GradeGroup } from '../types/teacher';
+import type { Teacher, TrainingType, TeacherLifecycleStatus, TeachingLanguage, GradeGroup, ModuleStatus } from '../types/teacher';
 import { DISTRICTS, GRADE_GROUPS, TRAINING_TYPES, modulesForGrade } from './constants';
 
 // Полностью вымышленные имена — не имеют отношения к реальным людям.
@@ -80,14 +80,16 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
     const entered = rng() > 0.22;
 
     const applicableModules = modulesForGrade(gradeGroup);
-    const moduleResults = entered
-      ? applicableModules
-          .filter(() => rng() > 0.12) // часть модулей ещё не начата
-          .map((m) => {
-            const score = randomInt(rng, 35, 100);
-            return { moduleId: m.id, passed: score >= 60, score };
-          })
-      : [];
+    const moduleResults = applicableModules.map((m) => {
+      // Не вошедшие на платформу ни к одному модулю не приступали.
+      if (!entered || rng() < 0.15) {
+        const status: ModuleStatus = 'not_started';
+        return { moduleId: m.id, status, score: 0 };
+      }
+      const score = randomInt(rng, 35, 100);
+      const status: ModuleStatus = score >= 60 ? 'passed' : 'failed';
+      return { moduleId: m.id, status, score };
+    });
 
     teachers.push({
       id: `t-${i + 1}`,

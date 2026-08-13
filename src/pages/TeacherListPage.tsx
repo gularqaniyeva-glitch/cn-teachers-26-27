@@ -1,0 +1,225 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Download, Search, Settings2 } from 'lucide-react';
+import { useTeacherStore } from '../store/useTeacherStore';
+import { TeacherFiltersBar } from '../components/teachers/TeacherFilters';
+import { TeacherFilterTree } from '../components/teachers/TeacherFilterTree';
+import { TeacherTable } from '../components/teachers/TeacherTable';
+import { BulkActionBar } from '../components/teachers/BulkActionBar';
+import { ModuleQuickListPanel } from '../components/teachers/ModuleQuickListPanel';
+import { Pagination } from '../components/teachers/Pagination';
+import { DEFAULT_FILTERS, filterTeachers, sortTeachers } from '../utils/teacherFilters';
+import type { SortKey, SortState } from '../utils/teacherFilters';
+import { exportTeachersToCsv } from '../utils/csvExport';
+import { moduleAppliesToTeacher, upsertModuleResult } from '../utils/bulkActions';
+import type { GradeGroup, ModuleStatus, Teacher, TrainingType } from '../types/teacher';
+import { MODULES } from '../data/constants';
+import { useT } from '../i18n/useLocaleStore';
+
+interface TeacherListPageProps {
+  gradeGroups: GradeGroup[];
+  title: string;
+  subtitle: string;
+}
+
+export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
+  const t = useT();
+  const { teachers: allTeachers, loading, load, updateManyTeachers } = useTeacherStore();
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const scopedTeachers = useMemo(
+    () => allTeachers.filter((teacher) => gradeGroups.includes(teacher.gradeGroup)),
+    [allTeachers, gradeGroups],
+  );
+
+  const allSchools = useMemo(() => Array.from(new Set(scopedTeachers.map((t) => t.school))).sort(), [scopedTeachers]);
+  const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
+
+  const filtered = useMemo(() => filterTeachers(scopedTeachers, filters), [scopedTeachers, filters]);
+  const sorted = useMemo(() => sortTeachers(filtered, sort), [filtered, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function handleFilterChange<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  }
+
+  function toggleArrayValue<K extends 'districts' | 'schools' | 'gradeGroups' | 'lifecycleStatuses'>(
+    key: K,
+    value: string,
+  ) {
+    setFilters((prev) => {
+      const arr = prev[key] as string[];
+      const next = arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
+      return { ...prev, [key]: next };
+    });
+    setPage(1);
+  }
+
+  function handleReset() {
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+  }
+
+  function handleSort(key: SortKey) {
+    setSort((prev) =>
+      prev.key === key ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' },
+    );
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllOnPage() {
+    setSelectedIds((prev) => {
+      const allSelected = pageItems.length > 0 && pageItems.every((t) => prev.has(t.id));
+      const next = new Set(prev);
+      if (allSelected) {
+        pageItems.forEach((t) => next.delete(t.id));
+      } else {
+        pageItems.forEach((t) => next.add(t.id));
+      }
+      return next;
+    });
+  }
+
+  async function handleApplyModuleStatus(moduleId: string, status: ModuleStatus) {
+    const ids = Array.from(selectedIds);
+    const applicableIds = scopedTeachers
+      .filter((t) => ids.includes(t.id) && moduleAppliesToTeacher(t, moduleId))
+      .map((t) => t.id);
+
+    if (applicableIds.length === 0) {
+      window.alert(t.bulk.notApplicableWarning);
+      return;
+    }
+
+    await updateManyTeachers(applicableIds, (teacher: Teacher) => ({
+      moduleResults: upsertModuleResult(teacher.moduleResults, moduleId, status),
+    }));
+
+    if (applicableIds.length < ids.length) {
+      window.alert(
+        t.bulk.partiallyAppliedWarning
+          .replace('{applied}', String(applicableIds.length))
+          .replace('{total}', String(ids.length)),
+      );
+    }
+    setSelectedIds(new Set());
+  }
+
+  async function handleAssign(patch: { school?: string; trainingType?: TrainingType }) {
+    if (!patch.school && !patch.trainingType) return;
+    await updateManyTeachers(Array.from(selectedIds), () => ({ ...patch }));
+    setSelectedIds(new Set());
+  }
+
+  if (loading && allTeachers.length === 0) {
+    return <p className="text-slate-500">{t.common.loading}</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {t.common.found} {sorted.length} {t.common.of} {scopedTeachers.length}
+          </p>
+        </div>
+        <button
+          onClick={() => exportTeachersToCsv(sorted, t)}
+          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          <Download size={16} />
+          {t.common.exportCsv}
+        </button>
+      </div>
+
+      <ModuleQuickListPanel teachers={scopedTeachers} gradeGroupOptions={gradeGroups} />
+
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={filters.search}
+          onChange={(e) => handleFilterChange('search', e.target.value)}
+          placeholder={t.common.search}
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+
+      <button
+        onClick={() => setFiltersOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        <Settings2 size={15} />
+        {t.common.filtersToggle}
+      </button>
+
+      {filtersOpen && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
+          <TeacherFilterTree
+            teachers={scopedTeachers}
+            filters={filters}
+            gradeGroupOptions={gradeGroups}
+            onToggleDistrict={(d) => toggleArrayValue('districts', d)}
+            onToggleSchool={(s) => toggleArrayValue('schools', s)}
+            onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
+            onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
+            onModuleChange={(id) => handleFilterChange('moduleId', id)}
+            onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
+            onSectorChange={(sector) => handleFilterChange('sector', sector)}
+          />
+          <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
+        </div>
+      )}
+
+      <BulkActionBar
+        count={selectedIds.size}
+        modules={scopedModules}
+        schools={allSchools}
+        onClear={() => setSelectedIds(new Set())}
+        onApplyModuleStatus={handleApplyModuleStatus}
+        onAssign={handleAssign}
+      />
+
+      <TeacherTable
+        teachers={pageItems}
+        sort={sort}
+        onSort={handleSort}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onToggleSelectAll={toggleSelectAllOnPage}
+      />
+
+      <Pagination
+        page={currentPage}
+        pageSize={pageSize}
+        total={sorted.length}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
+    </div>
+  );
+}

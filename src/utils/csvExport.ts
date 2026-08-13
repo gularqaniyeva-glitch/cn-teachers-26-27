@@ -1,6 +1,7 @@
 import type { Teacher } from '../types/teacher';
-import { GRADE_GROUP_LABELS, LANGUAGE_LABELS, MODULES, PLATFORM_STATUS_LABELS, TRAINING_TYPE_LABELS } from '../data/constants';
+import { MODULES } from '../data/constants';
 import { getTeacherAverageScore } from './stats';
+import type { Dict } from '../i18n/translations';
 
 function escapeCsvCell(value: string | number): string {
   const str = String(value);
@@ -10,47 +11,53 @@ function escapeCsvCell(value: string | number): string {
   return str;
 }
 
-export function exportTeachersToCsv(teachers: Teacher[], filename = 'учителя.csv'): void {
+export function exportTeachersToCsv(teachers: Teacher[], t: Dict, filename = 'teachers.csv'): void {
   const headers = [
-    'ФИО',
-    'Школа',
-    'Район',
-    'FIN',
-    'Телефон',
-    'LMS ID',
-    'Язык',
-    'Тип обучения',
-    'Статус',
-    'Классы',
-    'Статус платформы',
-    'Средний результат, %',
-    ...MODULES.map((m) => m.shortTitle),
-    'Заметка',
+    t.columns.fullName,
+    t.columns.school,
+    t.columns.district,
+    t.detail.fields.fin,
+    t.detail.fields.phone,
+    t.detail.fields.lmsId,
+    t.detail.fields.language,
+    t.columns.trainingType,
+    t.columns.lifecycleStatus,
+    t.columns.gradeGroup,
+    t.columns.platformStatus,
+    `${t.columns.result}, %`,
+    ...MODULES.map((m) => `${t.gradeGroup[m.group]} · ${m.shortTitle}`),
+    t.columns.note,
   ];
 
-  const rows = teachers.map((t) => {
-    const avg = getTeacherAverageScore(t);
+  const statusLabel = {
+    passed: t.moduleStatus.passed,
+    failed: t.moduleStatus.failed,
+    not_started: t.moduleStatus.notStarted,
+  } as const;
+
+  const rows = teachers.map((teacher) => {
+    const avg = getTeacherAverageScore(teacher);
     const moduleCells = MODULES.map((m) => {
-      const result = t.moduleResults.find((r) => r.moduleId === m.id);
-      if (!result) return 'нет данных';
-      return `${result.passed ? 'прошёл' : 'не прошёл'} (${result.score}%)`;
+      const result = teacher.moduleResults.find((r) => r.moduleId === m.id);
+      if (!result) return '';
+      return `${statusLabel[result.status]} (${result.score}%)`;
     });
 
     return [
-      t.fullName,
-      t.school,
-      t.district,
-      t.fin,
-      t.phone,
-      t.lmsId,
-      LANGUAGE_LABELS[t.language],
-      TRAINING_TYPE_LABELS[t.trainingType],
-      t.lifecycleStatus,
-      GRADE_GROUP_LABELS[t.gradeGroup],
-      PLATFORM_STATUS_LABELS[t.platformStatus],
-      avg === null ? 'нет данных' : String(avg),
+      teacher.fullName,
+      teacher.school,
+      teacher.district,
+      teacher.fin,
+      teacher.phone,
+      teacher.lmsId,
+      t.language[teacher.language],
+      t.trainingType[teacher.trainingType],
+      teacher.lifecycleStatus,
+      t.gradeGroup[teacher.gradeGroup],
+      t.platformStatus[teacher.platformStatus === 'entered' ? 'entered' : 'notEntered'],
+      avg === null ? '' : String(avg),
       ...moduleCells,
-      t.note,
+      teacher.note,
     ];
   });
 

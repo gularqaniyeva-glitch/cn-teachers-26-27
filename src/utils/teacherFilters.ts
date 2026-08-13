@@ -10,8 +10,10 @@ export interface TeacherFilters {
   lifecycleStatuses: TeacherLifecycleStatus[];
   trainingType: string;
   platformStatus: string;
+  /** '' — все, 'az' | 'ru' */
+  sector: string;
   moduleId: string;
-  /** '' — любой, 'passed' | 'failed' | 'no_data' */
+  /** '' — любой, 'passed' | 'failed' | 'not_started' */
   moduleResult: string;
 }
 
@@ -23,6 +25,7 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   lifecycleStatuses: [],
   trainingType: '',
   platformStatus: '',
+  sector: '',
   moduleId: '',
   moduleResult: '',
 };
@@ -41,12 +44,11 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.lifecycleStatuses.length && !filters.lifecycleStatuses.includes(t.lifecycleStatus)) return false;
     if (filters.trainingType && t.trainingType !== filters.trainingType) return false;
     if (filters.platformStatus && t.platformStatus !== filters.platformStatus) return false;
+    if (filters.sector && t.language !== filters.sector) return false;
 
     if (filters.moduleId) {
       const result = t.moduleResults.find((r) => r.moduleId === filters.moduleId);
-      if (filters.moduleResult === 'passed' && !(result && result.passed)) return false;
-      if (filters.moduleResult === 'failed' && !(result && !result.passed)) return false;
-      if (filters.moduleResult === 'no_data' && result) return false;
+      if (filters.moduleResult && result?.status !== filters.moduleResult) return false;
     }
 
     return true;

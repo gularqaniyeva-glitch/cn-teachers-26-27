@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useT } from '../../i18n/useLocaleStore';
 
 interface PaginationProps {
   page: number;
@@ -11,6 +12,7 @@ interface PaginationProps {
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: PaginationProps) {
+  const t = useT();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
@@ -19,7 +21,7 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
     <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-slate-600">
       <div className="flex items-center gap-2">
         <span>
-          Показано {from}–{to} из {total}
+          {t.pagination.shown} {from}–{to} {t.common.of} {total}
         </span>
         <select
           value={pageSize}
@@ -28,7 +30,7 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
         >
           {PAGE_SIZE_OPTIONS.map((size) => (
             <option key={size} value={size}>
-              {size} на странице
+              {size} {t.pagination.perPage}
             </option>
           ))}
         </select>
@@ -43,7 +45,7 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
           <ChevronLeft size={16} />
         </button>
         <span className="min-w-[80px] text-center">
-          Стр. {page} из {totalPages}
+          {t.pagination.page} {page} {t.common.of} {totalPages}
         </span>
         <button
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
