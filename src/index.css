@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  /* Фирменный фиолетовый — акцент для кнопок, активных вкладок, фокуса */
+  --color-brand-50: #f4edff;
+  --color-brand-100: #e8d9ff;
+  --color-brand-200: #d1b3ff;
+  --color-brand-300: #b382ff;
+  --color-brand-400: #9a5cf7;
+  --color-brand-500: #7e2ff2;
+  --color-brand-600: #5d00e9;
+  --color-brand-700: #4c00c2;
+  --color-brand-800: #3b0099;
+  --color-brand-900: #2c0073;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #f4f5f7;
+  color: #1c2128;
+  font-family: var(--font-sans);
+}
+
+/* Компактный, но не назойливый скроллбар — таблица с большим числом строк
+   не должна выглядеть как классический Excel-лист. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #9ca3af;
+}
