@@ -1,5 +1,6 @@
 import type { GradeGroup, Teacher, TeacherLifecycleStatus } from '../types/teacher';
 import { getTeacherAverageScore } from './stats';
+import { getEffectiveModuleStatus } from './anomalies';
 
 export interface TeacherFilters {
   search: string;
@@ -13,7 +14,7 @@ export interface TeacherFilters {
   /** '' — все, 'az' | 'ru' */
   sector: string;
   moduleId: string;
-  /** '' — любой, 'passed' | 'failed' | 'not_started' */
+  /** '' — любой, 'passed' | 'failed' | 'not_started' | 'on_review' */
   moduleResult: string;
 }
 
@@ -46,9 +47,8 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.platformStatus && t.platformStatus !== filters.platformStatus) return false;
     if (filters.sector && t.language !== filters.sector) return false;
 
-    if (filters.moduleId) {
-      const result = t.moduleResults.find((r) => r.moduleId === filters.moduleId);
-      if (filters.moduleResult && result?.status !== filters.moduleResult) return false;
+    if (filters.moduleId && filters.moduleResult) {
+      if (getEffectiveModuleStatus(t, filters.moduleId) !== filters.moduleResult) return false;
     }
 
     return true;

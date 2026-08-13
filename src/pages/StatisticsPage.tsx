@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronRight, Download, Search } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { countByKey, getModuleStatsByGradeGroup } from '../utils/stats';
-import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES } from '../data/constants';
+import { findGroupAnomalies, findIndividualAnomalies } from '../utils/anomalies';
+import { exportAnomaliesToCsv } from '../utils/csvExport';
+import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
+import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES, getModule } from '../data/constants';
 import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
@@ -14,10 +17,18 @@ export function StatisticsPage() {
   const { teachers, loading, load } = useTeacherStore();
   const t = useT();
   const [expandedGroup, setExpandedGroup] = useState<GradeGroup | null>(null);
+  const [quickViewId, setQuickViewId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const individualAnomalies = useMemo(() => findIndividualAnomalies(teachers), [teachers]);
+  const groupAnomalies = useMemo(() => findGroupAnomalies(teachers), [teachers]);
+  const quickViewTeacher = useMemo(
+    () => teachers.find((teacher) => teacher.id === quickViewId) ?? null,
+    [teachers, quickViewId],
+  );
 
   if (loading && teachers.length === 0) {
     return <p className="text-slate-500">{t.common.loading}</p>;
@@ -117,6 +128,74 @@ export function StatisticsPage() {
           </div>
         </Card>
       </div>
+
+      <Card title={`🔍 ${t.anomalies.title}`} titleTooltip={t.anomalies.hint}>
+        {individualAnomalies.length === 0 && groupAnomalies.length === 0 ? (
+          <p className="text-sm text-slate-500">{t.anomalies.noneFound}</p>
+        ) : (
+          <div className="space-y-6">
+            {individualAnomalies.length > 0 && (
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold text-slate-800">
+                    {t.anomalies.individualSectionTitle} ({individualAnomalies.length})
+                  </h4>
+                  <button
+                    onClick={() => exportAnomaliesToCsv(individualAnomalies, t)}
+                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                  >
+                    <Download size={13} />
+                    {t.common.exportCsv}
+                  </button>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {individualAnomalies.map(({ teacher, moduleIds }) => (
+                    <div key={teacher.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-800">{teacher.fullName}</p>
+                        <p className="truncate text-xs text-slate-500">
+                          {teacher.school} · {t.anomalies.flaggedModulesLabel}:{' '}
+                          {moduleIds.map((id) => getModule(id)?.shortTitle ?? id).join(', ')}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setQuickViewId(teacher.id)}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-200"
+                      >
+                        <Search size={13} />
+                        {t.anomalies.checkLms}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {groupAnomalies.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-semibold text-slate-800">
+                  {t.anomalies.groupSectionTitle} ({groupAnomalies.length})
+                </h4>
+                <div className="space-y-2">
+                  {groupAnomalies.map((g, i) => (
+                    <div key={i} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-sm font-medium text-amber-800">⚠️ {t.anomalies.groupErrorLabel}</p>
+                      <p className="mt-0.5 text-xs text-amber-700">
+                        {t.gradeGroup[g.gradeGroup]} · {t.language[g.sector]} · {t.trainingType[g.trainingType]} ·{' '}
+                        {g.module.shortTitle} — {g.zeroRatio}% {t.anomalies.zeroRatioSuffix} ({g.teacherCount}{' '}
+                        {t.anomalies.teachersSuffix}), {t.statistics.passedOf} {g.overallProgress}%{' '}
+                        {t.dashboard.ofTotal}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <TeacherQuickViewModal teacher={quickViewTeacher} onClose={() => setQuickViewId(null)} />
     </div>
   );
 }

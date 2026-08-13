@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { TeacherEditForm } from '../components/teacher/TeacherEditForm';
 import { ModuleResultsPanel } from '../components/teacher/ModuleResultsPanel';
 import { NotesPanel } from '../components/teacher/NotesPanel';
+import { DeadlineStatsBar } from '../components/teacher/DeadlineStatsBar';
 import { getTeacherAverageScore } from '../utils/stats';
 import type { Teacher } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
@@ -79,53 +80,59 @@ export function TeacherDetailPage() {
           <TeacherEditForm teacher={teacher} onSave={handleSave} onCancel={() => setEditing(false)} />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card title={t.detail.basicInfo}>
-            <InfoRow label={t.detail.fields.fullName} value={teacher.fullName} />
-            <InfoRow label={t.detail.fields.fin} value={teacher.fin} />
-            <InfoRow label={t.detail.fields.phone} value={teacher.phone} />
-            <InfoRow label={t.detail.fields.lmsId} value={teacher.lmsId} />
-            <InfoRow label={t.detail.fields.language} value={t.language[teacher.language]} />
+        <div className="space-y-6">
+          <Card title={t.deadlines.cardTitle}>
+            <DeadlineStatsBar teacher={teacher} />
           </Card>
 
-          <Card title={t.detail.schoolAndTraining}>
-            <InfoRow label={t.detail.fields.school} value={teacher.school} />
-            <InfoRow label={t.detail.fields.district} value={teacher.district} />
-            <InfoRow label={t.detail.fields.gradeGroup} value={t.gradeGroup[teacher.gradeGroup]} />
-            <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />
-            <div className="flex items-center justify-between gap-4 py-2 text-sm">
-              <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>
-              <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>
-                {teacher.lifecycleStatus}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-2 text-sm">
-              <span className="text-slate-500">{t.detail.fields.platformStatus}</span>
-              <Badge variant={teacher.platformStatus === 'entered' ? 'success' : 'danger'} dot>
-                {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
-              </Badge>
-            </div>
-          </Card>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Card title={t.detail.basicInfo}>
+              <InfoRow label={t.detail.fields.fullName} value={teacher.fullName} />
+              <InfoRow label={t.detail.fields.fin} value={teacher.fin} />
+              <InfoRow label={t.detail.fields.phone} value={teacher.phone} />
+              <InfoRow label={t.detail.fields.lmsId} value={teacher.lmsId} />
+              <InfoRow label={t.detail.fields.language} value={t.language[teacher.language]} />
+            </Card>
 
-          <Card
-            title={t.detail.moduleResults}
-            action={
-              avgScore !== null ? (
-                <Badge variant={avgScore >= 70 ? 'success' : avgScore >= 50 ? 'warning' : 'danger'}>
-                  {t.detail.averageResult}: {avgScore}%
+            <Card title={t.detail.schoolAndTraining}>
+              <InfoRow label={t.detail.fields.school} value={teacher.school} />
+              <InfoRow label={t.detail.fields.district} value={teacher.district} />
+              <InfoRow label={t.detail.fields.gradeGroup} value={t.gradeGroup[teacher.gradeGroup]} />
+              <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />
+              <div className="flex items-center justify-between gap-4 py-2 text-sm">
+                <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>
+                <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>
+                  {teacher.lifecycleStatus}
                 </Badge>
-              ) : (
-                <Badge variant="neutral">{t.common.noData}</Badge>
-              )
-            }
-            className="lg:col-span-2"
-          >
-            <ModuleResultsPanel teacher={teacher} />
-          </Card>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-2 text-sm">
+                <span className="text-slate-500">{t.detail.fields.platformStatus}</span>
+                <Badge variant={teacher.platformStatus === 'entered' ? 'success' : 'danger'} dot>
+                  {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
+                </Badge>
+              </div>
+            </Card>
 
-          <Card title={t.detail.internalNote} className="lg:col-span-2">
-            <NotesPanel note={teacher.note} onSave={(note) => updateTeacher(teacher.id, { note })} />
-          </Card>
+            <Card
+              title={t.detail.moduleResults}
+              action={
+                avgScore !== null ? (
+                  <Badge variant={avgScore >= 70 ? 'success' : avgScore >= 50 ? 'warning' : 'danger'}>
+                    {t.detail.averageResult}: {avgScore}%
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral">{t.common.noData}</Badge>
+                )
+              }
+              className="lg:col-span-2"
+            >
+              <ModuleResultsPanel teacher={teacher} />
+            </Card>
+
+            <Card title={t.detail.internalNote} className="lg:col-span-2">
+              <NotesPanel note={teacher.note} onSave={(note) => updateTeacher(teacher.id, { note })} />
+            </Card>
+          </div>
         </div>
       )}
     </div>

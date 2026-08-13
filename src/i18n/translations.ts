@@ -39,6 +39,7 @@ export interface Dict {
     passed: string;
     failed: string;
     notStarted: string;
+    onReview: string;
   };
   platformStatus: {
     entered: string;
@@ -166,6 +167,29 @@ export interface Dict {
     perPage: string;
     page: string;
   };
+  deadlines: {
+    assignedLabel: string;
+    dueLabel: string;
+    passedLabel: string;
+    percentLabel: string;
+    resultHint: string;
+    cardTitle: string;
+    notAvailable: string;
+  };
+  anomalies: {
+    title: string;
+    hint: string;
+    checkLms: string;
+    tooltipText: string;
+    noneFound: string;
+    individualSectionTitle: string;
+    groupSectionTitle: string;
+    groupErrorLabel: string;
+    flaggedModulesLabel: string;
+    zeroRatioSuffix: string;
+    teachersSuffix: string;
+    onlyAnomaliesFilter: string;
+  };
 }
 
 export const TRANSLATIONS: Record<Locale, Dict> = {
@@ -206,6 +230,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passed: '🟢 Сдал',
       failed: '🔴 Не сдал',
       notStarted: '⚪ Не начал',
+      onReview: '🔍 На проверку',
     },
     platformStatus: {
       entered: 'Вошёл',
@@ -344,6 +369,29 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       perPage: 'на странице',
       page: 'Стр.',
     },
+    deadlines: {
+      assignedLabel: 'Назначено аттестаций',
+      dueLabel: 'Наступило дедлайнов',
+      passedLabel: 'Фактически сдал',
+      percentLabel: '% Успеваемости',
+      resultHint: 'Сдано {passed} из {due} наступивших дедлайнов',
+      cardTitle: 'Дедлайны и аттестации',
+      notAvailable: '—',
+    },
+    anomalies: {
+      title: 'Выявленные аномалии данных LMS',
+      hint: 'Автоматический поиск технических сбоев выгрузки: одиночные пропуски у в целом успешных учителей и массовые пропуски по модулю в конкретной группе.',
+      checkLms: 'Проверить LMS',
+      tooltipText: 'Высокая вероятность сбоя выгрузки LMS: остальные модули сданы успешно',
+      noneFound: 'Аномалий не найдено — данные выглядят последовательно.',
+      individualSectionTitle: 'Индивидуальные аномалии',
+      groupSectionTitle: 'Массовые аномалии по группам',
+      groupErrorLabel: 'Ошибка выгрузки LMS',
+      flaggedModulesLabel: 'Подозрительные модули',
+      zeroRatioSuffix: 'нулей',
+      teachersSuffix: 'учителей',
+      onlyAnomaliesFilter: 'Только на проверку LMS',
+    },
   },
   az: {
     nav: {
@@ -382,6 +430,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passed: '🟢 Keçdi',
       failed: '🔴 Keçmədi',
       notStarted: '⚪ Başlamayıb',
+      onReview: '🔍 Yoxlanılmalı',
     },
     platformStatus: {
       entered: 'Daxil olub',
@@ -519,6 +568,29 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       shown: 'Göstərilir:',
       perPage: 'səhifədə',
       page: 'Səh.',
+    },
+    deadlines: {
+      assignedLabel: 'Təyin edilmiş attestasiyalar',
+      dueLabel: 'Çatmış son tarixlər',
+      passedLabel: 'Faktiki keçdi',
+      percentLabel: '% Müvəffəqiyyət',
+      resultHint: 'Çatmış son tarixlərdən {due}-dan {passed}-i təhvil verilib',
+      cardTitle: 'Son tarixlər və attestasiyalar',
+      notAvailable: '—',
+    },
+    anomalies: {
+      title: 'Aşkar edilmiş LMS məlumat anomaliyaları',
+      hint: 'Yükləmə xətalarının avtomatik axtarışı: ümumilikdə uğurlu müəllimlərdə tək boşluqlar və konkret qrupda modul üzrə kütləvi boşluqlar.',
+      checkLms: 'LMS-i yoxla',
+      tooltipText: 'LMS yükləmə xətası ehtimalı yüksəkdir: qalan modullar uğurla keçilib',
+      noneFound: 'Anomaliya tapılmadı — məlumatlar ardıcıl görünür.',
+      individualSectionTitle: 'Fərdi anomaliyalar',
+      groupSectionTitle: 'Qruplar üzrə kütləvi anomaliyalar',
+      groupErrorLabel: 'LMS yükləmə xətası',
+      flaggedModulesLabel: 'Şübhəli modullar',
+      zeroRatioSuffix: 'sıfır',
+      teachersSuffix: 'müəllim',
+      onlyAnomaliesFilter: 'Yalnız LMS yoxlanılası',
     },
   },
 };

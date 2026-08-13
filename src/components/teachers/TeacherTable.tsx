@@ -1,7 +1,9 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, StickyNote } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, StickyNote, Search } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { getTeacherAverageScore } from '../../utils/stats';
+import { getTeacherDeadlineStats } from '../../utils/deadlines';
+import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -85,6 +87,14 @@ export function TeacherTable({
           {teachers.map((teacher) => {
             const score = getTeacherAverageScore(teacher);
             const isSelected = selectedIds.has(teacher.id);
+            const deadlineStats = getTeacherDeadlineStats(teacher);
+            const deadlineHint =
+              deadlineStats.due > 0
+                ? t.deadlines.resultHint
+                    .replace('{passed}', String(deadlineStats.passedDue))
+                    .replace('{due}', String(deadlineStats.due))
+                : null;
+            const flagged = hasAnomaly(teacher);
             return (
               <tr
                 key={teacher.id}
@@ -113,11 +123,21 @@ export function TeacherTable({
                     {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
-                  <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>
+                <td className="px-4 py-3 whitespace-nowrap" title={deadlineHint ?? undefined}>
+                  <div className="flex flex-col gap-0.5">
+                    <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>
+                    {deadlineHint && <span className="text-[11px] text-slate-400">({deadlineHint})</span>}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-slate-400">
-                  {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}
+                  <div className="flex items-center gap-1.5">
+                    {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}
+                    {flagged && (
+                      <span title={t.anomalies.tooltipText} className="text-amber-500">
+                        <Search size={15} aria-label={t.moduleStatus.onReview} />
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

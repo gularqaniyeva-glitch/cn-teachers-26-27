@@ -290,6 +290,7 @@ export function TeacherFilterTree({
                   { value: 'passed', label: t.moduleStatus.passed },
                   { value: 'failed', label: t.moduleStatus.failed },
                   { value: 'not_started', label: t.moduleStatus.notStarted },
+                  { value: 'on_review', label: t.moduleStatus.onReview },
                 ].map((opt) => (
                   <button
                     key={opt.value}

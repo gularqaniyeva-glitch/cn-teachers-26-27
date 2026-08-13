@@ -1,6 +1,7 @@
 import type { Teacher } from '../types/teacher';
-import { MODULES } from '../data/constants';
+import { MODULES, getModule } from '../data/constants';
 import { getTeacherAverageScore } from './stats';
+import type { IndividualAnomaly } from './anomalies';
 import type { Dict } from '../i18n/translations';
 
 function escapeCsvCell(value: string | number): string {
@@ -9,6 +10,21 @@ function escapeCsvCell(value: string | number): string {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
+
+function downloadCsv(headers: string[], rows: (string | number)[][], filename: string): void {
+  const csvLines = [headers, ...rows].map((row) => row.map(escapeCsvCell).join(';'));
+  const csvContent = '﻿' + csvLines.join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export function exportTeachersToCsv(teachers: Teacher[], t: Dict, filename = 'teachers.csv'): void {
@@ -61,16 +77,27 @@ export function exportTeachersToCsv(teachers: Teacher[], t: Dict, filename = 'te
     ];
   });
 
-  const csvLines = [headers, ...rows].map((row) => row.map(escapeCsvCell).join(';'));
-  const csvContent = '﻿' + csvLines.join('\r\n');
+  downloadCsv(headers, rows, filename);
+}
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export function exportAnomaliesToCsv(anomalies: IndividualAnomaly[], t: Dict, filename = 'lms-anomalies.csv'): void {
+  const headers = [
+    t.columns.fullName,
+    t.columns.school,
+    t.quickList.gradeGroupLabel,
+    t.filters.sectorSection,
+    t.quickList.columnFormat,
+    t.anomalies.flaggedModulesLabel,
+  ];
+
+  const rows = anomalies.map(({ teacher, moduleIds }) => [
+    teacher.fullName,
+    teacher.school,
+    t.gradeGroup[teacher.gradeGroup],
+    t.language[teacher.language],
+    t.trainingType[teacher.trainingType],
+    moduleIds.map((id) => getModule(id)?.shortTitle ?? id).join(', '),
+  ]);
+
+  downloadCsv(headers, rows, filename);
 }

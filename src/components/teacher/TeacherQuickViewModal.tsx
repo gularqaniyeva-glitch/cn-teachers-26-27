@@ -4,6 +4,7 @@ import { X, ExternalLink } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { ModuleResultsPanel } from './ModuleResultsPanel';
+import { DeadlineStatsBar } from './DeadlineStatsBar';
 import { getTeacherAverageScore } from '../../utils/stats';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -56,6 +57,8 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
+          <DeadlineStatsBar teacher={teacher} />
+
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <ProfileField label={t.detail.fields.district} value={teacher.district} />
             <ProfileField label={t.detail.fields.fin} value={teacher.fin} />

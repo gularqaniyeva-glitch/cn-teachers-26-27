@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import type { GradeGroup, ModuleStatus, Teacher } from '../../types/teacher';
+import type { GradeGroup, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
+import { getEffectiveModuleStatus } from '../../utils/anomalies';
+import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { Badge } from '../ui/Badge';
 import { useT } from '../../i18n/useLocaleStore';
+import type { Dict } from '../../i18n/translations';
 
 interface ModuleQuickListPanelProps {
   teachers: Teacher[];
@@ -12,8 +15,19 @@ interface ModuleQuickListPanelProps {
   onRowClick: (id: string) => void;
 }
 
-const STATUS_VARIANT = { passed: 'success', failed: 'danger', not_started: 'neutral' } as const;
-const ALL_STATUSES: ModuleStatus[] = ['passed', 'failed', 'not_started'];
+const STATUS_VARIANT = {
+  passed: 'success',
+  failed: 'danger',
+  not_started: 'neutral',
+  on_review: 'warning',
+} as const;
+const ALL_STATUSES: DisplayModuleStatus[] = ['passed', 'failed', 'not_started', 'on_review'];
+
+function statusLabel(t: Dict, status: DisplayModuleStatus): string {
+  if (status === 'not_started') return t.moduleStatus.notStarted;
+  if (status === 'on_review') return t.moduleStatus.onReview;
+  return t.moduleStatus[status];
+}
 
 type GradeGroupSelection = GradeGroup | 'all';
 
@@ -24,7 +38,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
   );
   const [moduleIndex, setModuleIndex] = useState(1);
-  const [selectedStatuses, setSelectedStatuses] = useState<ModuleStatus[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
 
@@ -38,13 +52,13 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
   const effectiveModuleIndex = moduleIndexOptions.includes(moduleIndex) ? moduleIndex : (moduleIndexOptions[0] ?? 1);
 
-  function toggleStatus(status: ModuleStatus) {
+  function toggleStatus(status: DisplayModuleStatus) {
     setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
   }
 
   interface MatchedRow {
     teacher: Teacher;
-    status: ModuleStatus;
+    status: DisplayModuleStatus;
     score: number;
   }
 
@@ -56,8 +70,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
       if (!module) continue;
       const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
       if (!result) continue;
-      if (selectedStatuses.length > 0 && !selectedStatuses.includes(result.status)) continue;
-      rows.push({ teacher, status: result.status, score: result.score });
+      const status = getEffectiveModuleStatus(teacher, module.id);
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) continue;
+      rows.push({ teacher, status, score: result.score });
     }
     return rows;
   }, [teachers, activeGroups, effectiveModuleIndex, selectedStatuses]);
@@ -116,7 +131,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                     : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {t.moduleStatus[s === 'not_started' ? 'notStarted' : s]}
+                {statusLabel(t, s)}
               </button>
             ))}
           </div>
@@ -178,9 +193,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-slate-700">{score}%</span>
-                      <Badge variant={STATUS_VARIANT[status]}>
-                        {t.moduleStatus[status === 'not_started' ? 'notStarted' : status]}
-                      </Badge>
+                      <Badge variant={STATUS_VARIANT[status]}>{statusLabel(t, status)}</Badge>
                     </div>
                   </td>
                 </tr>

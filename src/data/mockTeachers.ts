@@ -110,5 +110,23 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
     });
   }
 
+  // Гарантируем несколько наглядных "аномалий LMS" в тестовых данных —
+  // учитель хорошо сдаёт почти всё, но один модуль посередине программы
+  // так и не отметился ("не начал"). Без этого шага такой узор мог бы
+  // случайно не появиться совсем, и функцию авто-аудита нечем было бы
+  // продемонстрировать.
+  const anomalyIndices = [4, 14, 24, 34, 44].filter((idx) => idx < teachers.length);
+  for (const idx of anomalyIndices) {
+    const teacher = teachers[idx];
+    if (teacher.moduleResults.length < 2) continue;
+    teacher.platformStatus = 'entered';
+    const gapPosition = Math.floor(rng() * teacher.moduleResults.length);
+    teacher.moduleResults = teacher.moduleResults.map((r, i) =>
+      i === gapPosition
+        ? { moduleId: r.moduleId, status: 'not_started' as ModuleStatus, score: 0 }
+        : { moduleId: r.moduleId, status: 'passed' as ModuleStatus, score: randomInt(rng, 80, 95) },
+    );
+  }
+
   return teachers;
 }
