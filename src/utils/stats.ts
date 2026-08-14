@@ -31,6 +31,27 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
   return Math.round(sum / teacher.moduleResults.length);
 }
 
+export interface TeacherOverallStats {
+  /** Всего модулей в программе его параллели */
+  assigned: number;
+  /** Сколько из них сдано успешно */
+  passed: number;
+  /** Доля сданного от всех назначенных модулей, % (0 — за "не начал"/"не сдал") */
+  percent: number;
+}
+
+/**
+ * Успеваемость учителя от ВСЕХ назначенных модулей программы — без учёта
+ * дедлайнов (вкладки с дедлайнами в источнике данных пока нет). Когда
+ * дедлайны появятся, здесь и в местах её использования подключится
+ * utils/deadlines.ts вместо этой функции.
+ */
+export function getTeacherOverallStats(teacher: Teacher): TeacherOverallStats {
+  const assigned = getApplicableModules(teacher).length;
+  const passed = teacher.moduleResults.filter((r) => r.status === 'passed').length;
+  return { assigned, passed, percent: assigned > 0 ? Math.round((passed / assigned) * 100) : 0 };
+}
+
 export interface ModuleStat {
   moduleId: string;
   shortTitle: string;

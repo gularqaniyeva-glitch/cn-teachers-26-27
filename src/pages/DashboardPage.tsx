@@ -4,12 +4,13 @@ import { useTeacherStore } from '../store/useTeacherStore';
 import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
+import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { getModuleStatsByGradeGroup, getOverviewStats } from '../utils/stats';
 import { GRADE_GROUPS } from '../data/constants';
 import { useT } from '../i18n/useLocaleStore';
 
 export function DashboardPage() {
-  const { teachers, loading, load } = useTeacherStore();
+  const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
 
   useEffect(() => {
@@ -20,11 +21,17 @@ export function DashboardPage() {
     return <p className="text-slate-500">{t.common.loading}</p>;
   }
 
+  if (error && teachers.length === 0) {
+    return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
+  }
+
   const overview = getOverviewStats(teachers);
   const groupStats = getModuleStatsByGradeGroup(teachers, GRADE_GROUPS);
 
   return (
     <div className="space-y-6">
+      {error && <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />}
+
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.dashboard.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{t.dashboard.subtitle}</p>

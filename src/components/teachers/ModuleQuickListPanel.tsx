@@ -3,8 +3,9 @@ import { ChevronDown, Download } from 'lucide-react';
 import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
-import { getEffectiveModuleStatus } from '../../utils/anomalies';
+import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
+import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { Badge } from '../ui/Badge';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
@@ -36,10 +37,12 @@ interface MatchedRow {
   module: ModuleDefinition;
   status: DisplayModuleStatus;
   score: number;
+  groupFlagged: boolean;
 }
 
 export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }: ModuleQuickListPanelProps) {
   const t = useT();
+  const groupAnomalySet = useGroupAnomalySet();
   const canSelectAllGroups = gradeGroupOptions.length > 1;
   const [gradeGroupSelection, setGradeGroupSelection] = useState<GradeGroupSelection>(
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
@@ -99,14 +102,15 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
       for (const module of modulesForTeacher) {
         const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
         if (!result) continue;
-        const status = getEffectiveModuleStatus(teacher, module.id);
+        const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, module.id);
+        const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, module.id);
         if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) continue;
-        rows.push({ teacher, module, status, score: result.score });
+        rows.push({ teacher, module, status, score: result.score, groupFlagged });
       }
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName) || a.module.index - b.module.index);
     return rows;
-  }, [teachers, activeGroups, selectedModuleIndices, selectedStatuses]);
+  }, [teachers, activeGroups, selectedModuleIndices, selectedStatuses, groupAnomalySet]);
 
   const uniqueTeachers = useMemo(
     () => Array.from(new Map(matched.map((row) => [row.teacher.id, row.teacher])).values()),
@@ -238,11 +242,11 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {matched.map(({ teacher, module, status, score }) => (
+              {matched.map(({ teacher, module, status, score, groupFlagged }) => (
                 <tr
                   key={`${teacher.id}-${module.id}`}
                   onClick={() => onRowClick(teacher.id)}
-                  className="cursor-pointer hover:bg-brand-50/60"
+                  className={`cursor-pointer ${groupFlagged ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-brand-50/60'}`}
                 >
                   <td className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap">
                     {teacher.fullName}
@@ -256,7 +260,11 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                   <td className="px-3 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-slate-700">{score}%</span>
-                      <Badge variant={STATUS_VARIANT[status]}>{statusLabel(t, status)}</Badge>
+                      {groupFlagged ? (
+                        <Badge variant="warning">{t.anomalies.groupRowLabel}</Badge>
+                      ) : (
+                        <Badge variant={STATUS_VARIANT[status]}>{statusLabel(t, status)}</Badge>
+                      )}
                     </div>
                   </td>
                 </tr>

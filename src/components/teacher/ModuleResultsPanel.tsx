@@ -2,7 +2,8 @@ import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { Tooltip } from '../ui/Tooltip';
 import { getApplicableModules } from '../../utils/stats';
-import { getEffectiveModuleStatus } from '../../utils/anomalies';
+import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
+import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { useT } from '../../i18n/useLocaleStore';
 
 interface ModuleResultsPanelProps {
@@ -20,12 +21,14 @@ const STATUS_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#cbd5
 export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
   const t = useT();
   const modules = getApplicableModules(teacher);
+  const groupAnomalySet = useGroupAnomalySet();
 
   return (
     <div className="divide-y divide-slate-100">
       {modules.map((module) => {
         const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
         const status = getEffectiveModuleStatus(teacher, module.id);
+        const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, module.id);
         const label =
           status === 'not_started'
             ? t.moduleStatus.notStarted
@@ -41,12 +44,18 @@ export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
               <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${result?.score ?? 0}%`, backgroundColor: STATUS_COLOR[status] }}
+                  style={{ width: `${result?.score ?? 0}%`, backgroundColor: groupFlagged ? '#d97706' : STATUS_COLOR[status] }}
                 />
               </div>
               <span className="w-10 text-right text-sm text-slate-600">{result?.score ?? 0}%</span>
-              <Badge variant={STATUS_VARIANT[status]}>{label}</Badge>
-              {status === 'on_review' && <Tooltip text={t.anomalies.tooltipText} />}
+              {groupFlagged ? (
+                <Badge variant="warning">{t.anomalies.groupRowLabel}</Badge>
+              ) : (
+                <Badge variant={STATUS_VARIANT[status]}>{label}</Badge>
+              )}
+              {(status === 'on_review' || groupFlagged) && (
+                <Tooltip text={groupFlagged ? t.anomalies.groupRowLabel : t.anomalies.tooltipText} />
+              )}
             </div>
           </div>
         );

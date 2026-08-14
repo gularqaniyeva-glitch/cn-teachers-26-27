@@ -125,3 +125,18 @@ export function findGroupAnomalies(teachers: Teacher[]): GroupAnomaly[] {
 
   return results;
 }
+
+function groupAnomalyKey(gradeGroup: GradeGroup, moduleId: string, sector: TeachingLanguage, trainingType: TrainingType): string {
+  return `${gradeGroup}|${moduleId}|${sector}|${trainingType}`;
+}
+
+/** Набор ключей "группа+модуль", отмеченных как массовая аномалия — для быстрой построчной проверки в таблицах */
+export function buildGroupAnomalyKeySet(teachers: Teacher[]): Set<string> {
+  return new Set(
+    findGroupAnomalies(teachers).map((a) => groupAnomalyKey(a.gradeGroup, a.module.id, a.sector, a.trainingType)),
+  );
+}
+
+export function isGroupAnomalyRow(set: Set<string>, teacher: Teacher, moduleId: string): boolean {
+  return set.has(groupAnomalyKey(teacher.gradeGroup, moduleId, teacher.language, teacher.trainingType));
+}

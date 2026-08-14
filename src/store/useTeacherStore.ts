@@ -10,12 +10,7 @@ interface TeacherStoreState {
   error: string | null;
   loaded: boolean;
   load: () => Promise<void>;
-  /**
-   * Принудительно перезапрашивает данные у сервисного слоя, минуя флаг `loaded`.
-   * Сейчас teacherService всё ещё читает тот же локальный источник, но именно
-   * через этот метод в будущем подключится реальный опрос Google Sheets —
-   * остальному приложению трогать не придётся.
-   */
+  /** Принудительно перезапрашивает данные из Google Sheets, минуя кэш сервисного слоя */
   reload: () => Promise<void>;
   updateTeacher: (id: string, patch: Partial<Teacher>) => Promise<void>;
   /** Массовое обновление: patchFn получает текущего учителя и возвращает изменения для него */
@@ -35,18 +30,18 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
     try {
       const teachers = await teacherService.getTeachers();
       set({ teachers, loading: false, loaded: true });
-    } catch {
-      set({ error: 'Не удалось загрузить список учителей', loading: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Не удалось загрузить список учителей', loading: false });
     }
   },
 
   reload: async () => {
     set({ refreshing: true, error: null });
     try {
-      const teachers = await teacherService.getTeachers();
+      const teachers = await teacherService.reloadTeachers();
       set({ teachers, refreshing: false, loaded: true });
-    } catch {
-      set({ error: 'Не удалось обновить данные', refreshing: false });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Не удалось обновить данные', refreshing: false });
     }
   },
 

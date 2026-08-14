@@ -1,5 +1,5 @@
 import type { Teacher } from '../../types/teacher';
-import { getTeacherDeadlineStats } from '../../utils/deadlines';
+import { getTeacherOverallStats } from '../../utils/stats';
 import { useT } from '../../i18n/useLocaleStore';
 
 interface DeadlineStatsBarProps {
@@ -17,30 +17,21 @@ function Tile({ emoji, label, value, accentClass }: { emoji: string; label: stri
   );
 }
 
+// Дедлайны модулей временно отключены — в источнике данных пока нет
+// вкладки с датами сдачи, поэтому считаем успеваемость от ВСЕХ
+// назначенных модулей программы (utils/deadlines.ts подключится обратно,
+// когда появится реальный календарь дедлайнов).
 export function DeadlineStatsBar({ teacher }: DeadlineStatsBarProps) {
   const t = useT();
-  const stats = getTeacherDeadlineStats(teacher);
+  const stats = getTeacherOverallStats(teacher);
 
-  const percentAccent =
-    stats.percent === null
-      ? undefined
-      : stats.percent >= 70
-        ? 'text-emerald-600'
-        : stats.percent >= 50
-          ? 'text-amber-600'
-          : 'text-rose-600';
+  const percentAccent = stats.percent >= 70 ? 'text-emerald-600' : stats.percent >= 50 ? 'text-amber-600' : 'text-rose-600';
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Tile emoji="📌" label={t.deadlines.assignedLabel} value={String(stats.assigned)} />
-      <Tile emoji="⏳" label={t.deadlines.dueLabel} value={String(stats.due)} />
-      <Tile emoji="✅" label={t.deadlines.passedLabel} value={String(stats.passedDue)} />
-      <Tile
-        emoji="📊"
-        label={t.deadlines.percentLabel}
-        value={stats.percent === null ? t.deadlines.notAvailable : `${stats.percent}%`}
-        accentClass={percentAccent}
-      />
+      <Tile emoji="✅" label={t.deadlines.passedLabel} value={String(stats.passed)} />
+      <Tile emoji="📊" label={t.deadlines.percentLabel} value={`${stats.percent}%`} accentClass={percentAccent} />
     </div>
   );
 }

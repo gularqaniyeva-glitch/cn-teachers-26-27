@@ -36,6 +36,7 @@ export interface Dict {
     close: string;
     refreshData: string;
     refreshing: string;
+    retry: string;
   };
   moduleStatus: {
     passed: string;
@@ -177,6 +178,7 @@ export interface Dict {
     passedLabel: string;
     percentLabel: string;
     resultHint: string;
+    resultHintAllModules: string;
     cardTitle: string;
     notAvailable: string;
   };
@@ -185,6 +187,7 @@ export interface Dict {
     hint: string;
     checkLms: string;
     tooltipText: string;
+    groupRowLabel: string;
     noneFound: string;
     individualSectionTitle: string;
     groupSectionTitle: string;
@@ -231,6 +234,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       close: 'Закрыть',
       refreshData: 'Обновить данные',
       refreshing: 'Обновление…',
+      retry: 'Повторить',
     },
     moduleStatus: {
       passed: '🟢 Сдал',
@@ -383,7 +387,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedLabel: 'Фактически сдал',
       percentLabel: '% Успеваемости',
       resultHint: 'Сдано {passed} из {due} наступивших дедлайнов',
-      cardTitle: 'Дедлайны и аттестации',
+      resultHintAllModules: 'Сдано {passed} из {assigned} назначенных модулей',
+      cardTitle: 'Аттестации по программе',
       notAvailable: '—',
     },
     anomalies: {
@@ -391,6 +396,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       hint: 'Автоматический поиск технических сбоев выгрузки: одиночные пропуски у в целом успешных учителей и массовые пропуски по модулю в конкретной группе.',
       checkLms: 'Проверить LMS',
       tooltipText: 'Высокая вероятность сбоя выгрузки LMS: остальные модули сданы успешно',
+      groupRowLabel: '⚠️ Подозрение на сбой LMS (0% у всей группы)',
       noneFound: 'Аномалий не найдено — данные выглядят последовательно.',
       individualSectionTitle: 'Индивидуальные аномалии',
       groupSectionTitle: 'Массовые аномалии по группам',
@@ -435,6 +441,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       close: 'Bağla',
       refreshData: 'Məlumatları yenilə',
       refreshing: 'Yenilənir…',
+      retry: 'Yenidən cəhd et',
     },
     moduleStatus: {
       passed: '🟢 Keçdi',
@@ -587,7 +594,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedLabel: 'Faktiki keçdi',
       percentLabel: '% Müvəffəqiyyət',
       resultHint: 'Çatmış son tarixlərdən {due}-dan {passed}-i təhvil verilib',
-      cardTitle: 'Son tarixlər və attestasiyalar',
+      resultHintAllModules: 'Təyin edilmiş {assigned} moduldan {passed}-i təhvil verilib',
+      cardTitle: 'Proqram üzrə attestasiyalar',
       notAvailable: '—',
     },
     anomalies: {
@@ -595,6 +603,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       hint: 'Yükləmə xətalarının avtomatik axtarışı: ümumilikdə uğurlu müəllimlərdə tək boşluqlar və konkret qrupda modul üzrə kütləvi boşluqlar.',
       checkLms: 'LMS-i yoxla',
       tooltipText: 'LMS yükləmə xətası ehtimalı yüksəkdir: qalan modullar uğurla keçilib',
+      groupRowLabel: '⚠️ LMS nasazlığı şübhəsi (bütün qrupda 0%)',
       noneFound: 'Anomaliya tapılmadı — məlumatlar ardıcıl görünür.',
       individualSectionTitle: 'Fərdi anomaliyalar',
       groupSectionTitle: 'Qruplar üzrə kütləvi anomaliyalar',

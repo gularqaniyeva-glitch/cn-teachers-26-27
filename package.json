@@ -14,7 +14,9 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
     "zustand": "^4.5.5",
-    "lucide-react": "^0.462.0"
+    "lucide-react": "^0.462.0",
+    "google-auth-library": "^9.14.2",
+    "google-spreadsheet": "^4.1.4"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

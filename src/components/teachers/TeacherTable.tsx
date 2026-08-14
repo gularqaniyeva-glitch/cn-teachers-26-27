@@ -1,8 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, StickyNote, Search } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
-import { getTeacherAverageScore } from '../../utils/stats';
-import { getTeacherDeadlineStats } from '../../utils/deadlines';
+import { getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
 import { useT } from '../../i18n/useLocaleStore';
@@ -87,12 +86,12 @@ export function TeacherTable({
           {teachers.map((teacher) => {
             const score = getTeacherAverageScore(teacher);
             const isSelected = selectedIds.has(teacher.id);
-            const deadlineStats = getTeacherDeadlineStats(teacher);
-            const deadlineHint =
-              deadlineStats.due > 0
-                ? t.deadlines.resultHint
-                    .replace('{passed}', String(deadlineStats.passedDue))
-                    .replace('{due}', String(deadlineStats.due))
+            const overallStats = getTeacherOverallStats(teacher);
+            const resultHint =
+              overallStats.assigned > 0
+                ? t.deadlines.resultHintAllModules
+                    .replace('{passed}', String(overallStats.passed))
+                    .replace('{assigned}', String(overallStats.assigned))
                 : null;
             const flagged = hasAnomaly(teacher);
             return (
@@ -123,10 +122,10 @@ export function TeacherTable({
                     {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap" title={deadlineHint ?? undefined}>
+                <td className="px-4 py-3 whitespace-nowrap" title={resultHint ?? undefined}>
                   <div className="flex flex-col gap-0.5">
                     <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>
-                    {deadlineHint && <span className="text-[11px] text-slate-400">({deadlineHint})</span>}
+                    {resultHint && <span className="text-[11px] text-slate-400">({resultHint})</span>}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-slate-400">

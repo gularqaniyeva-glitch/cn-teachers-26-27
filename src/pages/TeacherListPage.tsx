@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { TeacherFiltersBar } from '../components/teachers/TeacherFilters';
 import { TeacherFilterTree } from '../components/teachers/TeacherFilterTree';
@@ -26,7 +27,7 @@ type PageTab = 'all' | 'moduleReport';
 
 export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
   const t = useT();
-  const { teachers: allTeachers, loading, refreshing, load, reload, updateManyTeachers } = useTeacherStore();
+  const { teachers: allTeachers, loading, refreshing, error, load, reload, updateManyTeachers } = useTeacherStore();
   const [activeTab, setActiveTab] = useState<PageTab>('all');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
@@ -145,8 +146,14 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
     return <p className="text-slate-500">{t.common.loading}</p>;
   }
 
+  if (error && allTeachers.length === 0) {
+    return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
+  }
+
   return (
     <div className="space-y-4">
+      {error && <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />}
+
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>

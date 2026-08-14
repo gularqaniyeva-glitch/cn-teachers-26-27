@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Download, Search } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
+import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { countByKey, getModuleStatsByGradeGroup } from '../utils/stats';
 import { findGroupAnomalies, findIndividualAnomalies } from '../utils/anomalies';
 import { exportAnomaliesToCsv } from '../utils/csvExport';
@@ -14,7 +15,7 @@ import { useT } from '../i18n/useLocaleStore';
 const PALETTE = ['#5d00e9', '#059669', '#d97706', '#e11d48', '#0891b2', '#7c3aed'];
 
 export function StatisticsPage() {
-  const { teachers, loading, load } = useTeacherStore();
+  const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [expandedGroup, setExpandedGroup] = useState<GradeGroup | null>(null);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
@@ -34,6 +35,10 @@ export function StatisticsPage() {
     return <p className="text-slate-500">{t.common.loading}</p>;
   }
 
+  if (error && teachers.length === 0) {
+    return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
+  }
+
   const byTrainingType = countByKey(teachers, (te) => te.trainingType, t.trainingType, TRAINING_TYPES);
   const byLifecycle = countByKey(teachers, (te) => te.lifecycleStatus, { OLD: 'OLD', NEW: 'NEW' }, LIFECYCLE_STATUSES);
   const byPlatformStatus = countByKey(
@@ -47,6 +52,8 @@ export function StatisticsPage() {
 
   return (
     <div className="space-y-6">
+      {error && <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />}
+
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">{t.statistics.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{t.statistics.subtitle}</p>
