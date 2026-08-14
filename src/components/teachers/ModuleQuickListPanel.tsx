@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import type { GradeGroup, Teacher } from '../../types/teacher';
+import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { getEffectiveModuleStatus } from '../../utils/anomalies';
@@ -31,13 +31,21 @@ function statusLabel(t: Dict, status: DisplayModuleStatus): string {
 
 type GradeGroupSelection = GradeGroup | 'all';
 
+interface MatchedRow {
+  teacher: Teacher;
+  module: ModuleDefinition;
+  status: DisplayModuleStatus;
+  score: number;
+}
+
 export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }: ModuleQuickListPanelProps) {
   const t = useT();
   const canSelectAllGroups = gradeGroupOptions.length > 1;
   const [gradeGroupSelection, setGradeGroupSelection] = useState<GradeGroupSelection>(
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
   );
-  const [moduleIndex, setModuleIndex] = useState(1);
+  // Пустой массив = "Все модули" (тот же принцип, что и у статусов ниже).
+  const [selectedModuleIndices, setSelectedModuleIndices] = useState<number[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
@@ -50,32 +58,42 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     return Array.from(indices).sort((a, b) => a - b);
   }, [activeGroups]);
 
-  const effectiveModuleIndex = moduleIndexOptions.includes(moduleIndex) ? moduleIndex : (moduleIndexOptions[0] ?? 1);
+  function toggleModule(index: number) {
+    setSelectedModuleIndices((prev) => (prev.includes(index) ? prev.filter((n) => n !== index) : [...prev, index]));
+  }
 
   function toggleStatus(status: DisplayModuleStatus) {
     setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
-  }
-
-  interface MatchedRow {
-    teacher: Teacher;
-    status: DisplayModuleStatus;
-    score: number;
   }
 
   const matched = useMemo<MatchedRow[]>(() => {
     const rows: MatchedRow[] = [];
     for (const teacher of teachers) {
       if (!activeGroups.includes(teacher.gradeGroup)) continue;
-      const module = MODULES.find((m) => m.group === teacher.gradeGroup && m.index === effectiveModuleIndex);
-      if (!module) continue;
-      const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
-      if (!result) continue;
-      const status = getEffectiveModuleStatus(teacher, module.id);
-      if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) continue;
-      rows.push({ teacher, status, score: result.score });
+      const modulesForTeacher = MODULES.filter(
+        (m) => m.group === teacher.gradeGroup && (selectedModuleIndices.length === 0 || selectedModuleIndices.includes(m.index)),
+      );
+      for (const module of modulesForTeacher) {
+        const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
+        if (!result) continue;
+        const status = getEffectiveModuleStatus(teacher, module.id);
+        if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) continue;
+        rows.push({ teacher, module, status, score: result.score });
+      }
     }
+    rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName) || a.module.index - b.module.index);
     return rows;
-  }, [teachers, activeGroups, effectiveModuleIndex, selectedStatuses]);
+  }, [teachers, activeGroups, selectedModuleIndices, selectedStatuses]);
+
+  const uniqueTeachers = useMemo(
+    () => Array.from(new Map(matched.map((row) => [row.teacher.id, row.teacher])).values()),
+    [matched],
+  );
+
+  function handleExport() {
+    const moduleSuffix = selectedModuleIndices.length > 0 ? selectedModuleIndices.map((n) => `M${n}`).join('-') : 'all';
+    exportTeachersToCsv(uniqueTeachers, t, `module-report-${moduleSuffix}-${activeGroups.join('-')}.csv`);
+  }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -103,49 +121,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
           </label>
         )}
 
-        <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
-          {t.quickList.moduleLabel}
-          <select
-            value={effectiveModuleIndex}
-            onChange={(e) => setModuleIndex(Number(e.target.value))}
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          >
-            {moduleIndexOptions.map((n) => (
-              <option key={n} value={n}>
-                M{n}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="flex flex-col gap-1 text-xs font-medium text-slate-500">
-          {t.quickList.statusLabel}
-          <div className="flex gap-1.5">
-            {ALL_STATUSES.map((s) => (
-              <button
-                key={s}
-                onClick={() => toggleStatus(s)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
-                  selectedStatuses.includes(s)
-                    ? 'bg-brand-600 text-white ring-brand-600'
-                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {statusLabel(t, s)}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <button
-          onClick={() =>
-            exportTeachersToCsv(
-              matched.map((row) => row.teacher),
-              t,
-              `module-M${effectiveModuleIndex}-${activeGroups.join('-')}.csv`,
-            )
-          }
-          disabled={matched.length === 0}
+          onClick={handleExport}
+          disabled={uniqueTeachers.length === 0}
           className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
         >
           <Download size={15} />
@@ -153,8 +131,56 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
         </button>
       </div>
 
+      <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500">
+        {t.quickList.moduleLabel}
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setSelectedModuleIndices([])}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+              selectedModuleIndices.length === 0
+                ? 'bg-brand-600 text-white ring-brand-600'
+                : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {t.quickList.allModules}
+          </button>
+          {moduleIndexOptions.map((n) => (
+            <button
+              key={n}
+              onClick={() => toggleModule(n)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                selectedModuleIndices.includes(n)
+                  ? 'bg-brand-600 text-white ring-brand-600'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              M{n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500">
+        {t.quickList.statusLabel}
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => toggleStatus(s)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                selectedStatuses.includes(s)
+                  ? 'bg-brand-600 text-white ring-brand-600'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {statusLabel(t, s)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <p className="mt-3 text-xs text-slate-400">
-        {matched.length} {t.quickList.resultCount}
+        {uniqueTeachers.length} {t.quickList.resultCount}
       </p>
 
       {matched.length === 0 ? (
@@ -163,22 +189,23 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
         </p>
       ) : (
         <div className="mt-2 max-h-[480px] overflow-auto rounded-lg border border-slate-100">
-          <table className="w-full min-w-[820px] text-left text-sm">
+          <table className="w-full min-w-[880px] text-left text-sm">
             <thead className="sticky top-0">
               <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
                 <th className="px-3 py-2">{t.columns.fullName}</th>
                 <th className="px-3 py-2">{t.columns.school}</th>
                 <th className="px-3 py-2">{t.columns.district}</th>
                 <th className="px-3 py-2">{t.quickList.gradeGroupLabel}</th>
+                <th className="px-3 py-2">{t.quickList.columnModule}</th>
                 <th className="px-3 py-2">{t.filters.sectorSection}</th>
                 <th className="px-3 py-2">{t.quickList.columnFormat}</th>
                 <th className="px-3 py-2">{t.quickList.columnScore}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {matched.map(({ teacher, status, score }) => (
+              {matched.map(({ teacher, module, status, score }) => (
                 <tr
-                  key={teacher.id}
+                  key={`${teacher.id}-${module.id}`}
                   onClick={() => onRowClick(teacher.id)}
                   className="cursor-pointer hover:bg-brand-50/60"
                 >
@@ -188,6 +215,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>
+                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{module.shortTitle}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.language[teacher.language]}</td>
                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.trainingType[teacher.trainingType]}</td>
                   <td className="px-3 py-2 whitespace-nowrap">

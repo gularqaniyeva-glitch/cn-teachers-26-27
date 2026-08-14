@@ -34,6 +34,8 @@ export interface Dict {
     of: string;
     found: string;
     close: string;
+    refreshData: string;
+    refreshing: string;
   };
   moduleStatus: {
     passed: string;
@@ -112,6 +114,8 @@ export interface Dict {
     columnFormat: string;
     empty: string;
     allGradeGroups: string;
+    allModules: string;
+    columnModule: string;
   };
   bulk: {
     changeModuleStatus: string;
@@ -225,6 +229,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       of: 'из',
       found: 'Найдено',
       close: 'Закрыть',
+      refreshData: 'Обновить данные',
+      refreshing: 'Обновление…',
     },
     moduleStatus: {
       passed: '🟢 Сдал',
@@ -313,6 +319,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       columnScore: 'Результат / Статус',
       columnFormat: 'Формат',
       allGradeGroups: 'Все параллели',
+      allModules: 'Все модули',
+      columnModule: 'Модуль',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -425,6 +433,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       of: '/',
       found: 'Tapıldı',
       close: 'Bağla',
+      refreshData: 'Məlumatları yenilə',
+      refreshing: 'Yenilənir…',
     },
     moduleStatus: {
       passed: '🟢 Keçdi',
@@ -513,6 +523,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       columnScore: 'Nəticə / Status',
       columnFormat: 'Format',
       allGradeGroups: 'Bütün paralellər',
+      allModules: 'Bütün modullar',
+      columnModule: 'Modul',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {

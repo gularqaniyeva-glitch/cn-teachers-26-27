@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Search, Settings2, X } from 'lucide-react';
+import { Download, RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { TeacherFiltersBar } from '../components/teachers/TeacherFilters';
 import { TeacherFilterTree } from '../components/teachers/TeacherFilterTree';
@@ -26,7 +26,7 @@ type PageTab = 'all' | 'moduleReport';
 
 export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
   const t = useT();
-  const { teachers: allTeachers, loading, load, updateManyTeachers } = useTeacherStore();
+  const { teachers: allTeachers, loading, refreshing, load, reload, updateManyTeachers } = useTeacherStore();
   const [activeTab, setActiveTab] = useState<PageTab>('all');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
@@ -152,22 +152,33 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
       </div>
 
-      <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {t.tabs.allTeachers}
+          </button>
+          <button
+            onClick={() => setActiveTab('moduleReport')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'moduleReport' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {t.tabs.moduleReport}
+          </button>
+        </div>
+
         <button
-          onClick={() => setActiveTab('all')}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            activeTab === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-          }`}
+          onClick={() => reload()}
+          disabled={refreshing}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 hover:bg-slate-50"
         >
-          {t.tabs.allTeachers}
-        </button>
-        <button
-          onClick={() => setActiveTab('moduleReport')}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            activeTab === 'moduleReport' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          {t.tabs.moduleReport}
+          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? t.common.refreshing : t.common.refreshData}
         </button>
       </div>
 
