@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Download } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Download } from 'lucide-react';
 import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
@@ -47,6 +47,19 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // Пустой массив = "Все модули" (тот же принцип, что и у статусов ниже).
   const [selectedModuleIndices, setSelectedModuleIndices] = useState<number[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
+  const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
+  const moduleDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moduleDropdownOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (moduleDropdownRef.current && !moduleDropdownRef.current.contains(e.target as Node)) {
+        setModuleDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [moduleDropdownOpen]);
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
 
@@ -60,6 +73,16 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
   function toggleModule(index: number) {
     setSelectedModuleIndices((prev) => (prev.includes(index) ? prev.filter((n) => n !== index) : [...prev, index]));
+  }
+
+  function moduleSummaryLabel(): string {
+    if (selectedModuleIndices.length === 0) return t.quickList.allModules;
+    const sorted = [...selectedModuleIndices].sort((a, b) => a - b);
+    if (sorted.length <= 3) return sorted.map((n) => `M${n}`).join(', ');
+    return `${sorted
+      .slice(0, 2)
+      .map((n) => `M${n}`)
+      .join(', ')} +${sorted.length - 2}`;
   }
 
   function toggleStatus(status: DisplayModuleStatus) {
@@ -131,32 +154,44 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
         </button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500">
+      <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500" ref={moduleDropdownRef}>
         {t.quickList.moduleLabel}
-        <div className="flex flex-wrap gap-1.5">
+        <div className="relative">
           <button
-            onClick={() => setSelectedModuleIndices([])}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
-              selectedModuleIndices.length === 0
-                ? 'bg-brand-600 text-white ring-brand-600'
-                : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-            }`}
+            onClick={() => setModuleDropdownOpen((v) => !v)}
+            className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50 sm:w-auto"
           >
-            {t.quickList.allModules}
+            <span className="truncate">{moduleSummaryLabel()}</span>
+            <ChevronDown size={14} className="shrink-0 text-slate-400" />
           </button>
-          {moduleIndexOptions.map((n) => (
-            <button
-              key={n}
-              onClick={() => toggleModule(n)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
-                selectedModuleIndices.includes(n)
-                  ? 'bg-brand-600 text-white ring-brand-600'
-                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              M{n}
-            </button>
-          ))}
+          {moduleDropdownOpen && (
+            <div className="absolute z-10 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={selectedModuleIndices.length === 0}
+                  onChange={() => setSelectedModuleIndices([])}
+                  className="accent-brand-600"
+                />
+                {t.quickList.allModules}
+              </label>
+              <div className="my-1 border-t border-slate-100" />
+              {moduleIndexOptions.map((n) => (
+                <label
+                  key={n}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedModuleIndices.includes(n)}
+                    onChange={() => toggleModule(n)}
+                    className="accent-brand-600"
+                  />
+                  M{n}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
