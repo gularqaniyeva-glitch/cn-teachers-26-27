@@ -144,6 +144,47 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
           </label>
         )}
 
+        <div className="flex flex-col gap-1 text-xs font-medium text-slate-500" ref={moduleDropdownRef}>
+          {t.quickList.moduleLabel}
+          <div className="relative">
+            <button
+              onClick={() => setModuleDropdownOpen((v) => !v)}
+              className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50 sm:w-auto"
+            >
+              <span className="truncate">{moduleSummaryLabel()}</span>
+              <ChevronDown size={14} className="shrink-0 text-slate-400" />
+            </button>
+            {moduleDropdownOpen && (
+              <div className="absolute z-10 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    checked={selectedModuleIndices.length === 0}
+                    onChange={() => setSelectedModuleIndices([])}
+                    className="accent-brand-600"
+                  />
+                  {t.quickList.allModules}
+                </label>
+                <div className="my-1 border-t border-slate-100" />
+                {moduleIndexOptions.map((n) => (
+                  <label
+                    key={n}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedModuleIndices.includes(n)}
+                      onChange={() => toggleModule(n)}
+                      className="accent-brand-600"
+                    />
+                    M{n}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         <button
           onClick={handleExport}
           disabled={uniqueTeachers.length === 0}
@@ -152,47 +193,6 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
           <Download size={15} />
           {t.quickList.exportButton}
         </button>
-      </div>
-
-      <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500" ref={moduleDropdownRef}>
-        {t.quickList.moduleLabel}
-        <div className="relative">
-          <button
-            onClick={() => setModuleDropdownOpen((v) => !v)}
-            className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50 sm:w-auto"
-          >
-            <span className="truncate">{moduleSummaryLabel()}</span>
-            <ChevronDown size={14} className="shrink-0 text-slate-400" />
-          </button>
-          {moduleDropdownOpen && (
-            <div className="absolute z-10 mt-1 max-h-64 w-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
-              <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={selectedModuleIndices.length === 0}
-                  onChange={() => setSelectedModuleIndices([])}
-                  className="accent-brand-600"
-                />
-                {t.quickList.allModules}
-              </label>
-              <div className="my-1 border-t border-slate-100" />
-              {moduleIndexOptions.map((n) => (
-                <label
-                  key={n}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedModuleIndices.includes(n)}
-                    onChange={() => toggleModule(n)}
-                    className="accent-brand-600"
-                  />
-                  M{n}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500">
