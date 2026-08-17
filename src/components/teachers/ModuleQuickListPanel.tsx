@@ -317,7 +317,12 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
             )}
           </div>
 
-          <ExportMenu buttonLabel={t.quickList.exportButton} disabled={matched.length === 0} onExport={handleExport} />
+          <ExportMenu
+            buttonLabel={t.quickList.exportButton}
+            disabled={matched.length === 0}
+            defaultCheckedKeys={new Set([...visibleKeys, 'modules'])}
+            onExport={handleExport}
+          />
         </div>
       </div>
 

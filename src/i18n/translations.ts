@@ -156,6 +156,8 @@ export interface Dict {
   };
   exportMenu: {
     title: string;
+    selectAll: string;
+    clearAll: string;
     download: string;
     modulesLabel: string;
   };
@@ -372,7 +374,9 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       notePlaceholder: 'Внутренняя заметка администратора — не видна учителю…',
     },
     exportMenu: {
-      title: 'Столбцы для экспорта',
+      title: 'Настройка экспорта Excel',
+      selectAll: 'Выбрать все',
+      clearAll: 'Сбросить все',
       download: 'Скачать файл',
       modulesLabel: 'Модули (сводная ведомость)',
     },
@@ -587,7 +591,9 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       notePlaceholder: 'Administrasiyanın daxili qeydi — müəllimə görünmür…',
     },
     exportMenu: {
-      title: 'İxrac üçün sütunlar',
+      title: 'Excel ixracının tənzimlənməsi',
+      selectAll: 'Hamısını seç',
+      clearAll: 'Hamısını təmizlə',
       download: 'Faylı yüklə',
       modulesLabel: 'Modullar (tam cədvəl)',
     },

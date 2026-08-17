@@ -8,6 +8,7 @@ import { TeacherTable } from '../components/teachers/TeacherTable';
 import { BulkActionBar } from '../components/teachers/BulkActionBar';
 import { ModuleQuickListPanel } from '../components/teachers/ModuleQuickListPanel';
 import { ExportMenu } from '../components/teachers/ExportMenu';
+import { DEFAULT_VISIBLE_TEACHER_COLUMNS } from '../components/teachers/teacherTableColumns';
 import { Pagination } from '../components/teachers/Pagination';
 import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
 import { DEFAULT_FILTERS, filterTeachers, sortTeachers } from '../utils/teacherFilters';
@@ -37,6 +38,9 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState<Set<string>>(
+    () => new Set(DEFAULT_VISIBLE_TEACHER_COLUMNS),
+  );
 
   useEffect(() => {
     load();
@@ -88,6 +92,15 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
     setSort((prev) =>
       prev.key === key ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' },
     );
+  }
+
+  function toggleColumn(key: string) {
+    setVisibleColumnKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   function toggleSelect(id: string) {
@@ -198,6 +211,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
             </p>
             <ExportMenu
               buttonLabel={t.common.exportCsv}
+              defaultCheckedKeys={visibleColumnKeys}
               onExport={(keys) => exportTeachersToCsv(sorted, t, keys, 'teachers.csv')}
             />
           </div>
@@ -270,6 +284,8 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAllOnPage}
             onRowClick={setQuickViewId}
+            visibleKeys={visibleColumnKeys}
+            onToggleColumn={toggleColumn}
           />
 
           <Pagination

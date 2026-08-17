@@ -6,8 +6,8 @@ import { NoTranslate } from '../ui/NoTranslate';
 import { getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
+import { TEACHER_TABLE_COLUMNS, type TeacherColumnDef } from './teacherTableColumns';
 import { useT } from '../../i18n/useLocaleStore';
-import type { Dict } from '../../i18n/translations';
 
 interface TeacherTableProps {
   teachers: Teacher[];
@@ -17,6 +17,8 @@ interface TeacherTableProps {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onRowClick: (id: string) => void;
+  visibleKeys: Set<string>;
+  onToggleColumn: (key: string) => void;
 }
 
 function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 'neutral' {
@@ -26,31 +28,6 @@ function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 
   return 'danger';
 }
 
-interface ColumnDef {
-  key: string;
-  sortKey?: SortKey;
-  defaultVisible: boolean;
-  alwaysVisible?: boolean;
-  label: (t: Dict) => string;
-}
-
-// По умолчанию видны 6 базовых колонок (ФИО, Школа, Район, Тип обучения,
-// Средний результат %, Результат/Статус) — остальные включаются по кнопке
-// "Столбцы 👁️". На реальных ~6000 строках меньше колонок = меньше
-// DOM-узлов и быстрее рендер.
-const ALL_COLUMNS: ColumnDef[] = [
-  { key: 'fullName', sortKey: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
-  { key: 'school', sortKey: 'school', defaultVisible: true, label: (t) => t.columns.school },
-  { key: 'district', sortKey: 'district', defaultVisible: true, label: (t) => t.columns.district },
-  { key: 'trainingType', sortKey: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
-  { key: 'averageScore', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.averageScore },
-  { key: 'result', defaultVisible: true, label: (t) => t.quickList.columnScore },
-  { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },
-  { key: 'gradeGroup', sortKey: 'gradeGroup', defaultVisible: false, label: (t) => t.columns.gradeGroup },
-  { key: 'lifecycleStatus', sortKey: 'lifecycleStatus', defaultVisible: false, label: (t) => t.columns.lifecycleStatus },
-  { key: 'platformStatus', sortKey: 'platformStatus', defaultVisible: false, label: (t) => t.columns.platformStatus },
-];
-
 export function TeacherTable({
   teachers,
   sort,
@@ -59,14 +36,13 @@ export function TeacherTable({
   onToggleSelect,
   onToggleSelectAll,
   onRowClick,
+  visibleKeys,
+  onToggleColumn,
 }: TeacherTableProps) {
   const t = useT();
   const allOnPageSelected = teachers.length > 0 && teachers.every((tt) => selectedIds.has(tt.id));
   const someOnPageSelected = teachers.some((tt) => selectedIds.has(tt.id));
 
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(
-    () => new Set(ALL_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
-  );
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef<HTMLDivElement>(null);
 
@@ -81,18 +57,9 @@ export function TeacherTable({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [columnMenuOpen]);
 
-  function toggleColumn(key: string) {
-    setVisibleKeys((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  const columns = TEACHER_TABLE_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
 
-  const columns = ALL_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
-
-  function renderCell(col: ColumnDef, teacher: Teacher) {
+  function renderCell(col: TeacherColumnDef, teacher: Teacher) {
     switch (col.key) {
       case 'fullName':
         return (
@@ -153,7 +120,7 @@ export function TeacherTable({
           </button>
           {columnMenuOpen && (
             <div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
-              {ALL_COLUMNS.filter((c) => !c.alwaysVisible).map((c) => (
+              {TEACHER_TABLE_COLUMNS.filter((c) => !c.alwaysVisible).map((c) => (
                 <label
                   key={c.key}
                   className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
@@ -161,7 +128,7 @@ export function TeacherTable({
                   <input
                     type="checkbox"
                     checked={visibleKeys.has(c.key)}
-                    onChange={() => toggleColumn(c.key)}
+                    onChange={() => onToggleColumn(c.key)}
                     className="accent-brand-600"
                   />
                   {c.label(t)}
