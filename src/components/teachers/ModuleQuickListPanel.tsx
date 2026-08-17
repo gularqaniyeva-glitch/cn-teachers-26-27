@@ -71,9 +71,10 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
   );
   // Пустой массив = "Все модули" (тот же принцип, что и у статусов ниже).
-  // Хранит ключи колонок (getModuleColumnsForGroups), а не просто "M3" —
-  // так у двухпараллельных учителей M3(2–4) и M3(5–9) не схлопываются.
-  const [selectedModuleKeys, setSelectedModuleKeys] = useState<string[]>([]);
+  // Хранит НОМЕРА модулей (shortTitle, напр. "M6"), а не ключи колонок —
+  // выбор одного номера "раскрывает" сразу обе колонки параллели, если
+  // этот номер неоднозначен (M3–M6 есть и в 2–4, и в 5–9 одновременно).
+  const [selectedModuleNumbers, setSelectedModuleNumbers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
   const moduleDropdownRef = useRef<HTMLDivElement>(null);
@@ -125,26 +126,41 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // порядке и с разведёнными по параллели дубликатами номеров (M3-M6).
   const moduleColumnOptions = useMemo(() => getModuleColumnsForGroups(activeGroups), [activeGroups]);
 
-  // Столбцы, которые реально рисуются в таблице: если выбраны конкретные
-  // модули — только они (узкими колонками), иначе все модули активных
-  // параллелей. Это НЕ рендер "учитель×модуль" отдельными строками (та
-  // ошибка уже исправлена раньше) — здесь всегда 1 строка = 1 учитель,
-  // просто с несколькими узкими колонками вместо одной.
-  const displayedModuleColumns = useMemo(() => {
-    if (selectedModuleKeys.length === 0) return moduleColumnOptions;
-    return moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key));
-  }, [selectedModuleKeys, moduleColumnOptions]);
+  // Для выбора в дропдауне — один пункт на номер модуля (без дублей вроде
+  // "M6 (2–4)"/"M6 (5–9)"), в том же порядке, что и moduleColumnOptions.
+  const moduleNumberOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const numbers: string[] = [];
+    for (const col of moduleColumnOptions) {
+      if (seen.has(col.shortTitle)) continue;
+      seen.add(col.shortTitle);
+      numbers.push(col.shortTitle);
+    }
+    return numbers;
+  }, [moduleColumnOptions]);
 
-  function toggleModule(key: string) {
-    setSelectedModuleKeys((prev) => (prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key]));
+  // Столбцы, которые реально рисуются в таблице: если выбраны конкретные
+  // номера модулей — ВСЕ их колонки (для неоднозначных номеров это сразу
+  // обе параллели, напр. выбор "M6" показывает и "M6 (2–4)", и "M6 (5–9)"),
+  // иначе все модули активных параллелей. Это НЕ рендер "учитель×модуль"
+  // отдельными строками (та ошибка уже исправлена раньше) — здесь всегда
+  // 1 строка = 1 учитель, просто с несколькими узкими колонками вместо одной.
+  const displayedModuleColumns = useMemo(() => {
+    if (selectedModuleNumbers.length === 0) return moduleColumnOptions;
+    return moduleColumnOptions.filter((c) => selectedModuleNumbers.includes(c.shortTitle));
+  }, [selectedModuleNumbers, moduleColumnOptions]);
+
+  function toggleModule(shortTitle: string) {
+    setSelectedModuleNumbers((prev) =>
+      prev.includes(shortTitle) ? prev.filter((s) => s !== shortTitle) : [...prev, shortTitle],
+    );
     setPage(1);
   }
 
   function moduleSummaryLabel(): string {
-    if (selectedModuleKeys.length === 0) return t.quickList.allModules;
-    const labels = moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key)).map((c) => c.label);
-    if (labels.length <= 3) return labels.join(', ');
-    return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
+    if (selectedModuleNumbers.length === 0) return t.quickList.allModules;
+    if (selectedModuleNumbers.length <= 3) return selectedModuleNumbers.join(', ');
+    return `${selectedModuleNumbers.slice(0, 2).join(', ')} +${selectedModuleNumbers.length - 2}`;
   }
 
   function toggleStatus(status: DisplayModuleStatus) {
@@ -158,9 +174,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // десятки тысяч строк в DOM и вешало браузер.
   const matched = useMemo<MatchedRow[]>(() => {
     const activeColumns =
-      selectedModuleKeys.length === 0
+      selectedModuleNumbers.length === 0
         ? moduleColumnOptions
-        : moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key));
+        : moduleColumnOptions.filter((c) => selectedModuleNumbers.includes(c.shortTitle));
 
     const rows: MatchedRow[] = [];
     for (const teacher of teachers) {
@@ -183,14 +199,14 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
     return rows;
-  }, [teachers, activeGroups, selectedModuleKeys, moduleColumnOptions, selectedStatuses, groupAnomalySet]);
+  }, [teachers, activeGroups, selectedModuleNumbers, moduleColumnOptions, selectedStatuses, groupAnomalySet]);
 
   const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = matched.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function handleExport(keys: Set<string>) {
-    const moduleSuffix = selectedModuleKeys.length > 0 ? selectedModuleKeys.join('-') : 'all';
+    const moduleSuffix = selectedModuleNumbers.length > 0 ? selectedModuleNumbers.join('-') : 'all';
     exportTeachersToCsv(
       matched.map((row) => row.teacher),
       t,
@@ -262,9 +278,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                 <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   <input
                     type="checkbox"
-                    checked={selectedModuleKeys.length === 0}
+                    checked={selectedModuleNumbers.length === 0}
                     onChange={() => {
-                      setSelectedModuleKeys([]);
+                      setSelectedModuleNumbers([]);
                       setPage(1);
                     }}
                     className="accent-brand-600"
@@ -272,18 +288,18 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                   {t.quickList.allModules}
                 </label>
                 <div className="my-1 border-t border-slate-100" />
-                {moduleColumnOptions.map((col) => (
+                {moduleNumberOptions.map((number) => (
                   <label
-                    key={col.key}
+                    key={number}
                     className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedModuleKeys.includes(col.key)}
-                      onChange={() => toggleModule(col.key)}
+                      checked={selectedModuleNumbers.includes(number)}
+                      onChange={() => toggleModule(number)}
                       className="accent-brand-600"
                     />
-                    {col.label}
+                    {number}
                   </label>
                 ))}
               </div>
