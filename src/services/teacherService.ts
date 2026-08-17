@@ -5,6 +5,12 @@
 // сервисного аккаунта Google — ключ доступа хранится только в переменных
 // окружения Vercel и никогда не попадает в код браузера.
 //
+// Данные запрашиваются ОДИН РАЗ за сессию и держатся в памяти (модульный
+// кэш `cache` ниже + zustand store поверх него) — переключение вкладок,
+// фильтры и сортировка работают полностью в оперативной памяти, без
+// повторных обращений к Google Sheets. Кнопка "Обновить данные" —
+// единственное действие, которое действительно перезапрашивает таблицу.
+//
 // В режиме локальной разработки (`npm run dev`) serverless-функция
 // недоступна (Vite её не поднимает), поэтому при ошибке запроса
 // автоматически подставляются тестовые данные — это не влияет на прод.
@@ -15,7 +21,7 @@
 // подтянутся заново из таблицы и локальные правки будут потеряны.
 
 import type { Teacher } from '../types/teacher';
-import { mapRowToTeacher } from './sheetMapping';
+import { mapSeniorSheetRow, mapTeachersSheetRow } from './sheetMapping';
 import type { RawSheetRow } from './sheetMapping';
 
 interface SheetsApiResponse {
@@ -28,8 +34,32 @@ interface SheetsApiError {
   error: string;
 }
 
+const LOCAL_CACHE_KEY = 'cn-teachers-26-27:sheets-cache:v1';
+const LOCAL_CACHE_TTL_MS = 5 * 60 * 1000;
+
 let cache: Teacher[] | null = null;
 let inFlight: Promise<Teacher[]> | null = null;
+
+function loadFromLocalCache(): Teacher[] | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { teachers: Teacher[]; savedAt: number };
+    if (Date.now() - parsed.savedAt > LOCAL_CACHE_TTL_MS) return null;
+    return parsed.teachers;
+  } catch {
+    return null;
+  }
+}
+
+function saveToLocalCache(teachers: Teacher[]): void {
+  try {
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({ teachers, savedAt: Date.now() }));
+  } catch {
+    // Данные слишком большие для localStorage или квота исчерпана — не
+    // критично, просто не будет мгновенного резерва при следующей загрузке.
+  }
+}
 
 async function fetchFromSheetsApi(): Promise<Teacher[]> {
   const res = await fetch('/api/sheets');
@@ -45,8 +75,8 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
     throw new Error('error' in data ? data.error : `Ошибка запроса к /api/sheets (HTTP ${res.status})`);
   }
 
-  const teachers2to9 = data.teachers.map((row, i) => mapRowToTeacher(row, i));
-  const teachersSenior = data.senior.map((row, i) => mapRowToTeacher(row, i, '10-11'));
+  const teachers2to9 = data.teachers.map((row, i) => mapTeachersSheetRow(row, i));
+  const teachersSenior = data.senior.map((row, i) => mapSeniorSheetRow(row, i));
 
   return [...teachers2to9, ...teachersSenior];
 }
@@ -59,6 +89,7 @@ async function loadTeachers(): Promise<Teacher[]> {
     try {
       const teachers = await fetchFromSheetsApi();
       cache = teachers;
+      saveToLocalCache(teachers);
       return teachers;
     } catch (err) {
       if (import.meta.env.DEV) {
@@ -69,6 +100,12 @@ async function loadTeachers(): Promise<Teacher[]> {
         const { createMockTeachers } = await import('../data/mockTeachers');
         cache = createMockTeachers(50);
         return cache;
+      }
+      const cached = loadFromLocalCache();
+      if (cached) {
+        console.warn('[teacherService] /api/sheets недоступен — показываю последние сохранённые данные:', err);
+        cache = cached;
+        return cached;
       }
       throw err;
     } finally {

@@ -1,5 +1,5 @@
-import type { GradeGroup, Teacher } from '../types/teacher';
-import { MODULES, modulesForGrade } from '../data/constants';
+import type { GradeGroup, ModuleDefinition, Teacher } from '../types/teacher';
+import { MODULES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
   total: number;
@@ -9,19 +9,27 @@ export interface OverviewStats {
   successRate: number;
 }
 
-function passRateOf(results: { status: string }[]): number {
-  const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
-  if (started.length === 0) return 0;
-  const passed = started.filter((r) => r.status === 'passed').length;
-  return Math.round((passed / started.length) * 100);
+function passRateOf(passed: number, started: number): number {
+  return started > 0 ? Math.round((passed / started) * 100) : 0;
 }
 
 export function getOverviewStats(teachers: Teacher[]): OverviewStats {
   const total = teachers.length;
-  const entered = teachers.filter((t) => t.platformStatus === 'entered').length;
-  const allResults = teachers.flatMap((t) => t.moduleResults);
+  let entered = 0;
+  let passed = 0;
+  let started = 0;
 
-  return { total, entered, notEntered: total - entered, successRate: passRateOf(allResults) };
+  for (const t of teachers) {
+    if (t.platformStatus === 'entered') entered += 1;
+    for (const r of t.moduleResults) {
+      if (r.status === 'passed' || r.status === 'failed') {
+        started += 1;
+        if (r.status === 'passed') passed += 1;
+      }
+    }
+  }
+
+  return { total, entered, notEntered: total - entered, successRate: passRateOf(passed, started) };
 }
 
 /** Средний результат учителя по всем модулям его программы (0 — за "не начал"), % */
@@ -32,7 +40,7 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
 }
 
 export interface TeacherOverallStats {
-  /** Всего модулей в программе его параллели */
+  /** Всего модулей, реально назначенных этому учителю */
   assigned: number;
   /** Сколько из них сдано успешно */
   passed: number;
@@ -41,13 +49,13 @@ export interface TeacherOverallStats {
 }
 
 /**
- * Успеваемость учителя от ВСЕХ назначенных модулей программы — без учёта
+ * Успеваемость учителя от ВСЕХ назначенных ему модулей — без учёта
  * дедлайнов (вкладки с дедлайнами в источнике данных пока нет). Когда
  * дедлайны появятся, здесь и в местах её использования подключится
  * utils/deadlines.ts вместо этой функции.
  */
 export function getTeacherOverallStats(teacher: Teacher): TeacherOverallStats {
-  const assigned = getApplicableModules(teacher).length;
+  const assigned = teacher.moduleResults.length;
   const passed = teacher.moduleResults.filter((r) => r.status === 'passed').length;
   return { assigned, passed, percent: assigned > 0 ? Math.round((passed / assigned) * 100) : 0 };
 }
@@ -65,20 +73,32 @@ export interface ModuleStat {
   passRate: number;
 }
 
+/** Один проход по всем результатам всех учителей вместо N проходов на каждый модуль каталога — важно на реальных ~6000 строках */
 export function getModuleStats(teachers: Teacher[]): ModuleStat[] {
+  const byModule = new Map<string, { assigned: number; started: number; passed: number }>();
+
+  for (const t of teachers) {
+    for (const r of t.moduleResults) {
+      const entry = byModule.get(r.moduleId) ?? { assigned: 0, started: 0, passed: 0 };
+      entry.assigned += 1;
+      if (r.status === 'passed' || r.status === 'failed') {
+        entry.started += 1;
+        if (r.status === 'passed') entry.passed += 1;
+      }
+      byModule.set(r.moduleId, entry);
+    }
+  }
+
   return MODULES.map((module) => {
-    const assigned = teachers.filter((t) => t.gradeGroup === module.group).length;
-    const results = teachers.flatMap((t) => t.moduleResults).filter((r) => r.moduleId === module.id);
-    const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
-    const passed = started.filter((r) => r.status === 'passed').length;
+    const entry = byModule.get(module.id) ?? { assigned: 0, started: 0, passed: 0 };
     return {
       moduleId: module.id,
       shortTitle: module.shortTitle,
       group: module.group,
-      assigned,
-      started: started.length,
-      passed,
-      passRate: passRateOf(results),
+      assigned: entry.assigned,
+      started: entry.started,
+      passed: entry.passed,
+      passRate: passRateOf(entry.passed, entry.started),
     };
   });
 }
@@ -95,19 +115,20 @@ export interface GradeGroupModuleStat {
 /** Статистика модулей, агрегированная по группам классов — для Главной и Статистики */
 export function getModuleStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupModuleStat[] {
   const allModuleStats = getModuleStats(teachers);
+
   return groups.map((group) => {
     const modules = allModuleStats.filter((m) => m.group === group);
-    const results = teachers
-      .filter((t) => t.gradeGroup === group)
-      .flatMap((t) => t.moduleResults);
-    const started = results.filter((r) => r.status === 'passed' || r.status === 'failed');
-    const passed = started.filter((r) => r.status === 'passed').length;
+    const started = modules.reduce((sum, m) => sum + m.started, 0);
+    const passed = modules.reduce((sum, m) => sum + m.passed, 0);
     return {
       group,
-      assigned: teachers.filter((t) => t.gradeGroup === group).length,
-      started: started.length,
+      // "Назначено" на уровне группы — это учителя, у которых есть хотя бы
+      // один модуль этой параллели (а не строго teacher.gradeGroup === group,
+      // так как один учитель может вести сразу несколько параллелей).
+      assigned: teachers.filter((t) => t.moduleResults.some((r) => getModule(r.moduleId)?.group === group)).length,
+      started,
       passed,
-      passRate: passRateOf(results),
+      passRate: passRateOf(passed, started),
       modules,
     };
   });
@@ -138,7 +159,15 @@ export function countByKey<T extends string>(
   });
 }
 
-/** Модули, применимые к конкретному учителю (по его группе классов) */
-export function getApplicableModules(teacher: Teacher) {
-  return modulesForGrade(teacher.gradeGroup);
+/**
+ * Модули, реально назначенные конкретному учителю. Берём напрямую из его
+ * moduleResults (а не жёстко по teacher.gradeGroup) — в реальных данных
+ * один учитель может одновременно вести, например, и 2–4, и 5–9 классы,
+ * и тогда у него есть модули из обеих программ сразу.
+ */
+export function getApplicableModules(teacher: Teacher): ModuleDefinition[] {
+  if (teacher.moduleResults.length === 0) return modulesForGrade(teacher.gradeGroup);
+  return teacher.moduleResults
+    .map((r) => getModule(r.moduleId))
+    .filter((m): m is ModuleDefinition => Boolean(m));
 }

@@ -26,20 +26,26 @@ export const TRAINING_TYPES: TrainingType[] = ['asinxron', 'onlayn', 'əyani'];
 
 export const LIFECYCLE_STATUSES: TeacherLifecycleStatus[] = ['OLD', 'NEW'];
 
-// У каждой параллели своя отдельная программа — модули нумеруются с M1
-// в рамках своей группы классов, без сквозной нумерации между группами.
-const MODULE_COUNTS: Record<GradeGroup, number> = {
-  '2-4': 6,
-  '5-9': 13,
-  '10-11': 8,
-};
+// Нумерация модулей взята из реальной структуры Google Sheets (не выдумана):
+// - 2–4 классы: M1, M2 (общие для всех) + M3–M6 (свои для параллели) = 6
+// - 5–9 классы: M1, M2 (общие) + M3–M13 плюс отдельный дополнительный
+//   модуль "M9-2" = 14 модулей
+// - 10–11 классы (отдельный лист таблицы): M3–M15, БЕЗ общих M1/M2 —
+//   в этом листе таких колонок просто нет
+function buildModules(group: GradeGroup, numbers: (number | string)[]): ModuleDefinition[] {
+  return numbers.map((n, i) => ({
+    id: `${group}-M${n}`,
+    shortTitle: `M${n}`,
+    group,
+    index: i + 1,
+  }));
+}
 
-export const MODULES: ModuleDefinition[] = GRADE_GROUPS.flatMap((group) =>
-  Array.from({ length: MODULE_COUNTS[group] }, (_, i) => {
-    const index = i + 1;
-    return { id: `${group}-M${index}`, shortTitle: `M${index}`, group, index };
-  }),
-);
+export const MODULES: ModuleDefinition[] = [
+  ...buildModules('2-4', [1, 2, 3, 4, 5, 6]),
+  ...buildModules('5-9', [1, 2, 3, 4, 5, 6, 7, 8, 9, '9-2', 10, 11, 12, 13]),
+  ...buildModules('10-11', [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+];
 
 export function modulesForGrade(group: GradeGroup): ModuleDefinition[] {
   return MODULES.filter((m) => m.group === group);

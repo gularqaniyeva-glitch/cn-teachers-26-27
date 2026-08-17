@@ -3,10 +3,12 @@ import { ChevronDown, Download } from 'lucide-react';
 import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
+import { getApplicableModules, getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { Badge } from '../ui/Badge';
+import { Pagination } from './Pagination';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
 
@@ -16,13 +18,9 @@ interface ModuleQuickListPanelProps {
   onRowClick: (id: string) => void;
 }
 
-const STATUS_VARIANT = {
-  passed: 'success',
-  failed: 'danger',
-  not_started: 'neutral',
-  on_review: 'warning',
-} as const;
+const STATUS_DOT_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#94a3b8', on_review: '#d97706' } as const;
 const ALL_STATUSES: DisplayModuleStatus[] = ['passed', 'failed', 'not_started', 'on_review'];
+const MAX_BADGES_PER_ROW = 5;
 
 function statusLabel(t: Dict, status: DisplayModuleStatus): string {
   if (status === 'not_started') return t.moduleStatus.notStarted;
@@ -30,14 +28,22 @@ function statusLabel(t: Dict, status: DisplayModuleStatus): string {
   return t.moduleStatus[status];
 }
 
+/** Сортировка "M9" перед "M9-2" перед "M10" — обычная сортировка строк тут не годится */
+function moduleSortKey(shortTitle: string): number {
+  return parseFloat(shortTitle.replace('M', '').replace('-2', '.5'));
+}
+
 type GradeGroupSelection = GradeGroup | 'all';
 
-interface MatchedRow {
-  teacher: Teacher;
+interface ModuleBadge {
   module: ModuleDefinition;
   status: DisplayModuleStatus;
   score: number;
-  groupFlagged: boolean;
+}
+
+interface MatchedRow {
+  teacher: Teacher;
+  badges: ModuleBadge[];
 }
 
 export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }: ModuleQuickListPanelProps) {
@@ -48,10 +54,12 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
   );
   // Пустой массив = "Все модули" (тот же принцип, что и у статусов ниже).
-  const [selectedModuleIndices, setSelectedModuleIndices] = useState<number[]>([]);
+  const [selectedModuleTitles, setSelectedModuleTitles] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
   const moduleDropdownRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   useEffect(() => {
     if (!moduleDropdownOpen) return;
@@ -66,60 +74,74 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
 
-  const moduleIndexOptions = useMemo(() => {
-    const indices = new Set<number>();
+  const moduleTitleOptions = useMemo(() => {
+    const titles = new Set<string>();
     for (const m of MODULES) {
-      if (activeGroups.includes(m.group)) indices.add(m.index);
+      if (activeGroups.includes(m.group)) titles.add(m.shortTitle);
     }
-    return Array.from(indices).sort((a, b) => a - b);
+    return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
   }, [activeGroups]);
 
-  function toggleModule(index: number) {
-    setSelectedModuleIndices((prev) => (prev.includes(index) ? prev.filter((n) => n !== index) : [...prev, index]));
+  function toggleModule(shortTitle: string) {
+    setSelectedModuleTitles((prev) =>
+      prev.includes(shortTitle) ? prev.filter((s) => s !== shortTitle) : [...prev, shortTitle],
+    );
+    setPage(1);
   }
 
   function moduleSummaryLabel(): string {
-    if (selectedModuleIndices.length === 0) return t.quickList.allModules;
-    const sorted = [...selectedModuleIndices].sort((a, b) => a - b);
-    if (sorted.length <= 3) return sorted.map((n) => `M${n}`).join(', ');
-    return `${sorted
-      .slice(0, 2)
-      .map((n) => `M${n}`)
-      .join(', ')} +${sorted.length - 2}`;
+    if (selectedModuleTitles.length === 0) return t.quickList.allModules;
+    const sorted = [...selectedModuleTitles].sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+    if (sorted.length <= 3) return sorted.join(', ');
+    return `${sorted.slice(0, 2).join(', ')} +${sorted.length - 2}`;
   }
 
   function toggleStatus(status: DisplayModuleStatus) {
     setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
+    setPage(1);
   }
 
+  // ВАЖНО: одна строка результата = один учитель, независимо от того,
+  // сколько модулей выбрано. Раньше здесь на каждую пару "учитель+модуль"
+  // создавалась отдельная строка — на реальных ~6000 учителей это давало
+  // десятки тысяч строк в DOM и вешало браузер.
   const matched = useMemo<MatchedRow[]>(() => {
     const rows: MatchedRow[] = [];
     for (const teacher of teachers) {
       if (!activeGroups.includes(teacher.gradeGroup)) continue;
-      const modulesForTeacher = MODULES.filter(
-        (m) => m.group === teacher.gradeGroup && (selectedModuleIndices.length === 0 || selectedModuleIndices.includes(m.index)),
+
+      const relevantModules = getApplicableModules(teacher).filter(
+        (m) => selectedModuleTitles.length === 0 || selectedModuleTitles.includes(m.shortTitle),
       );
-      for (const module of modulesForTeacher) {
+      if (relevantModules.length === 0) continue;
+
+      const badges: ModuleBadge[] = relevantModules.map((module) => {
         const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
-        if (!result) continue;
         const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, module.id);
         const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, module.id);
-        if (selectedStatuses.length > 0 && !selectedStatuses.includes(status)) continue;
-        rows.push({ teacher, module, status, score: result.score, groupFlagged });
-      }
-    }
-    rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName) || a.module.index - b.module.index);
-    return rows;
-  }, [teachers, activeGroups, selectedModuleIndices, selectedStatuses, groupAnomalySet]);
+        return { module, status, score: result?.score ?? 0 };
+      });
 
-  const uniqueTeachers = useMemo(
-    () => Array.from(new Map(matched.map((row) => [row.teacher.id, row.teacher])).values()),
-    [matched],
-  );
+      const matchesStatus = selectedStatuses.length === 0 || badges.some((b) => selectedStatuses.includes(b.status));
+      if (!matchesStatus) continue;
+
+      rows.push({ teacher, badges });
+    }
+    rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
+    return rows;
+  }, [teachers, activeGroups, selectedModuleTitles, selectedStatuses, groupAnomalySet]);
+
+  const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = matched.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function handleExport() {
-    const moduleSuffix = selectedModuleIndices.length > 0 ? selectedModuleIndices.map((n) => `M${n}`).join('-') : 'all';
-    exportTeachersToCsv(uniqueTeachers, t, `module-report-${moduleSuffix}-${activeGroups.join('-')}.csv`);
+    const moduleSuffix = selectedModuleTitles.length > 0 ? selectedModuleTitles.join('-') : 'all';
+    exportTeachersToCsv(
+      matched.map((row) => row.teacher),
+      t,
+      `module-report-${moduleSuffix}-${activeGroups.join('-')}.csv`,
+    );
   }
 
   return (
@@ -133,7 +155,10 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
             {t.quickList.gradeGroupLabel}
             <select
               value={gradeGroupSelection}
-              onChange={(e) => setGradeGroupSelection(e.target.value as GradeGroupSelection)}
+              onChange={(e) => {
+                setGradeGroupSelection(e.target.value as GradeGroupSelection);
+                setPage(1);
+              }}
               className="min-w-[220px] rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
             >
               <option value="all">
@@ -163,25 +188,28 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                 <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   <input
                     type="checkbox"
-                    checked={selectedModuleIndices.length === 0}
-                    onChange={() => setSelectedModuleIndices([])}
+                    checked={selectedModuleTitles.length === 0}
+                    onChange={() => {
+                      setSelectedModuleTitles([]);
+                      setPage(1);
+                    }}
                     className="accent-brand-600"
                   />
                   {t.quickList.allModules}
                 </label>
                 <div className="my-1 border-t border-slate-100" />
-                {moduleIndexOptions.map((n) => (
+                {moduleTitleOptions.map((title) => (
                   <label
-                    key={n}
+                    key={title}
                     className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedModuleIndices.includes(n)}
-                      onChange={() => toggleModule(n)}
+                      checked={selectedModuleTitles.includes(title)}
+                      onChange={() => toggleModule(title)}
                       className="accent-brand-600"
                     />
-                    M{n}
+                    {title}
                   </label>
                 ))}
               </div>
@@ -191,7 +219,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
         <button
           onClick={handleExport}
-          disabled={uniqueTeachers.length === 0}
+          disabled={matched.length === 0}
           className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
         >
           <Download size={15} />
@@ -219,7 +247,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
       </div>
 
       <p className="mt-3 text-xs text-slate-400">
-        {uniqueTeachers.length} {t.quickList.resultCount}
+        {matched.length} {t.quickList.resultCount}
       </p>
 
       {matched.length === 0 ? (
@@ -227,51 +255,81 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
           {t.quickList.empty}
         </p>
       ) : (
-        <div className="mt-2 max-h-[480px] overflow-auto rounded-lg border border-slate-100">
-          <table className="w-full min-w-[880px] text-left text-sm">
-            <thead className="sticky top-0">
-              <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
-                <th className="px-3 py-2">{t.columns.fullName}</th>
-                <th className="px-3 py-2">{t.columns.school}</th>
-                <th className="px-3 py-2">{t.columns.district}</th>
-                <th className="px-3 py-2">{t.quickList.gradeGroupLabel}</th>
-                <th className="px-3 py-2">{t.quickList.columnModule}</th>
-                <th className="px-3 py-2">{t.filters.sectorSection}</th>
-                <th className="px-3 py-2">{t.quickList.columnFormat}</th>
-                <th className="px-3 py-2">{t.quickList.columnScore}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {matched.map(({ teacher, module, status, score, groupFlagged }) => (
-                <tr
-                  key={`${teacher.id}-${module.id}`}
-                  onClick={() => onRowClick(teacher.id)}
-                  className={`cursor-pointer ${groupFlagged ? 'bg-amber-50/70 hover:bg-amber-100/70' : 'hover:bg-brand-50/60'}`}
-                >
-                  <td className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap">
-                    {teacher.fullName}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{module.shortTitle}</td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.language[teacher.language]}</td>
-                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.trainingType[teacher.trainingType]}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-700">{score}%</span>
-                      {groupFlagged ? (
-                        <Badge variant="warning">{t.anomalies.groupRowLabel}</Badge>
-                      ) : (
-                        <Badge variant={STATUS_VARIANT[status]}>{statusLabel(t, status)}</Badge>
-                      )}
-                    </div>
-                  </td>
+        <>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-slate-100">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2">{t.columns.fullName}</th>
+                  <th className="px-3 py-2">{t.columns.school}</th>
+                  <th className="px-3 py-2">{t.columns.district}</th>
+                  <th className="px-3 py-2">{t.quickList.gradeGroupLabel}</th>
+                  <th className="px-3 py-2">{t.filters.sectorSection}</th>
+                  <th className="px-3 py-2">{t.quickList.columnModule}</th>
+                  <th className="px-3 py-2">{t.columns.result}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pageRows.map(({ teacher, badges }) => {
+                  const overall = getTeacherOverallStats(teacher);
+                  return (
+                    <tr
+                      key={teacher.id}
+                      onClick={() => onRowClick(teacher.id)}
+                      className="cursor-pointer hover:bg-brand-50/60"
+                    >
+                      <td className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap">
+                        {teacher.fullName}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.language[teacher.language]}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap items-center gap-1">
+                          {badges.slice(0, MAX_BADGES_PER_ROW).map((b) => (
+                            <span
+                              key={b.module.id}
+                              title={`${b.module.shortTitle}: ${statusLabel(t, b.status)} (${b.score}%)`}
+                              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: STATUS_DOT_COLOR[b.status] }}
+                              />
+                              {b.module.shortTitle}
+                            </span>
+                          ))}
+                          {badges.length > MAX_BADGES_PER_ROW && (
+                            <span className="text-[11px] text-slate-400">+{badges.length - MAX_BADGES_PER_ROW}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <Badge variant={overall.percent >= 70 ? 'success' : overall.percent >= 50 ? 'warning' : 'danger'}>
+                          {overall.percent}%
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-3">
+            <Pagination
+              page={currentPage}
+              pageSize={pageSize}
+              total={matched.length}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

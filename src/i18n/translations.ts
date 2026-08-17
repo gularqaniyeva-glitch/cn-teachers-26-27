@@ -37,6 +37,7 @@ export interface Dict {
     refreshData: string;
     refreshing: string;
     retry: string;
+    columnsToggle: string;
   };
   moduleStatus: {
     passed: string;
@@ -235,6 +236,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       refreshData: 'Обновить данные',
       refreshing: 'Обновление…',
       retry: 'Повторить',
+      columnsToggle: 'Столбцы',
     },
     moduleStatus: {
       passed: '🟢 Сдал',
@@ -442,6 +444,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       refreshData: 'Məlumatları yenilə',
       refreshing: 'Yenilənir…',
       retry: 'Yenidən cəhd et',
+      columnsToggle: 'Sütunlar',
     },
     moduleStatus: {
       passed: '🟢 Keçdi',

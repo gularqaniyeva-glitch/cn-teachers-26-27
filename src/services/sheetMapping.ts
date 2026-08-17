@@ -1,13 +1,10 @@
 // Преобразование "сырой" строки Google Sheets (объект {заголовок: значение})
 // в наш внутренний тип Teacher.
 //
-// ВАЖНО: реальные названия колонок в таблице пока не подтверждены (таблица
-// закрыта, инспектировать её напрямую не получилось). Сопоставление ниже
-// сделано ГИБКИМ — ищет значение по нескольким вероятным вариантам
-// названия заголовка (регистр и лишние пробелы не важны), а не по номеру
-// колонки. Если в реальной таблице заголовки называются иначе — допишите
-// нужный вариант в списки FIELD_CANDIDATES ниже, менять остальной код не
-// придётся.
+// Названия колонок ниже — ТОЧНЫЕ заголовки из реальной таблицы (подтверждены
+// напрямую через /api/sheets), а не предположения. Сопоставление всё равно
+// ищет значение по названию заголовка (через normalizeHeader), а не по
+// номеру колонки — это устойчивее к перестановке столбцов в будущем.
 
 import type {
   GradeGroup,
@@ -19,7 +16,6 @@ import type {
   TeachingLanguage,
   TrainingType,
 } from '../types/teacher';
-import { modulesForGrade } from '../data/constants';
 
 export type RawSheetRow = Record<string, string>;
 
@@ -39,25 +35,16 @@ function findValue(row: RawSheetRow, candidates: string[]): string {
   return '';
 }
 
-const FIELD_CANDIDATES = {
-  fullName: ['ФИО', 'Ad, Soyad', 'Ad Soyad', 'Full Name', 'Имя'],
-  school: ['Школа', 'Məktəb', 'School'],
-  district: ['Район', 'Rayon', 'District'],
-  fin: ['FIN', 'FİN'],
-  phone: ['Телефон', 'Telefon', 'Phone'],
-  lmsId: ['LMS ID', 'LMS', 'LMS-ID', 'LMSID'],
-  sector: ['Сектор', 'Bölmə', 'Sector', 'Язык', 'Dil'],
-  format: ['Формат', 'Тип обучения', 'Format', 'Təhsil növü'],
-  lifecycle: ['OLD/NEW', 'OLD / NEW', 'Статус', 'Status', 'Stajı'],
-  gradeGroup: ['Классы', 'Параллель', 'Sinif', 'Sinifllər', 'Sinif qrupu', 'Grade'],
-  platformStatus: ['Статус платформы', 'Платформа', 'Platforma', 'Вход', 'Giriş'],
-  note: ['Заметка', 'Qeyd', 'Note', 'Примечание'],
-} as const;
+function deriveDistrict(school: string): string {
+  const commaIndex = school.indexOf(',');
+  return commaIndex > -1 ? school.slice(0, commaIndex).trim() : school.trim();
+}
 
 function mapSector(raw: string): TeachingLanguage {
   const v = raw.trim().toLowerCase();
-  if (v.startsWith('ru') || v.includes('рус')) return 'ru';
-  return 'az';
+  // "az-ru" (смешанный сектор) относим к азербайджанскому — наша модель
+  // пока поддерживает только бинарный сектор az/ru.
+  return v === 'ru' ? 'ru' : 'az';
 }
 
 function mapFormat(raw: string): TrainingType {
@@ -67,68 +54,175 @@ function mapFormat(raw: string): TrainingType {
   return 'əyani';
 }
 
-function mapLifecycle(raw: string): TeacherLifecycleStatus {
-  return raw.trim().toUpperCase().startsWith('NEW') ? 'NEW' : 'OLD';
+/** OLD/NEW в реальной таблице нет — выводим из года начала работы в LMS */
+function mapLifecycleFromStartYear(raw: string): TeacherLifecycleStatus {
+  const years = raw.match(/20\d{2}/g);
+  if (!years) return 'OLD';
+  const latestYear = Math.max(...years.map(Number));
+  return latestYear >= 2025 ? 'NEW' : 'OLD';
 }
 
 function mapPlatformStatus(raw: string): PlatformStatus {
   const v = raw.trim().toLowerCase();
-  const positive = ['да', 'вошёл', 'вошел', 'yes', 'bəli', 'entered', '+', 'true', '1'];
+  const positive = ['да', 'заходил', 'вошёл', 'вошел', 'yes', 'bəli', 'entered', '+', 'true', '1'];
   return positive.some((p) => v === p || v.includes(p)) ? 'entered' : 'not_entered';
 }
 
-function mapGradeGroupFromText(raw: string): GradeGroup {
-  const v = raw.replace(/[–—]/g, '-').trim();
-  if (v.includes('2') && v.includes('4')) return '2-4';
-  return '5-9';
-}
-
-function parseModuleCell(raw: string): { status: ModuleStatus; score: number } {
+function parseScorePercent(raw: string): number {
   const trimmed = (raw ?? '').trim();
-  if (!trimmed || trimmed === '-' || trimmed === '—') {
-    return { status: 'not_started', score: 0 };
-  }
+  if (!trimmed || trimmed === '-' || trimmed === '—') return 0;
   const numeric = parseFloat(trimmed.replace(',', '.').replace('%', ''));
-  if (Number.isNaN(numeric)) return { status: 'not_started', score: 0 };
-  // "0.85" считаем долей (=85%), "85" или "85%" — уже процентом.
+  if (Number.isNaN(numeric)) return 0;
   const score = trimmed.includes('%') || numeric > 1 ? Math.round(numeric) : Math.round(numeric * 100);
-  const clamped = Math.max(0, Math.min(100, score));
-  return { status: clamped >= 60 ? 'passed' : 'failed', score: clamped };
+  return Math.max(0, Math.min(100, score));
 }
 
 /**
- * @param row строка листа как {заголовок: значение}
- * @param index порядковый номер строки — используется только для запасного ID
- * @param fixedGradeGroup если задано (для листа 10–11 классов), группа не читается из таблицы
+ * Статус модуля берём из ТЕКСТА ячейки статуса (он в таблице уже посчитан),
+ * а не выводим сами из процента. "Нет класса" означает, что этот модуль
+ * вообще не назначен учителю — тогда возвращаем null, и модуль просто не
+ * попадает в его личную ведомость.
  */
-export function mapRowToTeacher(row: RawSheetRow, index: number, fixedGradeGroup?: GradeGroup): Teacher {
-  const gradeGroup = fixedGradeGroup ?? mapGradeGroupFromText(findValue(row, [...FIELD_CANDIDATES.gradeGroup]));
-  const applicableModules = modulesForGrade(gradeGroup);
+function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleStatus; score: number } | null {
+  const statusText = statusRaw.trim().toLowerCase();
+  const score = parseScorePercent(scoreRaw);
 
-  const moduleResults: ModuleResult[] = applicableModules.map((m) => {
-    const raw = findValue(row, [m.shortTitle]);
-    const { status, score } = parseModuleCell(raw);
-    return { moduleId: m.id, status, score };
-  });
+  if (statusText.includes('нет класса')) return null;
+  if (statusText.includes('не начал')) return { status: 'not_started', score: 0 };
+  if (statusText.includes('старый учитель')) return { status: 'failed', score };
+  if (statusText.includes('не прошёл') || statusText.includes('не прошел')) return { status: 'failed', score };
+  if (statusText.includes('прошёл') || statusText.includes('прошел')) return { status: 'passed', score };
 
-  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]);
+  // Текст статуса пуст или не распознан — считаем по числовому результату,
+  // если он есть, иначе модуль просто ещё не начат.
+  return score > 0 ? { status: score >= 60 ? 'passed' : 'failed', score } : { status: 'not_started', score: 0 };
+}
+
+const FIELD_CANDIDATES = {
+  fullName: ['S.A.A'],
+  school: ['Məktəb'],
+  fin: ['FIN', 'FİN'],
+  phone: ['Müəllimin əlaqə nömrəsi'],
+  lmsId: ['ID LMS'],
+  sector: ['Bölmə AZ/RU/AZ-RU'],
+  format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi'],
+  startYear: ['Başlama ili - yeni məlumat lms'],
+  platformStatus: ['Статус входа на платформу'],
+} as const;
+
+/**
+ * Определяем, какие параллели реально ведёт учитель (по статусу модуля
+ * M3 в каждом наборе) — один и тот же человек может вести и 1–4, и 5–9
+ * классы одновременно, это НЕ взаимоисключающие варианты в реальных данных.
+ */
+function detectActiveBands(row: RawSheetRow): { active1to4: boolean; active5to9: boolean } {
+  const status1to4 = findValue(row, ['M3 1-4 Статус']).trim().toLowerCase();
+  const status5to9 = findValue(row, ['M3 5-9 Статус']).trim().toLowerCase();
+  return {
+    active1to4: status1to4 !== '' && !status1to4.includes('нет класса'),
+    active5to9: status5to9 !== '' && !status5to9.includes('нет класса'),
+  };
+}
+
+const BAND_5TO9_MODULE_NUMBERS = ['3', '4', '5', '6', '7', '8', '9', '9-2', '10', '11', '12', '13'];
+const BAND_1TO4_MODULE_NUMBERS = ['3', '4', '5', '6'];
+
+function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active1to4: boolean, active5to9: boolean): ModuleResult[] {
+  const results: ModuleResult[] = [];
+
+  // M1/M2 общие для обеих параллелей — заносим один раз, под основной
+  // группой учителя, чтобы не показывать их дважды у "двухпараллельных".
+  for (const n of [1, 2]) {
+    const cell = parseModuleCell(findValue(row, [`М${n} Статус`]), findValue(row, [`M${n}`]));
+    if (cell) results.push({ moduleId: `${primary}-M${n}`, ...cell });
+  }
+
+  if (active1to4) {
+    for (const n of BAND_1TO4_MODULE_NUMBERS) {
+      const cell = parseModuleCell(findValue(row, [`M${n} 1-4 Статус`]), findValue(row, [`M${n} 1-4`]));
+      if (cell) results.push({ moduleId: `2-4-M${n}`, ...cell });
+    }
+  }
+
+  if (active5to9) {
+    for (const n of BAND_5TO9_MODULE_NUMBERS) {
+      const cell = parseModuleCell(findValue(row, [`M${n} 5-9 Статус`]), findValue(row, [`M${n} 5-9`]));
+      if (cell) results.push({ moduleId: `5-9-M${n}`, ...cell });
+    }
+  }
+
+  return results;
+}
+
+/** Строка листа "Все учителя 26/27" (2–9 классы) → Teacher */
+export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher {
+  const { active1to4, active5to9 } = detectActiveBands(row);
+  // По умолчанию основная параллель — 5–9 (модулей там больше и это
+  // наиболее частый случай), если активна только 1–4 — используем её.
+  const primary: GradeGroup = active5to9 ? '5-9' : '2-4';
+
+  const school = findValue(row, [...FIELD_CANDIDATES.school]);
   const lmsId = findValue(row, [...FIELD_CANDIDATES.lmsId]);
+  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]);
 
   return {
-    id: lmsId || `${gradeGroup}-row-${index}`,
+    id: lmsId || `teacher-row-${index}`,
     fullName: fullName || `Без имени (стр. ${index + 2})`,
-    school: findValue(row, [...FIELD_CANDIDATES.school]),
-    district: findValue(row, [...FIELD_CANDIDATES.district]),
+    school,
+    district: deriveDistrict(school),
     fin: findValue(row, [...FIELD_CANDIDATES.fin]),
     phone: findValue(row, [...FIELD_CANDIDATES.phone]),
     lmsId,
     language: mapSector(findValue(row, [...FIELD_CANDIDATES.sector])),
     trainingType: mapFormat(findValue(row, [...FIELD_CANDIDATES.format])),
-    lifecycleStatus: mapLifecycle(findValue(row, [...FIELD_CANDIDATES.lifecycle])),
-    gradeGroup,
+    lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...FIELD_CANDIDATES.startYear])),
+    gradeGroup: primary,
     platformStatus: mapPlatformStatus(findValue(row, [...FIELD_CANDIDATES.platformStatus])),
+    moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9),
+    note: '',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+const SENIOR_MODULE_NUMBERS = ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
+
+const SENIOR_FIELD_CANDIDATES = {
+  fullName: ['S.A.A', 'ФИО'],
+  school: ['Школа название как LMS', 'Məktəb'],
+  fin: ['ФИН КОД', 'FIN', 'FİN'],
+  phone: ['Телефон учителя'],
+  lmsId: ['ID'],
+  sector: ['Sektor'],
+  startYear: ['IT-yə başladıqları il', 'Годы преподавания'],
+} as const;
+
+/** Строка листа "ИТ классы 25/26" (10–11 классы) → Teacher */
+export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher {
+  const school = findValue(row, [...SENIOR_FIELD_CANDIDATES.school]);
+  const lmsId = findValue(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
+  const fullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]);
+
+  const moduleResults: ModuleResult[] = [];
+  for (const n of SENIOR_MODULE_NUMBERS) {
+    const cell = parseModuleCell(findValue(row, [`М${n} Статус`]), findValue(row, [`M${n}`]));
+    if (cell) moduleResults.push({ moduleId: `10-11-M${n}`, ...cell });
+  }
+
+  return {
+    id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
+    fullName: fullName || `Без имени (стр. ${index + 2})`,
+    school,
+    district: deriveDistrict(school),
+    fin: findValue(row, [...SENIOR_FIELD_CANDIDATES.fin]),
+    phone: findValue(row, [...SENIOR_FIELD_CANDIDATES.phone]),
+    lmsId,
+    language: mapSector(findValue(row, [...SENIOR_FIELD_CANDIDATES.sector])),
+    trainingType: 'əyani',
+    lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...SENIOR_FIELD_CANDIDATES.startYear])),
+    gradeGroup: '10-11',
+    platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',
     moduleResults,
-    note: findValue(row, [...FIELD_CANDIDATES.note]),
+    note: '',
     updatedAt: new Date().toISOString(),
   };
 }
