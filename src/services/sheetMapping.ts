@@ -128,6 +128,13 @@ function detectActiveBands(row: RawSheetRow): { active1to4: boolean; active5to9:
 const BAND_5TO9_MODULE_NUMBERS = ['3', '4', '5', '6', '7', '8', '9', '9-2', '10', '11', '12', '13'];
 const BAND_1TO4_MODULE_NUMBERS = ['3', '4', '5', '6'];
 
+/**
+ * Возвращает РОВНО 6 модулей для чистой "начальной" (2-4), 14 — для чистой
+ * "средней" (5-9, с учётом M9/M9-2 как двух отдельных модулей), 18 — если
+ * активны обе параллели сразу (2 общих M1/M2 + 4 из 2-4 + 12 из 5-9).
+ * Это прямое следствие active1to4/active5to9 из detectActiveBands — сама
+ * функция ничего не досчитывает и не убирает по отдельным ячейкам.
+ */
 function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active1to4: boolean, active5to9: boolean): ModuleResult[] {
   const results: ModuleResult[] = [];
 

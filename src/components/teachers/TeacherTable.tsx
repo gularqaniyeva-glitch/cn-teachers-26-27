@@ -71,6 +71,8 @@ export function TeacherTable({
         return <NoTranslate>{teacher.school}</NoTranslate>;
       case 'district':
         return teacher.district;
+      case 'classesTaught':
+        return teacher.classesTaught || t.common.noData;
       case 'sector':
         return t.language[teacher.language];
       case 'gradeGroup':
@@ -143,7 +145,7 @@ export function TeacherTable({
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-medium uppercase tracking-wide text-slate-500">
-              <th className="w-10 px-4 py-3">
+              <th className="w-8 px-2.5 py-2">
                 <input
                   type="checkbox"
                   checked={allOnPageSelected}
@@ -156,7 +158,7 @@ export function TeacherTable({
                 />
               </th>
               {columns.map((col) => (
-                <th key={col.key} className="px-4 py-3 whitespace-nowrap">
+                <th key={col.key} className="px-2.5 py-2 whitespace-nowrap">
                   {col.sortKey ? (
                     <button
                       onClick={() => onSort(col.sortKey!)}
@@ -174,7 +176,7 @@ export function TeacherTable({
                   )}
                 </th>
               ))}
-              <th className="px-4 py-3" />
+              <th className="px-2.5 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -187,7 +189,7 @@ export function TeacherTable({
                   onClick={() => onRowClick(teacher.id)}
                   className={`cursor-pointer transition-colors hover:bg-brand-50/60 ${isSelected ? 'bg-brand-50/40' : ''}`}
                 >
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <td className="px-2.5 py-1" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -197,11 +199,11 @@ export function TeacherTable({
                     />
                   </td>
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3 whitespace-nowrap text-slate-600">
+                    <td key={col.key} className="px-2.5 py-1 whitespace-nowrap text-slate-600">
                       {renderCell(col, teacher)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-slate-400">
+                  <td className="px-2.5 py-1 text-slate-400">
                     <div className="flex items-center gap-1.5">
                       {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}
                       {flagged && (

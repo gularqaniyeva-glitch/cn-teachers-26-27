@@ -42,7 +42,6 @@ interface ModuleQuickListPanelProps {
 
 const STATUS_DOT_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#94a3b8', on_review: '#d97706' } as const;
 const ALL_STATUSES: DisplayModuleStatus[] = ['passed', 'failed', 'not_started', 'on_review'];
-const MAX_BADGES_PER_ROW = 5;
 
 function statusLabel(t: Dict, status: DisplayModuleStatus): string {
   if (status === 'not_started') return t.moduleStatus.notStarted;
@@ -131,6 +130,16 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     }
     return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
   }, [activeGroups]);
+
+  // Столбцы модулей, которые реально рисуются в таблице: если выбраны
+  // конкретные модули — только они (узкими колонками), иначе все модули
+  // активных параллелей. Это НЕ рендер "учитель×модуль" отдельными
+  // строками (та ошибка уже исправлена раньше) — здесь всегда 1 строка =
+  // 1 учитель, просто с несколькими узкими колонками вместо одной.
+  const displayedModuleTitles = useMemo(() => {
+    if (selectedModuleTitles.length === 0) return moduleTitleOptions;
+    return [...selectedModuleTitles].sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+  }, [selectedModuleTitles, moduleTitleOptions]);
 
   function toggleModule(shortTitle: string) {
     setSelectedModuleTitles((prev) =>
@@ -356,23 +365,28 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
       ) : (
         <>
           <div className="mt-2 overflow-x-auto rounded-lg border border-slate-100">
-            <table className="w-full min-w-[820px] text-left text-sm">
+            <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
                   {columns
                     .filter((c) => c.key !== 'result')
                     .map((col) => (
-                      <th key={col.key} className="px-3 py-2 whitespace-nowrap">
+                      <th key={col.key} className="px-2 py-1.5 whitespace-nowrap">
                         {col.label(t)}
                       </th>
                     ))}
-                  <th className="px-3 py-2">{t.quickList.columnModule}</th>
-                  {visibleKeys.has('result') && <th className="px-3 py-2">{t.columns.result}</th>}
+                  {displayedModuleTitles.map((title) => (
+                    <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-1.5 text-center normal-case">
+                      {title}
+                    </th>
+                  ))}
+                  {visibleKeys.has('result') && <th className="px-2 py-1.5">{t.columns.result}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pageRows.map(({ teacher, badges }) => {
                   const overall = getTeacherOverallStats(teacher);
+                  const badgeByTitle = new Map(badges.map((b) => [b.module.shortTitle, b]));
                   return (
                     <tr
                       key={teacher.id}
@@ -385,38 +399,36 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                           col.key === 'fullName' ? (
                             <td
                               key={col.key}
-                              className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap"
+                              className="px-2 py-1 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap"
                             >
                               <NoTranslate>{teacher.fullName}</NoTranslate>
                             </td>
                           ) : (
-                            <td key={col.key} className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                            <td key={col.key} className="px-2 py-1 text-slate-600 whitespace-nowrap">
                               {renderCell(col, teacher)}
                             </td>
                           ),
                         )}
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap items-center gap-1">
-                          {badges.slice(0, MAX_BADGES_PER_ROW).map((b) => (
-                            <span
-                              key={b.module.id}
-                              title={`${b.module.shortTitle}: ${statusLabel(t, b.status)} (${b.score}%)`}
-                              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-                            >
+                      {displayedModuleTitles.map((title) => {
+                        const cell = badgeByTitle.get(title);
+                        return (
+                          <td key={title} className="px-0.5 py-1 text-center">
+                            {cell ? (
                               <span
-                                className="h-1.5 w-1.5 rounded-full"
-                                style={{ backgroundColor: STATUS_DOT_COLOR[b.status] }}
-                              />
-                              {b.module.shortTitle}
-                            </span>
-                          ))}
-                          {badges.length > MAX_BADGES_PER_ROW && (
-                            <span className="text-[11px] text-slate-400">+{badges.length - MAX_BADGES_PER_ROW}</span>
-                          )}
-                        </div>
-                      </td>
+                                title={`${title}: ${statusLabel(t, cell.status)} (${cell.score}%)`}
+                                className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
+                                style={{ backgroundColor: STATUS_DOT_COLOR[cell.status] }}
+                              >
+                                {cell.score}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
                       {visibleKeys.has('result') && (
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-2 py-1 whitespace-nowrap">
                           <Badge variant={overall.percent >= 70 ? 'success' : overall.percent >= 50 ? 'warning' : 'danger'}>
                             {overall.percent}%
                           </Badge>
