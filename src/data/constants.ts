@@ -60,11 +60,81 @@ export function moduleSortKey(shortTitle: string): number {
   return parseFloat(shortTitle.replace('M', '').replace('-2', '.5'));
 }
 
-/** Уникальные короткие коды модулей (M1, M2, ..., M9-2, ...) для заданных параллелей, в правильном порядке */
-export function getModuleTitlesForGroups(groups: GradeGroup[]): string[] {
-  const titles = new Set<string>();
-  for (const m of MODULES) {
-    if (groups.includes(m.group)) titles.add(m.shortTitle);
+export interface ModuleColumn {
+  /** Уникальный ключ колонки — просто shortTitle, либо "M3:5-9" если номер неоднозначен */
+  key: string;
+  shortTitle: string;
+  /** Заголовок для отображения — "M3" либо "M3 (5–9)", если этот номер есть в нескольких параллелях сразу */
+  label: string;
+  /** Все id модуля из каталога, которые нужно проверить у учителя для этой колонки (обычно один, для M1/M2 — два) */
+  moduleIds: string[];
+}
+
+const GRADE_RANGE_LABEL: Record<GradeGroup, string> = { '2-4': '2–4', '5-9': '5–9', '10-11': '10–11' };
+
+/**
+ * Колонки модулей для заданного набора параллелей — с учётом того, что M1 и
+ * M2 действительно ОБЩИЕ (у учителя есть только один из двух вариантов id,
+ * см. buildTeacherModuleResults в sheetMapping.ts), а M3–M6 у 2–4 и 5–9 —
+ * это РАЗНЫЕ назначения с одинаковым номером: у "двухпараллельного" учителя
+ * одновременно существуют и 2-4-M3, и 5-9-M3 с разными баллами. Если это не
+ * развести по отдельным колонкам, один из двух результатов на экране просто
+ * исчезает (перезаписывается другим) — реальный баг, который здесь и чинится.
+ */
+export function getModuleColumnsForGroups(groups: GradeGroup[]): ModuleColumn[] {
+  const columns: ModuleColumn[] = [];
+
+  // M1/M2 — общие, колонка одна, но проверяем оба возможных id (реально
+  // заполнен только один — тот, что относится к основной параллели учителя).
+  const sharedOwners = groups.filter((g) => g === '2-4' || g === '5-9');
+  for (const n of [1, 2]) {
+    if (sharedOwners.length === 0) continue;
+    columns.push({
+      key: `M${n}`,
+      shortTitle: `M${n}`,
+      label: `M${n}`,
+      moduleIds: sharedOwners.map((g) => `${g}-M${n}`),
+    });
   }
-  return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+
+  // Остальные номера — считаем, в скольких активных параллелях встречается
+  // каждый: если больше чем в одной (это всегда M3–M6 у 2-4+5-9 вместе) —
+  // отдельная колонка на каждую параллель с уточнением в заголовке.
+  const ownersByShortTitle = new Map<string, GradeGroup[]>();
+  for (const group of groups) {
+    for (const m of modulesForGrade(group)) {
+      if (m.shortTitle === 'M1' || m.shortTitle === 'M2') continue;
+      const owners = ownersByShortTitle.get(m.shortTitle) ?? [];
+      owners.push(group);
+      ownersByShortTitle.set(m.shortTitle, owners);
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const group of groups) {
+    for (const m of modulesForGrade(group)) {
+      if (m.shortTitle === 'M1' || m.shortTitle === 'M2') continue;
+      const owners = ownersByShortTitle.get(m.shortTitle) ?? [];
+      const ambiguous = owners.length > 1;
+      const key = ambiguous ? `${m.shortTitle}:${group}` : m.shortTitle;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      columns.push({
+        key,
+        shortTitle: m.shortTitle,
+        label: ambiguous ? `${m.shortTitle} (${GRADE_RANGE_LABEL[group]})` : m.shortTitle,
+        moduleIds: [m.id],
+      });
+    }
+  }
+
+  return columns.sort((a, b) => moduleSortKey(a.shortTitle) - moduleSortKey(b.shortTitle) || a.label.localeCompare(b.label));
+}
+
+/** Ищет у учителя результат, относящийся к одной из колонок getModuleColumnsForGroups */
+export function findModuleResultForColumn<T extends { moduleId: string }>(
+  results: T[],
+  column: ModuleColumn,
+): T | undefined {
+  return results.find((r) => column.moduleIds.includes(r.moduleId));
 }

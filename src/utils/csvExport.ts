@@ -1,6 +1,12 @@
-import type { Teacher } from '../types/teacher';
-import { getModule, moduleSortKey } from '../data/constants';
-import { getApplicableModules, getTeacherAverageScore, getTeacherOverallStats } from './stats';
+import type { GradeGroup, Teacher } from '../types/teacher';
+import { GRADE_GROUPS, findModuleResultForColumn, getModule, getModuleColumnsForGroups } from '../data/constants';
+import {
+  formatAssignedClassesLabel,
+  getApplicableModules,
+  getAssignedGradeGroups,
+  getTeacherAverageScore,
+  getTeacherOverallStats,
+} from './stats';
 import type { IndividualAnomaly } from './anomalies';
 import type { Dict } from '../i18n/translations';
 
@@ -20,12 +26,15 @@ function excelTextLiteral(value: string): string {
   return value ? `="${value.replace(/"/g, '""')}"` : '';
 }
 
-function collectModuleTitles(teachers: Teacher[]): string[] {
-  const titles = new Set<string>();
+// Активные параллели этой конкретной выгрузки — по факту назначенных
+// модулей у переданных учителей (а не по одному gradeGroup, которое не
+// покажет вторую параллель у двухпараллельных учителей).
+function collectActiveGroups(teachers: Teacher[]): GradeGroup[] {
+  const groups = new Set<GradeGroup>();
   for (const teacher of teachers) {
-    for (const m of getApplicableModules(teacher)) titles.add(m.shortTitle);
+    for (const g of getAssignedGradeGroups(teacher)) groups.add(g);
   }
-  return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+  return GRADE_GROUPS.filter((g) => groups.has(g));
 }
 
 function downloadCsv(headers: string[], rows: (string | number)[][], filename: string): void {
@@ -90,7 +99,11 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
   { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => excelTextLiteral(te.lmsId) },
   { key: 'gradeGroup', header: (t) => t.columns.gradeGroup, value: (te, t) => t.gradeGroup[te.gradeGroup] },
   { key: 'lifecycleStatus', header: (t) => t.columns.lifecycleStatus, value: (te) => te.lifecycleStatus },
-  { key: 'classesTaught', header: (t) => t.detail.fields.classesTaught, value: (te) => te.classesTaught },
+  {
+    key: 'classesTaught',
+    header: (t) => t.detail.fields.classesTaught,
+    value: (te, t) => formatAssignedClassesLabel(te, t.gradeGroup),
+  },
   { key: 'startYear', header: (t) => t.detail.fields.startYear, value: (te) => te.startYear },
   { key: 'note', header: (t) => t.columns.note, value: (te) => te.note },
 ];
@@ -104,7 +117,7 @@ export function exportTeachersToCsv(
   const activeFields = EXPORT_FIELDS.filter((f) => selectedKeys.has(f.key));
   const includeModules = selectedKeys.has('modules');
   const includeModuleColumns = selectedKeys.has('moduleColumns');
-  const moduleTitles = includeModuleColumns ? collectModuleTitles(teachers) : [];
+  const moduleColumns = includeModuleColumns ? getModuleColumnsForGroups(collectActiveGroups(teachers)) : [];
 
   const statusLabel = {
     passed: t.moduleStatus.passed,
@@ -115,7 +128,7 @@ export function exportTeachersToCsv(
   const headers = [
     ...activeFields.map((f) => f.header(t)),
     ...(includeModules ? [t.exportMenu.modulesLabel] : []),
-    ...moduleTitles,
+    ...moduleColumns.map((c) => c.label),
   ];
 
   const rows = teachers.map((teacher) => {
@@ -134,15 +147,10 @@ export function exportTeachersToCsv(
       : [];
 
     const moduleCells = includeModuleColumns
-      ? (() => {
-          const applicable = getApplicableModules(teacher);
-          return moduleTitles.map((title) => {
-            const module = applicable.find((m) => m.shortTitle === title);
-            if (!module) return '';
-            const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
-            return result ? String(result.score) : '';
-          });
-        })()
+      ? moduleColumns.map((col) => {
+          const result = findModuleResultForColumn(teacher.moduleResults, col);
+          return result ? String(result.score) : '';
+        })
       : [];
 
     return [...cells, ...summaryCell, ...moduleCells];

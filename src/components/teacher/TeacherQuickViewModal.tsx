@@ -7,7 +7,7 @@ import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
 import { ModuleResultsPanel } from './ModuleResultsPanel';
 import { DeadlineStatsBar } from './DeadlineStatsBar';
-import { getTeacherAverageScore } from '../../utils/stats';
+import { formatAssignedClassesLabel, getTeacherAverageScore } from '../../utils/stats';
 import { useT } from '../../i18n/useLocaleStore';
 
 interface TeacherQuickViewModalProps {
@@ -72,9 +72,10 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
             <ProfileField label={t.filters.sectorSection} value={t.language[teacher.language]} />
             <ProfileField label={t.quickList.columnFormat} value={t.trainingType[teacher.trainingType]} />
             <ProfileField label={t.detail.fields.lifecycleStatus} value={teacher.lifecycleStatus} />
-            {teacher.classesTaught && (
-              <ProfileField label={t.detail.fields.classesTaught} value={teacher.classesTaught} />
-            )}
+            <ProfileField
+              label={t.detail.fields.classesTaught}
+              value={formatAssignedClassesLabel(teacher, t.gradeGroup)}
+            />
           </div>
 
           <div>

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Eye } from 'lucide-react';
-import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
-import { MODULES, moduleSortKey } from '../../data/constants';
+import type { GradeGroup, Teacher } from '../../types/teacher';
+import { findModuleResultForColumn, getModuleColumnsForGroups, type ModuleColumn } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
-import { getApplicableModules, getTeacherOverallStats } from '../../utils/stats';
+import { getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
@@ -52,7 +52,8 @@ function statusLabel(t: Dict, status: DisplayModuleStatus): string {
 type GradeGroupSelection = GradeGroup | 'all';
 
 interface ModuleBadge {
-  module: ModuleDefinition;
+  column: ModuleColumn;
+  moduleId: string;
   status: DisplayModuleStatus;
   score: number;
 }
@@ -70,7 +71,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     canSelectAllGroups ? 'all' : gradeGroupOptions[0],
   );
   // Пустой массив = "Все модули" (тот же принцип, что и у статусов ниже).
-  const [selectedModuleTitles, setSelectedModuleTitles] = useState<string[]>([]);
+  // Хранит ключи колонок (getModuleColumnsForGroups), а не просто "M3" —
+  // так у двухпараллельных учителей M3(2–4) и M3(5–9) не схлопываются.
+  const [selectedModuleKeys, setSelectedModuleKeys] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
   const moduleDropdownRef = useRef<HTMLDivElement>(null);
@@ -118,36 +121,30 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
 
-  const moduleTitleOptions = useMemo(() => {
-    const titles = new Set<string>();
-    for (const m of MODULES) {
-      if (activeGroups.includes(m.group)) titles.add(m.shortTitle);
-    }
-    return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
-  }, [activeGroups]);
+  // Полный список колонок модулей для активных параллелей — уже в верном
+  // порядке и с разведёнными по параллели дубликатами номеров (M3-M6).
+  const moduleColumnOptions = useMemo(() => getModuleColumnsForGroups(activeGroups), [activeGroups]);
 
-  // Столбцы модулей, которые реально рисуются в таблице: если выбраны
-  // конкретные модули — только они (узкими колонками), иначе все модули
-  // активных параллелей. Это НЕ рендер "учитель×модуль" отдельными
-  // строками (та ошибка уже исправлена раньше) — здесь всегда 1 строка =
-  // 1 учитель, просто с несколькими узкими колонками вместо одной.
-  const displayedModuleTitles = useMemo(() => {
-    if (selectedModuleTitles.length === 0) return moduleTitleOptions;
-    return [...selectedModuleTitles].sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
-  }, [selectedModuleTitles, moduleTitleOptions]);
+  // Столбцы, которые реально рисуются в таблице: если выбраны конкретные
+  // модули — только они (узкими колонками), иначе все модули активных
+  // параллелей. Это НЕ рендер "учитель×модуль" отдельными строками (та
+  // ошибка уже исправлена раньше) — здесь всегда 1 строка = 1 учитель,
+  // просто с несколькими узкими колонками вместо одной.
+  const displayedModuleColumns = useMemo(() => {
+    if (selectedModuleKeys.length === 0) return moduleColumnOptions;
+    return moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key));
+  }, [selectedModuleKeys, moduleColumnOptions]);
 
-  function toggleModule(shortTitle: string) {
-    setSelectedModuleTitles((prev) =>
-      prev.includes(shortTitle) ? prev.filter((s) => s !== shortTitle) : [...prev, shortTitle],
-    );
+  function toggleModule(key: string) {
+    setSelectedModuleKeys((prev) => (prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key]));
     setPage(1);
   }
 
   function moduleSummaryLabel(): string {
-    if (selectedModuleTitles.length === 0) return t.quickList.allModules;
-    const sorted = [...selectedModuleTitles].sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
-    if (sorted.length <= 3) return sorted.join(', ');
-    return `${sorted.slice(0, 2).join(', ')} +${sorted.length - 2}`;
+    if (selectedModuleKeys.length === 0) return t.quickList.allModules;
+    const labels = moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key)).map((c) => c.label);
+    if (labels.length <= 3) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} +${labels.length - 2}`;
   }
 
   function toggleStatus(status: DisplayModuleStatus) {
@@ -160,21 +157,24 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // создавалась отдельная строка — на реальных ~6000 учителей это давало
   // десятки тысяч строк в DOM и вешало браузер.
   const matched = useMemo<MatchedRow[]>(() => {
+    const activeColumns =
+      selectedModuleKeys.length === 0
+        ? moduleColumnOptions
+        : moduleColumnOptions.filter((c) => selectedModuleKeys.includes(c.key));
+
     const rows: MatchedRow[] = [];
     for (const teacher of teachers) {
       if (!activeGroups.includes(teacher.gradeGroup)) continue;
 
-      const relevantModules = getApplicableModules(teacher).filter(
-        (m) => selectedModuleTitles.length === 0 || selectedModuleTitles.includes(m.shortTitle),
-      );
-      if (relevantModules.length === 0) continue;
-
-      const badges: ModuleBadge[] = relevantModules.map((module) => {
-        const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
-        const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, module.id);
-        const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, module.id);
-        return { module, status, score: result?.score ?? 0 };
-      });
+      const badges: ModuleBadge[] = [];
+      for (const column of activeColumns) {
+        const result = findModuleResultForColumn(teacher.moduleResults, column);
+        if (!result) continue;
+        const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, result.moduleId);
+        const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, result.moduleId);
+        badges.push({ column, moduleId: result.moduleId, status, score: result.score });
+      }
+      if (badges.length === 0) continue;
 
       const matchesStatus = selectedStatuses.length === 0 || badges.some((b) => selectedStatuses.includes(b.status));
       if (!matchesStatus) continue;
@@ -183,14 +183,14 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
     return rows;
-  }, [teachers, activeGroups, selectedModuleTitles, selectedStatuses, groupAnomalySet]);
+  }, [teachers, activeGroups, selectedModuleKeys, moduleColumnOptions, selectedStatuses, groupAnomalySet]);
 
   const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = matched.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function handleExport(keys: Set<string>) {
-    const moduleSuffix = selectedModuleTitles.length > 0 ? selectedModuleTitles.join('-') : 'all';
+    const moduleSuffix = selectedModuleKeys.length > 0 ? selectedModuleKeys.join('-') : 'all';
     exportTeachersToCsv(
       matched.map((row) => row.teacher),
       t,
@@ -262,9 +262,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                 <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                   <input
                     type="checkbox"
-                    checked={selectedModuleTitles.length === 0}
+                    checked={selectedModuleKeys.length === 0}
                     onChange={() => {
-                      setSelectedModuleTitles([]);
+                      setSelectedModuleKeys([]);
                       setPage(1);
                     }}
                     className="accent-brand-600"
@@ -272,18 +272,18 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                   {t.quickList.allModules}
                 </label>
                 <div className="my-1 border-t border-slate-100" />
-                {moduleTitleOptions.map((title) => (
+                {moduleColumnOptions.map((col) => (
                   <label
-                    key={title}
+                    key={col.key}
                     className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedModuleTitles.includes(title)}
-                      onChange={() => toggleModule(title)}
+                      checked={selectedModuleKeys.includes(col.key)}
+                      onChange={() => toggleModule(col.key)}
                       className="accent-brand-600"
                     />
-                    {title}
+                    {col.label}
                   </label>
                 ))}
               </div>
@@ -370,9 +370,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                         {col.label(t)}
                       </th>
                     ))}
-                  {displayedModuleTitles.map((title) => (
-                    <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-1.5 text-center normal-case">
-                      {title}
+                  {displayedModuleColumns.map((col) => (
+                    <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-1.5 text-center normal-case">
+                      {col.label}
                     </th>
                   ))}
                   {visibleKeys.has('result') && <th className="px-2 py-1.5">{t.columns.result}</th>}
@@ -381,7 +381,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
               <tbody className="divide-y divide-slate-100">
                 {pageRows.map(({ teacher, badges }) => {
                   const overall = getTeacherOverallStats(teacher);
-                  const badgeByTitle = new Map(badges.map((b) => [b.module.shortTitle, b]));
+                  const badgeByColKey = new Map(badges.map((b) => [b.column.key, b]));
                   return (
                     <tr
                       key={teacher.id}
@@ -404,13 +404,13 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                             </td>
                           ),
                         )}
-                      {displayedModuleTitles.map((title) => {
-                        const cell = badgeByTitle.get(title);
+                      {displayedModuleColumns.map((col) => {
+                        const cell = badgeByColKey.get(col.key);
                         return (
-                          <td key={title} className="px-0.5 py-1 text-center">
+                          <td key={col.key} className="px-0.5 py-1 text-center">
                             {cell ? (
                               <span
-                                title={`${title}: ${statusLabel(t, cell.status)} (${cell.score}%)`}
+                                title={`${col.label}: ${statusLabel(t, cell.status)} (${cell.score}%)`}
                                 className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
                                 style={{ backgroundColor: STATUS_DOT_COLOR[cell.status] }}
                               >

@@ -178,6 +178,16 @@ export interface Dict {
     tooltipLifecycle: string;
     tooltipPlatformStatus: string;
     tooltipModule: string;
+    tabOverview: string;
+    kpiAttestationTitle: string;
+    kpiAttestationHint: string;
+    kpiPlatformActivityTitle: string;
+    trainingTypeSummaryTitle: string;
+    columnTeacherCount: string;
+    columnEnteredPercent: string;
+    columnSuccessRatePercent: string;
+    moduleByTrainingTypeTitle: string;
+    moduleByLifecycleTitle: string;
   };
   pagination: {
     shown: string;
@@ -399,6 +409,16 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       tooltipLifecycle: 'OLD — учителя, уже работавшие в системе ранее. NEW — новые учителя, добавленные в этом цикле обучения.',
       tooltipPlatformStatus: 'Доля учителей, которые хотя бы раз заходили на обучающую платформу.',
       tooltipModule: 'Доля со статусом «Сдал» среди учителей, которые уже начали проходить этот модуль.',
+      tabOverview: 'Общая статистика',
+      kpiAttestationTitle: 'Сдали аттестацию',
+      kpiAttestationHint: '% от всех назначенных модулей программы',
+      kpiPlatformActivityTitle: 'Активность на платформе',
+      trainingTypeSummaryTitle: 'Сводка по типам обучения',
+      columnTeacherCount: 'Учителей',
+      columnEnteredPercent: '% заходивших',
+      columnSuccessRatePercent: '% успеваемости',
+      moduleByTrainingTypeTitle: 'По типам обучения (Tədris növü)',
+      moduleByLifecycleTitle: 'По стажу (Old / New)',
     },
     pagination: {
       shown: 'Показано',
@@ -618,6 +638,16 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       tooltipLifecycle: 'OLD — sistemdə əvvəllər işləmiş müəllimlər. NEW — bu tədris dövründə əlavə olunan yeni müəllimlər.',
       tooltipPlatformStatus: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlərin payı.',
       tooltipModule: 'Bu modula artıq başlamış müəllimlər arasında «Keçdi» statuslu olanların payı.',
+      tabOverview: 'Ümumi statistika',
+      kpiAttestationTitle: 'Attestasiyanı keçdi',
+      kpiAttestationHint: 'proqramın bütün təyin edilmiş modullarının %-i',
+      kpiPlatformActivityTitle: 'Platformada aktivlik',
+      trainingTypeSummaryTitle: 'Təhsil növləri üzrə xülasə',
+      columnTeacherCount: 'Müəllim',
+      columnEnteredPercent: '% daxil olub',
+      columnSuccessRatePercent: '% müvəffəqiyyət',
+      moduleByTrainingTypeTitle: 'Tədris növü üzrə',
+      moduleByLifecycleTitle: 'Təcrübəyə görə (Old / New)',
     },
     pagination: {
       shown: 'Göstərilir:',

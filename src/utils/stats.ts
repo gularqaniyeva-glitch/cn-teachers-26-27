@@ -1,5 +1,5 @@
-import type { GradeGroup, ModuleDefinition, Teacher } from '../types/teacher';
-import { MODULES, getModule, modulesForGrade } from '../data/constants';
+import type { GradeGroup, ModuleDefinition, Teacher, TrainingType } from '../types/teacher';
+import { LIFECYCLE_STATUSES, MODULES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
   total: number;
@@ -181,4 +181,130 @@ export function getApplicableModules(teacher: Teacher): ModuleDefinition[] {
   return teacher.moduleResults
     .map((r) => getModule(r.moduleId))
     .filter((m): m is ModuleDefinition => Boolean(m));
+}
+
+/**
+ * Какие параллели реально ведёт учитель — определяем напрямую по префиксу
+ * id его назначенных модулей (2-4-M.../5-9-M...), а не по единственному
+ * teacher.gradeGroup, которое хранит только "основную" параллель и не
+ * покажет вторую у двухпараллельных учителей.
+ */
+export function getAssignedGradeGroups(teacher: Teacher): GradeGroup[] {
+  if (teacher.gradeGroup === '10-11') return ['10-11'];
+  const groups: GradeGroup[] = [];
+  if (teacher.moduleResults.some((r) => r.moduleId.startsWith('2-4-'))) groups.push('2-4');
+  if (teacher.moduleResults.some((r) => r.moduleId.startsWith('5-9-'))) groups.push('5-9');
+  return groups;
+}
+
+/**
+ * Текст для колонки "Классы" — вместо сырого (часто пустого) значения из
+ * Sheets выводим параллели, реально выведенные из назначенных модулей.
+ * "нет данных" здесь принципиально не показываем: пустая строка бывает
+ * только в исключительном случае, когда у учителя нет вообще ни одного
+ * назначенного модуля — тогда используем то, что реально есть в Sheets,
+ * либо прочерк.
+ */
+export function formatAssignedClassesLabel(teacher: Teacher, gradeGroupLabels: Record<GradeGroup, string>): string {
+  const groups = getAssignedGradeGroups(teacher);
+  if (groups.length > 0) return groups.map((g) => gradeGroupLabels[g]).join(', ');
+  return teacher.classesTaught || '—';
+}
+
+/**
+ * Общий процент "сдал аттестацию" по всем учителям — доля модулей со
+ * статусом "Сдал" среди ВСЕХ назначенных модулей (не только начатых, в
+ * отличие от OverviewStats.successRate) — тот же принцип "конец года,
+ * считаем от всего назначенного", что и в getTeacherOverallStats.
+ */
+export function getOverallPassPercent(teachers: Teacher[]): number {
+  let assigned = 0;
+  let passed = 0;
+  for (const teacher of teachers) {
+    for (const r of teacher.moduleResults) {
+      assigned += 1;
+      if (r.status === 'passed') passed += 1;
+    }
+  }
+  return assigned > 0 ? Math.round((passed / assigned) * 100) : 0;
+}
+
+export interface TrainingTypeSummary {
+  type: TrainingType;
+  count: number;
+  /** % учителей этого типа обучения, хотя бы раз заходивших на платформу */
+  enteredPercent: number;
+  /** % "Сдал" среди начатых модулей (см. OverviewStats.successRate) */
+  successRate: number;
+}
+
+/** Сводка "Кол-во учителей | % заходивших | % успеваемости" по каждому типу обучения */
+export function getTrainingTypeSummary(teachers: Teacher[]): TrainingTypeSummary[] {
+  return TRAINING_TYPES.map((type) => {
+    const subset = teachers.filter((te) => te.trainingType === type);
+    const overview = getOverviewStats(subset);
+    return {
+      type,
+      count: subset.length,
+      enteredPercent: subset.length > 0 ? Math.round((overview.entered / subset.length) * 100) : 0,
+      successRate: overview.successRate,
+    };
+  });
+}
+
+export interface ModuleSegmentRow {
+  moduleId: string;
+  shortTitle: string;
+  /** ключ сегмента (тип обучения либо OLD/NEW) -> % сдавших (score >= 70) среди назначенных этот модуль */
+  values: Record<string, number>;
+}
+
+const PASS_THRESHOLD = 70;
+
+/** Общий движок разбивки модулей одной параллели по произвольному сегменту (тип обучения, стаж, ...) — один проход по всем результатам */
+function getModulePassRateBySegment<K extends string>(
+  teachers: Teacher[],
+  group: GradeGroup,
+  segmentKeys: readonly K[],
+  segmentOf: (teacher: Teacher) => K,
+): ModuleSegmentRow[] {
+  const modules = modulesForGrade(group);
+  const acc = new Map<string, Map<K, { assigned: number; passed: number }>>();
+  for (const m of modules) {
+    const segMap = new Map<K, { assigned: number; passed: number }>();
+    for (const key of segmentKeys) segMap.set(key, { assigned: 0, passed: 0 });
+    acc.set(m.id, segMap);
+  }
+
+  for (const teacher of teachers) {
+    const segment = segmentOf(teacher);
+    for (const r of teacher.moduleResults) {
+      const segMap = acc.get(r.moduleId);
+      if (!segMap) continue;
+      const entry = segMap.get(segment);
+      if (!entry) continue;
+      entry.assigned += 1;
+      if (r.score >= PASS_THRESHOLD) entry.passed += 1;
+    }
+  }
+
+  return modules.map((m) => {
+    const segMap = acc.get(m.id)!;
+    const values: Record<string, number> = {};
+    for (const key of segmentKeys) {
+      const { assigned, passed } = segMap.get(key)!;
+      values[key] = assigned > 0 ? Math.round((passed / assigned) * 100) : 0;
+    }
+    return { moduleId: m.id, shortTitle: m.shortTitle, values };
+  });
+}
+
+/** % сдавших (>=70%) каждый модуль параллели `group`, отдельно по типу обучения (asinxron/onlayn/əyani) */
+export function getModulePassRateByTrainingType(teachers: Teacher[], group: GradeGroup): ModuleSegmentRow[] {
+  return getModulePassRateBySegment(teachers, group, TRAINING_TYPES, (te) => te.trainingType);
+}
+
+/** % сдавших (>=70%) каждый модуль параллели `group`, отдельно по стажу (OLD/NEW) */
+export function getModulePassRateByLifecycle(teachers: Teacher[], group: GradeGroup): ModuleSegmentRow[] {
+  return getModulePassRateBySegment(teachers, group, LIFECYCLE_STATUSES, (te) => te.lifecycleStatus);
 }

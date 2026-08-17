@@ -3,10 +3,10 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Eye, StickyNote, Search }
 import type { GradeGroup, Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
-import { getApplicableModules, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
+import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
-import { getModuleTitlesForGroups } from '../../data/constants';
+import { findModuleResultForColumn, getModuleColumnsForGroups } from '../../data/constants';
 import { TEACHER_TABLE_COLUMNS, type TeacherColumnDef } from './teacherTableColumns';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -52,8 +52,8 @@ export function TeacherTable({
   const columnMenuRef = useRef<HTMLDivElement>(null);
 
   const showModuleColumns = visibleKeys.has('moduleColumns');
-  const moduleTitles = useMemo(
-    () => (showModuleColumns ? getModuleTitlesForGroups(gradeGroups) : []),
+  const moduleColumns = useMemo(
+    () => (showModuleColumns ? getModuleColumnsForGroups(gradeGroups) : []),
     [showModuleColumns, gradeGroups],
   );
 
@@ -83,7 +83,7 @@ export function TeacherTable({
       case 'district':
         return teacher.district;
       case 'classesTaught':
-        return teacher.classesTaught || t.common.noData;
+        return formatAssignedClassesLabel(teacher, t.gradeGroup);
       case 'lmsId':
         return teacher.lmsId ? <NoTranslate>{teacher.lmsId}</NoTranslate> : t.common.noData;
       case 'fin':
@@ -206,9 +206,9 @@ export function TeacherTable({
                 </th>
               ))}
               {showModuleColumns &&
-                moduleTitles.map((title) => (
-                  <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
-                    {title}
+                moduleColumns.map((col) => (
+                  <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
+                    {col.label}
                   </th>
                 ))}
               <th className="px-2.5 py-2" />
@@ -218,7 +218,6 @@ export function TeacherTable({
             {teachers.map((teacher) => {
               const isSelected = selectedIds.has(teacher.id);
               const flagged = hasAnomaly(teacher);
-              const applicableModules = showModuleColumns ? getApplicableModules(teacher) : [];
               return (
                 <tr
                   key={teacher.id}
@@ -240,14 +239,13 @@ export function TeacherTable({
                     </td>
                   ))}
                   {showModuleColumns &&
-                    moduleTitles.map((title) => {
-                      const module = applicableModules.find((m) => m.shortTitle === title);
-                      const result = module ? teacher.moduleResults.find((r) => r.moduleId === module.id) : undefined;
+                    moduleColumns.map((col) => {
+                      const result = findModuleResultForColumn(teacher.moduleResults, col);
                       return (
-                        <td key={title} className="px-0.5 py-1 text-center">
+                        <td key={col.key} className="px-0.5 py-1 text-center">
                           {result ? (
                             <span
-                              title={`${title}: ${result.score}%`}
+                              title={`${col.label}: ${result.score}%`}
                               className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
                               style={{ backgroundColor: MODULE_STATUS_COLOR[result.status] }}
                             >
