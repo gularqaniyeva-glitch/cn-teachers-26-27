@@ -187,10 +187,14 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher {
 const SENIOR_MODULE_NUMBERS = ['3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15'];
 
 const SENIOR_FIELD_CANDIDATES = {
+  // В реальном листе "ИТ классы 25/26" колонки с ФИО нет вообще (проверено
+  // напрямую по заголовкам) — оставляем варианты на случай, если она
+  // появится, но полагаться на неё нельзя.
   fullName: ['S.A.A', 'ФИО'],
   school: ['Школа название как LMS', 'Məktəb'],
   fin: ['ФИН КОД', 'FIN', 'FİN'],
   phone: ['Телефон учителя'],
+  email: ['E-mail учителя'],
   lmsId: ['ID'],
   sector: ['Sektor'],
   startYear: ['IT-yə başladıqları il', 'Годы преподавания'],
@@ -200,7 +204,11 @@ const SENIOR_FIELD_CANDIDATES = {
 export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher {
   const school = findValue(row, [...SENIOR_FIELD_CANDIDATES.school]);
   const lmsId = findValue(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
-  const fullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]);
+  const email = findValue(row, [...SENIOR_FIELD_CANDIDATES.email]);
+  const phone = findValue(row, [...SENIOR_FIELD_CANDIDATES.phone]);
+  // Имени в этом листе нет — показываем хоть какой-то реальный
+  // идентификатор учителя вместо пустой заглушки.
+  const fullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]) || email || phone || `ID ${lmsId || index + 2}`;
 
   const moduleResults: ModuleResult[] = [];
   for (const n of SENIOR_MODULE_NUMBERS) {
@@ -210,11 +218,11 @@ export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher {
 
   return {
     id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
-    fullName: fullName || `Без имени (стр. ${index + 2})`,
+    fullName,
     school,
     district: deriveDistrict(school),
     fin: findValue(row, [...SENIOR_FIELD_CANDIDATES.fin]),
-    phone: findValue(row, [...SENIOR_FIELD_CANDIDATES.phone]),
+    phone,
     lmsId,
     language: mapSector(findValue(row, [...SENIOR_FIELD_CANDIDATES.sector])),
     trainingType: 'əyani',
