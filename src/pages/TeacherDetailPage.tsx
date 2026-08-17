@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { NoTranslate } from '../components/ui/NoTranslate';
 import { TeacherEditForm } from '../components/teacher/TeacherEditForm';
 import { ModuleResultsPanel } from '../components/teacher/ModuleResultsPanel';
 import { NotesPanel } from '../components/teacher/NotesPanel';
@@ -12,7 +14,7 @@ import { getTeacherAverageScore } from '../utils/stats';
 import type { Teacher } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2 text-sm">
       <span className="text-slate-500">{label}</span>
@@ -60,8 +62,12 @@ export function TeacherDetailPage() {
         <div className="flex items-center gap-3">
           <BackButton onClick={() => navigate('/teachers')} label={t.common.backToList} />
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{teacher.fullName}</h1>
-            <p className="text-sm text-slate-500">{teacher.school}</p>
+            <h1 className="text-2xl font-semibold text-slate-900">
+              <NoTranslate>{teacher.fullName}</NoTranslate>
+            </h1>
+            <p className="text-sm text-slate-500">
+              <NoTranslate>{teacher.school}</NoTranslate>
+            </p>
           </div>
         </div>
         {!editing && (
@@ -87,15 +93,15 @@ export function TeacherDetailPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card title={t.detail.basicInfo}>
-              <InfoRow label={t.detail.fields.fullName} value={teacher.fullName} />
-              <InfoRow label={t.detail.fields.fin} value={teacher.fin} />
+              <InfoRow label={t.detail.fields.fullName} value={<NoTranslate>{teacher.fullName}</NoTranslate>} />
+              <InfoRow label={t.detail.fields.fin} value={<NoTranslate>{teacher.fin}</NoTranslate>} />
               <InfoRow label={t.detail.fields.phone} value={teacher.phone} />
-              <InfoRow label={t.detail.fields.lmsId} value={teacher.lmsId} />
+              <InfoRow label={t.detail.fields.lmsId} value={<NoTranslate>{teacher.lmsId}</NoTranslate>} />
               <InfoRow label={t.detail.fields.language} value={t.language[teacher.language]} />
             </Card>
 
             <Card title={t.detail.schoolAndTraining}>
-              <InfoRow label={t.detail.fields.school} value={teacher.school} />
+              <InfoRow label={t.detail.fields.school} value={<NoTranslate>{teacher.school}</NoTranslate>} />
               <InfoRow label={t.detail.fields.district} value={teacher.district} />
               <InfoRow label={t.detail.fields.gradeGroup} value={t.gradeGroup[teacher.gradeGroup]} />
               <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />

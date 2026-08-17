@@ -1,6 +1,6 @@
 import type { Teacher } from '../types/teacher';
 import { getModule } from '../data/constants';
-import { getApplicableModules, getTeacherAverageScore } from './stats';
+import { getApplicableModules, getTeacherAverageScore, getTeacherOverallStats } from './stats';
 import type { IndividualAnomaly } from './anomalies';
 import type { Dict } from '../i18n/translations';
 
@@ -50,11 +50,23 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
     value: (te, t) => t.platformStatus[te.platformStatus === 'entered' ? 'entered' : 'notEntered'],
   },
   {
-    key: 'result',
-    header: (t) => `${t.columns.result}, %`,
+    key: 'averageScore',
+    header: (t) => t.columns.averageScore,
     value: (te) => {
       const avg = getTeacherAverageScore(te);
       return avg === null ? '' : String(avg);
+    },
+  },
+  {
+    key: 'result',
+    header: (t) => t.quickList.columnScore,
+    value: (te, t) => {
+      const overall = getTeacherOverallStats(te);
+      return overall.assigned > 0
+        ? t.deadlines.resultHintAllModules
+            .replace('{passed}', String(overall.passed))
+            .replace('{assigned}', String(overall.assigned))
+        : '';
     },
   },
   { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => te.fin },

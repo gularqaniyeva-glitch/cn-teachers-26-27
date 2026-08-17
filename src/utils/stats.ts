@@ -39,6 +39,17 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
   return Math.round(sum / teacher.moduleResults.length);
 }
 
+/**
+ * Учебный год завершён, отдельного листа с дедлайнами в Google Sheets
+ * пока нет — поэтому процент выполнения считается по ВСЕМ назначенным
+ * учителю модулям программы (M1–M6 для 2–4 кл, M1–M13 для 5–9 кл), без
+ * учёта сроков. Когда дедлайны появятся в источнике данных, переключить
+ * этот флаг на true и перевести getTeacherOverallStats на
+ * getTeacherDeadlineStats (см. utils/deadlines.ts) — учитывать только
+ * модули с уже наступившим дедлайном.
+ */
+export const useDeadlines = false;
+
 export interface TeacherOverallStats {
   /** Всего модулей, реально назначенных этому учителю */
   assigned: number;

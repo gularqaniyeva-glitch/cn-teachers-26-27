@@ -33,7 +33,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(50);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);

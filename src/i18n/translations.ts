@@ -61,6 +61,7 @@ export interface Dict {
     lifecycleStatus: string;
     platformStatus: string;
     result: string;
+    averageScore: string;
     note: string;
   };
   dashboard: {
@@ -277,6 +278,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       lifecycleStatus: 'OLD/NEW',
       platformStatus: 'Платформа',
       result: 'Результат',
+      averageScore: '📈 Средний результат, %',
       note: 'Заметка',
     },
     dashboard: {
@@ -491,6 +493,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       lifecycleStatus: 'OLD/NEW',
       platformStatus: 'Platforma',
       result: 'Nəticə',
+      averageScore: '📈 Orta nəticə, %',
       note: 'Qeyd',
     },
     dashboard: {

@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ExternalLink } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
+import { NoTranslate } from '../ui/NoTranslate';
 import { ModuleResultsPanel } from './ModuleResultsPanel';
 import { DeadlineStatsBar } from './DeadlineStatsBar';
 import { getTeacherAverageScore } from '../../utils/stats';
@@ -13,7 +15,7 @@ interface TeacherQuickViewModalProps {
   onClose: () => void;
 }
 
-function ProfileField({ label, value }: { label: string; value: string }) {
+function ProfileField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <p className="text-xs text-slate-400">{label}</p>
@@ -44,8 +46,12 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
       <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{teacher.fullName}</h2>
-            <p className="text-sm text-slate-500">{teacher.school}</p>
+            <h2 className="text-lg font-semibold text-slate-900">
+              <NoTranslate>{teacher.fullName}</NoTranslate>
+            </h2>
+            <p className="text-sm text-slate-500">
+              <NoTranslate>{teacher.school}</NoTranslate>
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -61,8 +67,8 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <ProfileField label={t.detail.fields.district} value={teacher.district} />
-            <ProfileField label={t.detail.fields.fin} value={teacher.fin} />
-            <ProfileField label={t.detail.fields.lmsId} value={teacher.lmsId} />
+            <ProfileField label={t.detail.fields.fin} value={<NoTranslate>{teacher.fin}</NoTranslate>} />
+            <ProfileField label={t.detail.fields.lmsId} value={<NoTranslate>{teacher.lmsId}</NoTranslate>} />
             <ProfileField label={t.filters.sectorSection} value={t.language[teacher.language]} />
             <ProfileField label={t.quickList.columnFormat} value={t.trainingType[teacher.trainingType]} />
             <ProfileField label={t.detail.fields.lifecycleStatus} value={teacher.lifecycleStatus} />

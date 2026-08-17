@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Eye, StickyNote, Search } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
+import { NoTranslate } from '../ui/NoTranslate';
 import { getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
@@ -33,15 +34,17 @@ interface ColumnDef {
   label: (t: Dict) => string;
 }
 
-// По умолчанию видны только 5 базовых колонок (ФИО, Школа, Район, Тип
-// обучения, Результат) — остальные включаются по кнопке "Столбцы 👁️". На
-// реальных ~6000 строках меньше колонок = меньше DOM-узлов и быстрее рендер.
+// По умолчанию видны 6 базовых колонок (ФИО, Школа, Район, Тип обучения,
+// Средний результат %, Результат/Статус) — остальные включаются по кнопке
+// "Столбцы 👁️". На реальных ~6000 строках меньше колонок = меньше
+// DOM-узлов и быстрее рендер.
 const ALL_COLUMNS: ColumnDef[] = [
   { key: 'fullName', sortKey: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', sortKey: 'school', defaultVisible: true, label: (t) => t.columns.school },
   { key: 'district', sortKey: 'district', defaultVisible: true, label: (t) => t.columns.district },
   { key: 'trainingType', sortKey: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
-  { key: 'result', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.result },
+  { key: 'averageScore', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.averageScore },
+  { key: 'result', defaultVisible: true, label: (t) => t.quickList.columnScore },
   { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },
   { key: 'gradeGroup', sortKey: 'gradeGroup', defaultVisible: false, label: (t) => t.columns.gradeGroup },
   { key: 'lifecycleStatus', sortKey: 'lifecycleStatus', defaultVisible: false, label: (t) => t.columns.lifecycleStatus },
@@ -92,9 +95,13 @@ export function TeacherTable({
   function renderCell(col: ColumnDef, teacher: Teacher) {
     switch (col.key) {
       case 'fullName':
-        return <span className="font-medium text-slate-900">{teacher.fullName}</span>;
+        return (
+          <span className="font-medium text-slate-900">
+            <NoTranslate>{teacher.fullName}</NoTranslate>
+          </span>
+        );
       case 'school':
-        return teacher.school;
+        return <NoTranslate>{teacher.school}</NoTranslate>;
       case 'district':
         return teacher.district;
       case 'sector':
@@ -111,20 +118,20 @@ export function TeacherTable({
             {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
           </Badge>
         );
-      case 'result': {
+      case 'averageScore': {
         const score = getTeacherAverageScore(teacher);
+        return <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>;
+      }
+      case 'result': {
         const overallStats = getTeacherOverallStats(teacher);
-        const resultHint =
-          overallStats.assigned > 0
-            ? t.deadlines.resultHintAllModules
-                .replace('{passed}', String(overallStats.passed))
-                .replace('{assigned}', String(overallStats.assigned))
-            : null;
+        if (overallStats.assigned === 0) return <Badge variant="neutral">{t.common.noData}</Badge>;
+        const label = t.deadlines.resultHintAllModules
+          .replace('{passed}', String(overallStats.passed))
+          .replace('{assigned}', String(overallStats.assigned));
         return (
-          <div className="flex flex-col gap-0.5" title={resultHint ?? undefined}>
-            <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>
-            {resultHint && <span className="text-[11px] text-slate-400">({resultHint})</span>}
-          </div>
+          <Badge variant={overallStats.percent >= 70 ? 'success' : overallStats.percent >= 50 ? 'warning' : 'danger'}>
+            {label}
+          </Badge>
         );
       }
       default:

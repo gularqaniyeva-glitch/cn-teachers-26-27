@@ -8,6 +8,7 @@ import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomali
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { Badge } from '../ui/Badge';
+import { NoTranslate } from '../ui/NoTranslate';
 import { Pagination } from './Pagination';
 import { ExportMenu } from './ExportMenu';
 import { useT } from '../../i18n/useLocaleStore';
@@ -197,9 +198,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   function renderCell(col: TableColumnDef, teacher: Teacher) {
     switch (col.key) {
       case 'fullName':
-        return teacher.fullName;
+        return <NoTranslate>{teacher.fullName}</NoTranslate>;
       case 'school':
-        return teacher.school;
+        return <NoTranslate>{teacher.school}</NoTranslate>;
       case 'district':
         return teacher.district;
       case 'trainingType':
@@ -381,7 +382,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                               key={col.key}
                               className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap"
                             >
-                              {teacher.fullName}
+                              <NoTranslate>{teacher.fullName}</NoTranslate>
                             </td>
                           ) : (
                             <td key={col.key} className="px-3 py-2 text-slate-600 whitespace-nowrap">

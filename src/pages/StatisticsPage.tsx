@@ -4,6 +4,7 @@ import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
+import { NoTranslate } from '../components/ui/NoTranslate';
 import { countByKey, getModuleStatsByGradeGroup } from '../utils/stats';
 import { findGroupAnomalies, findIndividualAnomalies } from '../utils/anomalies';
 import { exportAnomaliesToCsv } from '../utils/csvExport';
@@ -159,9 +160,11 @@ export function StatisticsPage() {
                   {individualAnomalies.map(({ teacher, moduleIds }) => (
                     <div key={teacher.id} className="flex items-center justify-between gap-3 py-2.5">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-slate-800">{teacher.fullName}</p>
+                        <p className="truncate text-sm font-medium text-slate-800">
+                          <NoTranslate>{teacher.fullName}</NoTranslate>
+                        </p>
                         <p className="truncate text-xs text-slate-500">
-                          {teacher.school} · {t.anomalies.flaggedModulesLabel}:{' '}
+                          <NoTranslate>{teacher.school}</NoTranslate> · {t.anomalies.flaggedModulesLabel}:{' '}
                           {moduleIds.map((id) => getModule(id)?.shortTitle ?? id).join(', ')}
                         </p>
                       </div>
