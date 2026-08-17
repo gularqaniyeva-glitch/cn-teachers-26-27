@@ -108,6 +108,7 @@ const FIELD_CANDIDATES = {
   format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi'],
   startYear: ['Başlama ili - yeni məlumat lms'],
   platformStatus: ['Статус входа на платформу'],
+  classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)'],
 } as const;
 
 /**
@@ -154,8 +155,15 @@ function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active
   return results;
 }
 
-/** Строка листа "Все учителя 26/27" (2–9 классы) → Teacher */
-export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher {
+/**
+ * Строка листа "Все учителя 26/27" (2–9 классы) → Teacher, либо null, если
+ * строка "пустая" (нет ФИО) — это мусорные/фантомные строки в исходной
+ * таблице, их нужно полностью исключать, а не показывать заглушкой.
+ */
+export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher | null {
+  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]).trim();
+  if (!fullName) return null;
+
   const { active1to4, active5to9 } = detectActiveBands(row);
   // По умолчанию основная параллель — 5–9 (модулей там больше и это
   // наиболее частый случай), если активна только 1–4 — используем её.
@@ -163,11 +171,10 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher {
 
   const school = findValue(row, [...FIELD_CANDIDATES.school]);
   const lmsId = findValue(row, [...FIELD_CANDIDATES.lmsId]);
-  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]);
 
   return {
     id: lmsId || `teacher-row-${index}`,
-    fullName: fullName || `Без имени (стр. ${index + 2})`,
+    fullName,
     school,
     district: deriveDistrict(school),
     fin: findValue(row, [...FIELD_CANDIDATES.fin]),
@@ -178,6 +185,7 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher {
     lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...FIELD_CANDIDATES.startYear])),
     gradeGroup: primary,
     platformStatus: mapPlatformStatus(findValue(row, [...FIELD_CANDIDATES.platformStatus])),
+    classesTaught: findValue(row, [...FIELD_CANDIDATES.classesTaught]),
     moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9),
     note: '',
     updatedAt: new Date().toISOString(),
@@ -198,14 +206,24 @@ const SENIOR_FIELD_CANDIDATES = {
   lmsId: ['ID'],
   sector: ['Sektor'],
   startYear: ['IT-yə başladıqları il', 'Годы преподавания'],
+  classesTaught: ['Siniflər'],
 } as const;
 
-/** Строка листа "ИТ классы 25/26" (10–11 классы) → Teacher */
-export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher {
+/**
+ * Строка листа "ИТ классы 25/26" (10–11 классы) → Teacher, либо null для
+ * полностью пустых/фантомных строк. В этом листе нет колонки ФИО вообще,
+ * поэтому "пустой" считаем строку без школы, LMS ID, email и телефона
+ * одновременно — по отдельности любое из этих полей уже делает учителя
+ * идентифицируемым и реальным.
+ */
+export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher | null {
   const school = findValue(row, [...SENIOR_FIELD_CANDIDATES.school]);
   const lmsId = findValue(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
   const email = findValue(row, [...SENIOR_FIELD_CANDIDATES.email]);
   const phone = findValue(row, [...SENIOR_FIELD_CANDIDATES.phone]);
+
+  if (!school.trim() && !lmsId.trim() && !email.trim() && !phone.trim()) return null;
+
   // Имени в этом листе нет — показываем хоть какой-то реальный
   // идентификатор учителя вместо пустой заглушки.
   const fullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]) || email || phone || `ID ${lmsId || index + 2}`;
@@ -229,6 +247,7 @@ export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher {
     lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...SENIOR_FIELD_CANDIDATES.startYear])),
     gradeGroup: '10-11',
     platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',
+    classesTaught: findValue(row, [...SENIOR_FIELD_CANDIDATES.classesTaught]),
     moduleResults,
     note: '',
     updatedAt: new Date().toISOString(),

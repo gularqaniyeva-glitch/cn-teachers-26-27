@@ -104,6 +104,7 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
       lifecycleStatus,
       gradeGroup,
       platformStatus: entered ? 'entered' : 'not_entered',
+      classesTaught: '',
       moduleResults,
       note: '',
       updatedAt: new Date(2026, 7, randomInt(rng, 1, 12)).toISOString(),

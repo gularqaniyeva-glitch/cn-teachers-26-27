@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download } from 'lucide-react';
+import { ChevronDown, Eye } from 'lucide-react';
 import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
 import { MODULES } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
@@ -9,8 +9,29 @@ import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { Badge } from '../ui/Badge';
 import { Pagination } from './Pagination';
+import { ExportMenu } from './ExportMenu';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
+
+interface TableColumnDef {
+  key: string;
+  defaultVisible: boolean;
+  alwaysVisible?: boolean;
+  label: (t: Dict) => string;
+}
+
+// По умолчанию видны ФИО, Школа, Район, Тип обучения и Результат — как и в
+// таблице "Все учителя". Параллель и Сектор скрыты по умолчанию, но
+// доступны через "Столбцы 👁️".
+const TABLE_COLUMNS: TableColumnDef[] = [
+  { key: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
+  { key: 'school', defaultVisible: true, label: (t) => t.columns.school },
+  { key: 'district', defaultVisible: true, label: (t) => t.columns.district },
+  { key: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
+  { key: 'gradeGroup', defaultVisible: false, label: (t) => t.quickList.gradeGroupLabel },
+  { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },
+  { key: 'result', defaultVisible: true, label: (t) => t.columns.result },
+];
 
 interface ModuleQuickListPanelProps {
   teachers: Teacher[];
@@ -61,6 +82,12 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
+  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(
+    () => new Set(TABLE_COLUMNS.filter((c) => c.defaultVisible).map((c) => c.key)),
+  );
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!moduleDropdownOpen) return;
     function handleClickOutside(e: MouseEvent) {
@@ -71,6 +98,28 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [moduleDropdownOpen]);
+
+  useEffect(() => {
+    if (!columnMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target as Node)) {
+        setColumnMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [columnMenuOpen]);
+
+  function toggleColumn(key: string) {
+    setVisibleKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  const columns = TABLE_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
 
   const activeGroups = gradeGroupSelection === 'all' ? gradeGroupOptions : [gradeGroupSelection];
 
@@ -135,13 +184,33 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   const currentPage = Math.min(page, totalPages);
   const pageRows = matched.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  function handleExport() {
+  function handleExport(keys: Set<string>) {
     const moduleSuffix = selectedModuleTitles.length > 0 ? selectedModuleTitles.join('-') : 'all';
     exportTeachersToCsv(
       matched.map((row) => row.teacher),
       t,
+      keys,
       `module-report-${moduleSuffix}-${activeGroups.join('-')}.csv`,
     );
+  }
+
+  function renderCell(col: TableColumnDef, teacher: Teacher) {
+    switch (col.key) {
+      case 'fullName':
+        return teacher.fullName;
+      case 'school':
+        return teacher.school;
+      case 'district':
+        return teacher.district;
+      case 'trainingType':
+        return t.trainingType[teacher.trainingType];
+      case 'gradeGroup':
+        return t.gradeGroup[teacher.gradeGroup];
+      case 'sector':
+        return t.language[teacher.language];
+      default:
+        return null;
+    }
   }
 
   return (
@@ -217,14 +286,38 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
           </div>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={matched.length === 0}
-          className="ml-auto flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-slate-50"
-        >
-          <Download size={15} />
-          {t.quickList.exportButton}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative" ref={columnMenuRef}>
+            <button
+              onClick={() => setColumnMenuOpen((v) => !v)}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Eye size={15} />
+              {t.common.columnsToggle}
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+            {columnMenuOpen && (
+              <div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                {TABLE_COLUMNS.filter((c) => !c.alwaysVisible).map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleKeys.has(c.key)}
+                      onChange={() => toggleColumn(c.key)}
+                      className="accent-brand-600"
+                    />
+                    {c.label(t)}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <ExportMenu buttonLabel={t.quickList.exportButton} disabled={matched.length === 0} onExport={handleExport} />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-col gap-1 text-xs font-medium text-slate-500">
@@ -260,13 +353,15 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
             <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/95 text-xs font-medium uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2">{t.columns.fullName}</th>
-                  <th className="px-3 py-2">{t.columns.school}</th>
-                  <th className="px-3 py-2">{t.columns.district}</th>
-                  <th className="px-3 py-2">{t.quickList.gradeGroupLabel}</th>
-                  <th className="px-3 py-2">{t.filters.sectorSection}</th>
+                  {columns
+                    .filter((c) => c.key !== 'result')
+                    .map((col) => (
+                      <th key={col.key} className="px-3 py-2 whitespace-nowrap">
+                        {col.label(t)}
+                      </th>
+                    ))}
                   <th className="px-3 py-2">{t.quickList.columnModule}</th>
-                  <th className="px-3 py-2">{t.columns.result}</th>
+                  {visibleKeys.has('result') && <th className="px-3 py-2">{t.columns.result}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -278,13 +373,22 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                       onClick={() => onRowClick(teacher.id)}
                       className="cursor-pointer hover:bg-brand-50/60"
                     >
-                      <td className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap">
-                        {teacher.fullName}
-                      </td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.school}</td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{teacher.district}</td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.gradeGroup[teacher.gradeGroup]}</td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{t.language[teacher.language]}</td>
+                      {columns
+                        .filter((c) => c.key !== 'result')
+                        .map((col) =>
+                          col.key === 'fullName' ? (
+                            <td
+                              key={col.key}
+                              className="px-3 py-2 font-medium text-brand-700 underline-offset-2 hover:underline whitespace-nowrap"
+                            >
+                              {teacher.fullName}
+                            </td>
+                          ) : (
+                            <td key={col.key} className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                              {renderCell(col, teacher)}
+                            </td>
+                          ),
+                        )}
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap items-center gap-1">
                           {badges.slice(0, MAX_BADGES_PER_ROW).map((b) => (
@@ -305,11 +409,13 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <Badge variant={overall.percent >= 70 ? 'success' : overall.percent >= 50 ? 'warning' : 'danger'}>
-                          {overall.percent}%
-                        </Badge>
-                      </td>
+                      {visibleKeys.has('result') && (
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <Badge variant={overall.percent >= 70 ? 'success' : overall.percent >= 50 ? 'warning' : 'danger'}>
+                            {overall.percent}%
+                          </Badge>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

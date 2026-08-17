@@ -1,6 +1,6 @@
 import type { Teacher } from '../types/teacher';
-import { MODULES, getModule } from '../data/constants';
-import { getTeacherAverageScore } from './stats';
+import { getModule } from '../data/constants';
+import { getApplicableModules, getTeacherAverageScore } from './stats';
 import type { IndividualAnomaly } from './anomalies';
 import type { Dict } from '../i18n/translations';
 
@@ -27,23 +27,53 @@ function downloadCsv(headers: string[], rows: (string | number)[][], filename: s
   URL.revokeObjectURL(url);
 }
 
-export function exportTeachersToCsv(teachers: Teacher[], t: Dict, filename = 'teachers.csv'): void {
-  const headers = [
-    t.columns.fullName,
-    t.columns.school,
-    t.columns.district,
-    t.detail.fields.fin,
-    t.detail.fields.phone,
-    t.detail.fields.lmsId,
-    t.detail.fields.language,
-    t.columns.trainingType,
-    t.columns.lifecycleStatus,
-    t.columns.gradeGroup,
-    t.columns.platformStatus,
-    `${t.columns.result}, %`,
-    ...MODULES.map((m) => `${t.gradeGroup[m.group]} · ${m.shortTitle}`),
-    t.columns.note,
-  ];
+interface ExportFieldDef {
+  key: string;
+  header: (t: Dict) => string;
+  value: (teacher: Teacher, t: Dict) => string;
+}
+
+// Каждое поле экспортируется, только если его ключ выбран пользователем в
+// меню "Столбцы для экспорта" — так CSV не раздувается служебными и
+// малополезными для конкретной выгрузки столбцами. "modules" — не
+// колонка-на-модуль (их было бы под три десятка, в основном пустых), а
+// одна сводная колонка со всеми результатами учителя.
+const EXPORT_FIELDS: ExportFieldDef[] = [
+  { key: 'fullName', header: (t) => t.columns.fullName, value: (te) => te.fullName },
+  { key: 'school', header: (t) => t.columns.school, value: (te) => te.school },
+  { key: 'district', header: (t) => t.columns.district, value: (te) => te.district },
+  { key: 'sector', header: (t) => t.filters.sectorSection, value: (te, t) => t.language[te.language] },
+  { key: 'trainingType', header: (t) => t.columns.trainingType, value: (te, t) => t.trainingType[te.trainingType] },
+  {
+    key: 'platformStatus',
+    header: (t) => t.columns.platformStatus,
+    value: (te, t) => t.platformStatus[te.platformStatus === 'entered' ? 'entered' : 'notEntered'],
+  },
+  {
+    key: 'result',
+    header: (t) => `${t.columns.result}, %`,
+    value: (te) => {
+      const avg = getTeacherAverageScore(te);
+      return avg === null ? '' : String(avg);
+    },
+  },
+  { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => te.fin },
+  { key: 'phone', header: (t) => t.detail.fields.phone, value: (te) => te.phone },
+  { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => te.lmsId },
+  { key: 'gradeGroup', header: (t) => t.columns.gradeGroup, value: (te, t) => t.gradeGroup[te.gradeGroup] },
+  { key: 'lifecycleStatus', header: (t) => t.columns.lifecycleStatus, value: (te) => te.lifecycleStatus },
+  { key: 'classesTaught', header: (t) => t.detail.fields.classesTaught, value: (te) => te.classesTaught },
+  { key: 'note', header: (t) => t.columns.note, value: (te) => te.note },
+];
+
+export function exportTeachersToCsv(
+  teachers: Teacher[],
+  t: Dict,
+  selectedKeys: Set<string>,
+  filename = 'teachers.csv',
+): void {
+  const activeFields = EXPORT_FIELDS.filter((f) => selectedKeys.has(f.key));
+  const includeModules = selectedKeys.has('modules');
 
   const statusLabel = {
     passed: t.moduleStatus.passed,
@@ -51,30 +81,21 @@ export function exportTeachersToCsv(teachers: Teacher[], t: Dict, filename = 'te
     not_started: t.moduleStatus.notStarted,
   } as const;
 
-  const rows = teachers.map((teacher) => {
-    const avg = getTeacherAverageScore(teacher);
-    const moduleCells = MODULES.map((m) => {
-      const result = teacher.moduleResults.find((r) => r.moduleId === m.id);
-      if (!result) return '';
-      return `${statusLabel[result.status]} (${result.score}%)`;
-    });
+  const headers = [...activeFields.map((f) => f.header(t)), ...(includeModules ? [t.exportMenu.modulesLabel] : [])];
 
-    return [
-      teacher.fullName,
-      teacher.school,
-      teacher.district,
-      teacher.fin,
-      teacher.phone,
-      teacher.lmsId,
-      t.language[teacher.language],
-      t.trainingType[teacher.trainingType],
-      teacher.lifecycleStatus,
-      t.gradeGroup[teacher.gradeGroup],
-      t.platformStatus[teacher.platformStatus === 'entered' ? 'entered' : 'notEntered'],
-      avg === null ? '' : String(avg),
-      ...moduleCells,
-      teacher.note,
-    ];
+  const rows = teachers.map((teacher) => {
+    const cells = activeFields.map((f) => f.value(teacher, t));
+    if (!includeModules) return cells;
+
+    const summary = getApplicableModules(teacher)
+      .map((m) => {
+        const result = teacher.moduleResults.find((r) => r.moduleId === m.id);
+        return result ? `${m.shortTitle}: ${statusLabel[result.status]} (${result.score}%)` : '';
+      })
+      .filter(Boolean)
+      .join('; ');
+
+    return [...cells, summary];
   });
 
   downloadCsv(headers, rows, filename);

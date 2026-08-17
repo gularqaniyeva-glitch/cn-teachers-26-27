@@ -33,17 +33,17 @@ interface ColumnDef {
   label: (t: Dict) => string;
 }
 
-// По умолчанию видны только 5 базовых колонок (ФИО, Школа, Район, Сектор,
-// Результат) — остальные включаются по кнопке "Столбцы 👁️". На реальных
-// ~6000 строках меньше колонок = меньше DOM-узлов и быстрее рендер.
+// По умолчанию видны только 5 базовых колонок (ФИО, Школа, Район, Тип
+// обучения, Результат) — остальные включаются по кнопке "Столбцы 👁️". На
+// реальных ~6000 строках меньше колонок = меньше DOM-узлов и быстрее рендер.
 const ALL_COLUMNS: ColumnDef[] = [
   { key: 'fullName', sortKey: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', sortKey: 'school', defaultVisible: true, label: (t) => t.columns.school },
   { key: 'district', sortKey: 'district', defaultVisible: true, label: (t) => t.columns.district },
-  { key: 'sector', defaultVisible: true, label: (t) => t.filters.sectorSection },
+  { key: 'trainingType', sortKey: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
   { key: 'result', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.result },
+  { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },
   { key: 'gradeGroup', sortKey: 'gradeGroup', defaultVisible: false, label: (t) => t.columns.gradeGroup },
-  { key: 'trainingType', sortKey: 'trainingType', defaultVisible: false, label: (t) => t.columns.trainingType },
   { key: 'lifecycleStatus', sortKey: 'lifecycleStatus', defaultVisible: false, label: (t) => t.columns.lifecycleStatus },
   { key: 'platformStatus', sortKey: 'platformStatus', defaultVisible: false, label: (t) => t.columns.platformStatus },
 ];

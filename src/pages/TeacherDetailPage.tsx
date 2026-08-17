@@ -99,6 +99,9 @@ export function TeacherDetailPage() {
               <InfoRow label={t.detail.fields.district} value={teacher.district} />
               <InfoRow label={t.detail.fields.gradeGroup} value={t.gradeGroup[teacher.gradeGroup]} />
               <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />
+              {teacher.classesTaught && (
+                <InfoRow label={t.detail.fields.classesTaught} value={teacher.classesTaught} />
+              )}
               <div className="flex items-center justify-between gap-4 py-2 text-sm">
                 <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>
                 <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>

@@ -75,8 +75,14 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
     throw new Error('error' in data ? data.error : `Ошибка запроса к /api/sheets (HTTP ${res.status})`);
   }
 
-  const teachers2to9 = data.teachers.map((row, i) => mapTeachersSheetRow(row, i));
-  const teachersSenior = data.senior.map((row, i) => mapSeniorSheetRow(row, i));
+  // Пустые/фантомные строки (без ФИО на листе 2-9 классов, либо полностью
+  // пустые на листе 10-11) отбрасываем здесь же — на сайте их быть не должно.
+  const teachers2to9 = data.teachers
+    .map((row, i) => mapTeachersSheetRow(row, i))
+    .filter((teacher): teacher is Teacher => teacher !== null);
+  const teachersSenior = data.senior
+    .map((row, i) => mapSeniorSheetRow(row, i))
+    .filter((teacher): teacher is Teacher => teacher !== null);
 
   return [...teachers2to9, ...teachersSenior];
 }

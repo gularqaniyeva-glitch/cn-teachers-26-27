@@ -149,8 +149,14 @@ export interface Dict {
       gradeGroup: string;
       lifecycleStatus: string;
       platformStatus: string;
+      classesTaught: string;
     };
     notePlaceholder: string;
+  };
+  exportMenu: {
+    title: string;
+    download: string;
+    modulesLabel: string;
   };
   statistics: {
     title: string;
@@ -359,8 +365,14 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         gradeGroup: 'Классы',
         lifecycleStatus: 'OLD / NEW',
         platformStatus: 'Статус платформы',
+        classesTaught: 'Назначенные классы',
       },
       notePlaceholder: 'Внутренняя заметка администратора — не видна учителю…',
+    },
+    exportMenu: {
+      title: 'Столбцы для экспорта',
+      download: 'Скачать файл',
+      modulesLabel: 'Модули (сводная ведомость)',
     },
     statistics: {
       title: 'Статистика',
@@ -567,8 +579,14 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         gradeGroup: 'Sinif',
         lifecycleStatus: 'OLD / NEW',
         platformStatus: 'Platforma statusu',
+        classesTaught: 'Təyin edilmiş siniflər',
       },
       notePlaceholder: 'Administrasiyanın daxili qeydi — müəllimə görünmür…',
+    },
+    exportMenu: {
+      title: 'İxrac üçün sütunlar',
+      download: 'Faylı yüklə',
+      modulesLabel: 'Modullar (tam cədvəl)',
     },
     statistics: {
       title: 'Statistika',

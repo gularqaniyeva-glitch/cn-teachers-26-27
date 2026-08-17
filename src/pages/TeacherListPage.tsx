@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, RefreshCw, Search, Settings2, X } from 'lucide-react';
+import { RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { TeacherFiltersBar } from '../components/teachers/TeacherFilters';
@@ -7,6 +7,7 @@ import { TeacherFilterTree } from '../components/teachers/TeacherFilterTree';
 import { TeacherTable } from '../components/teachers/TeacherTable';
 import { BulkActionBar } from '../components/teachers/BulkActionBar';
 import { ModuleQuickListPanel } from '../components/teachers/ModuleQuickListPanel';
+import { ExportMenu } from '../components/teachers/ExportMenu';
 import { Pagination } from '../components/teachers/Pagination';
 import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
 import { DEFAULT_FILTERS, filterTeachers, sortTeachers } from '../utils/teacherFilters';
@@ -195,13 +196,10 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
             <p className="text-sm text-slate-500">
               {t.common.found} {sorted.length} {t.common.of} {scopedTeachers.length}
             </p>
-            <button
-              onClick={() => exportTeachersToCsv(sorted, t)}
-              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-            >
-              <Download size={16} />
-              {t.common.exportCsv}
-            </button>
+            <ExportMenu
+              buttonLabel={t.common.exportCsv}
+              onExport={(keys) => exportTeachersToCsv(sorted, t, keys, 'teachers.csv')}
+            />
           </div>
 
           <div className="relative">

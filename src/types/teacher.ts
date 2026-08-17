@@ -36,6 +36,8 @@ export interface Teacher {
   lifecycleStatus: TeacherLifecycleStatus;
   gradeGroup: GradeGroup;
   platformStatus: PlatformStatus;
+  /** Реальные классы, которые ведёт учитель (не путать с gradeGroup — это его параллель) */
+  classesTaught: string;
   moduleResults: ModuleResult[];
   /** Внутренняя заметка администратора, не видна учителю */
   note: string;
