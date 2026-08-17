@@ -54,3 +54,17 @@ export function modulesForGrade(group: GradeGroup): ModuleDefinition[] {
 export function getModule(id: string): ModuleDefinition | undefined {
   return MODULES.find((m) => m.id === id);
 }
+
+/** Сортировка "M9" перед "M9-2" перед "M10" — обычная сортировка строк тут не годится */
+export function moduleSortKey(shortTitle: string): number {
+  return parseFloat(shortTitle.replace('M', '').replace('-2', '.5'));
+}
+
+/** Уникальные короткие коды модулей (M1, M2, ..., M9-2, ...) для заданных параллелей, в правильном порядке */
+export function getModuleTitlesForGroups(groups: GradeGroup[]): string[] {
+  const titles = new Set<string>();
+  for (const m of MODULES) {
+    if (groups.includes(m.group)) titles.add(m.shortTitle);
+  }
+  return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+}

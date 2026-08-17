@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Eye } from 'lucide-react';
 import type { GradeGroup, ModuleDefinition, Teacher } from '../../types/teacher';
-import { MODULES } from '../../data/constants';
+import { MODULES, moduleSortKey } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { getApplicableModules, getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
@@ -47,11 +47,6 @@ function statusLabel(t: Dict, status: DisplayModuleStatus): string {
   if (status === 'not_started') return t.moduleStatus.notStarted;
   if (status === 'on_review') return t.moduleStatus.onReview;
   return t.moduleStatus[status];
-}
-
-/** Сортировка "M9" перед "M9-2" перед "M10" — обычная сортировка строк тут не годится */
-function moduleSortKey(shortTitle: string): number {
-  return parseFloat(shortTitle.replace('M', '').replace('-2', '.5'));
 }
 
 type GradeGroupSelection = GradeGroup | 'all';

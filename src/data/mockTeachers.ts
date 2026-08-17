@@ -102,6 +102,7 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
       language,
       trainingType,
       lifecycleStatus,
+      startYear: lifecycleStatus === 'NEW' ? '2025' : '2022',
       gradeGroup,
       platformStatus: entered ? 'entered' : 'not_entered',
       classesTaught: '',

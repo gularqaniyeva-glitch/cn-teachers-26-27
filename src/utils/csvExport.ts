@@ -1,5 +1,5 @@
 import type { Teacher } from '../types/teacher';
-import { getModule } from '../data/constants';
+import { getModule, moduleSortKey } from '../data/constants';
 import { getApplicableModules, getTeacherAverageScore, getTeacherOverallStats } from './stats';
 import type { IndividualAnomaly } from './anomalies';
 import type { Dict } from '../i18n/translations';
@@ -10,6 +10,22 @@ function escapeCsvCell(value: string | number): string {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
+
+// Excel при открытии CSV сам пытается угадать тип ячейки и может превратить
+// длинный LMS ID/FIN в число (с потерей ведущих нулей или в научной
+// нотации). Оборачиваем значение как текстовую формулу ="..." — Excel
+// показывает её результат как обычный текст, без переформатирования.
+function excelTextLiteral(value: string): string {
+  return value ? `="${value.replace(/"/g, '""')}"` : '';
+}
+
+function collectModuleTitles(teachers: Teacher[]): string[] {
+  const titles = new Set<string>();
+  for (const teacher of teachers) {
+    for (const m of getApplicableModules(teacher)) titles.add(m.shortTitle);
+  }
+  return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
 }
 
 function downloadCsv(headers: string[], rows: (string | number)[][], filename: string): void {
@@ -69,12 +85,13 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
         : '';
     },
   },
-  { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => te.fin },
+  { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => excelTextLiteral(te.fin) },
   { key: 'phone', header: (t) => t.detail.fields.phone, value: (te) => te.phone },
-  { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => te.lmsId },
+  { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => excelTextLiteral(te.lmsId) },
   { key: 'gradeGroup', header: (t) => t.columns.gradeGroup, value: (te, t) => t.gradeGroup[te.gradeGroup] },
   { key: 'lifecycleStatus', header: (t) => t.columns.lifecycleStatus, value: (te) => te.lifecycleStatus },
   { key: 'classesTaught', header: (t) => t.detail.fields.classesTaught, value: (te) => te.classesTaught },
+  { key: 'startYear', header: (t) => t.detail.fields.startYear, value: (te) => te.startYear },
   { key: 'note', header: (t) => t.columns.note, value: (te) => te.note },
 ];
 
@@ -86,6 +103,8 @@ export function exportTeachersToCsv(
 ): void {
   const activeFields = EXPORT_FIELDS.filter((f) => selectedKeys.has(f.key));
   const includeModules = selectedKeys.has('modules');
+  const includeModuleColumns = selectedKeys.has('moduleColumns');
+  const moduleTitles = includeModuleColumns ? collectModuleTitles(teachers) : [];
 
   const statusLabel = {
     passed: t.moduleStatus.passed,
@@ -93,21 +112,40 @@ export function exportTeachersToCsv(
     not_started: t.moduleStatus.notStarted,
   } as const;
 
-  const headers = [...activeFields.map((f) => f.header(t)), ...(includeModules ? [t.exportMenu.modulesLabel] : [])];
+  const headers = [
+    ...activeFields.map((f) => f.header(t)),
+    ...(includeModules ? [t.exportMenu.modulesLabel] : []),
+    ...moduleTitles,
+  ];
 
   const rows = teachers.map((teacher) => {
     const cells = activeFields.map((f) => f.value(teacher, t));
-    if (!includeModules) return cells;
 
-    const summary = getApplicableModules(teacher)
-      .map((m) => {
-        const result = teacher.moduleResults.find((r) => r.moduleId === m.id);
-        return result ? `${m.shortTitle}: ${statusLabel[result.status]} (${result.score}%)` : '';
-      })
-      .filter(Boolean)
-      .join('; ');
+    const summaryCell = includeModules
+      ? [
+          getApplicableModules(teacher)
+            .map((m) => {
+              const result = teacher.moduleResults.find((r) => r.moduleId === m.id);
+              return result ? `${m.shortTitle}: ${statusLabel[result.status]} (${result.score}%)` : '';
+            })
+            .filter(Boolean)
+            .join('; '),
+        ]
+      : [];
 
-    return [...cells, summary];
+    const moduleCells = includeModuleColumns
+      ? (() => {
+          const applicable = getApplicableModules(teacher);
+          return moduleTitles.map((title) => {
+            const module = applicable.find((m) => m.shortTitle === title);
+            if (!module) return '';
+            const result = teacher.moduleResults.find((r) => r.moduleId === module.id);
+            return result ? String(result.score) : '';
+          });
+        })()
+      : [];
+
+    return [...cells, ...summaryCell, ...moduleCells];
   });
 
   downloadCsv(headers, rows, filename);

@@ -63,6 +63,7 @@ export interface Dict {
     result: string;
     averageScore: string;
     note: string;
+    moduleColumns: string;
   };
   dashboard: {
     title: string;
@@ -151,6 +152,7 @@ export interface Dict {
       lifecycleStatus: string;
       platformStatus: string;
       classesTaught: string;
+      startYear: string;
     };
     notePlaceholder: string;
   };
@@ -282,6 +284,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       result: 'Результат',
       averageScore: '📈 Средний результат, %',
       note: 'Заметка',
+      moduleColumns: 'Отдельные модули (M1, M2, M3…)',
     },
     dashboard: {
       title: 'Главная',
@@ -370,6 +373,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         lifecycleStatus: 'OLD / NEW',
         platformStatus: 'Статус платформы',
         classesTaught: 'Назначенные классы',
+        startYear: 'Год начала / стаж',
       },
       notePlaceholder: 'Внутренняя заметка администратора — не видна учителю…',
     },
@@ -499,6 +503,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       result: 'Nəticə',
       averageScore: '📈 Orta nəticə, %',
       note: 'Qeyd',
+      moduleColumns: 'Ayrı-ayrı modullar (M1, M2, M3…)',
     },
     dashboard: {
       title: 'Əsas səhifə',
@@ -587,6 +592,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         lifecycleStatus: 'OLD / NEW',
         platformStatus: 'Platforma statusu',
         classesTaught: 'Təyin edilmiş siniflər',
+        startYear: 'Başlama ili / təcrübə',
       },
       notePlaceholder: 'Administrasiyanın daxili qeydi — müəllimə görünmür…',
     },

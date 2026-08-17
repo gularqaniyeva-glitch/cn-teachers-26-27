@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Eye, StickyNote, Search } from 'lucide-react';
-import type { Teacher } from '../../types/teacher';
+import type { GradeGroup, Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
-import { getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
+import { getApplicableModules, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
+import { getModuleTitlesForGroups } from '../../data/constants';
 import { TEACHER_TABLE_COLUMNS, type TeacherColumnDef } from './teacherTableColumns';
 import { useT } from '../../i18n/useLocaleStore';
 
 interface TeacherTableProps {
   teachers: Teacher[];
+  gradeGroups: GradeGroup[];
   sort: SortState;
   onSort: (key: SortKey) => void;
   selectedIds: Set<string>;
@@ -21,6 +23,8 @@ interface TeacherTableProps {
   onToggleColumn: (key: string) => void;
 }
 
+const MODULE_STATUS_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#94a3b8' } as const;
+
 function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 'neutral' {
   if (score === null) return 'neutral';
   if (score >= 70) return 'success';
@@ -30,6 +34,7 @@ function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 
 
 export function TeacherTable({
   teachers,
+  gradeGroups,
   sort,
   onSort,
   selectedIds,
@@ -45,6 +50,12 @@ export function TeacherTable({
 
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef<HTMLDivElement>(null);
+
+  const showModuleColumns = visibleKeys.has('moduleColumns');
+  const moduleTitles = useMemo(
+    () => (showModuleColumns ? getModuleTitlesForGroups(gradeGroups) : []),
+    [showModuleColumns, gradeGroups],
+  );
 
   useEffect(() => {
     if (!columnMenuOpen) return;
@@ -73,6 +84,14 @@ export function TeacherTable({
         return teacher.district;
       case 'classesTaught':
         return teacher.classesTaught || t.common.noData;
+      case 'lmsId':
+        return teacher.lmsId ? <NoTranslate>{teacher.lmsId}</NoTranslate> : t.common.noData;
+      case 'fin':
+        return teacher.fin ? <NoTranslate>{teacher.fin}</NoTranslate> : t.common.noData;
+      case 'phone':
+        return teacher.phone || t.common.noData;
+      case 'startYear':
+        return teacher.startYear || t.common.noData;
       case 'sector':
         return t.language[teacher.language];
       case 'gradeGroup':
@@ -136,6 +155,16 @@ export function TeacherTable({
                   {c.label(t)}
                 </label>
               ))}
+              <div className="my-1 border-t border-slate-100" />
+              <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={showModuleColumns}
+                  onChange={() => onToggleColumn('moduleColumns')}
+                  className="accent-brand-600"
+                />
+                {t.columns.moduleColumns}
+              </label>
             </div>
           )}
         </div>
@@ -176,6 +205,12 @@ export function TeacherTable({
                   )}
                 </th>
               ))}
+              {showModuleColumns &&
+                moduleTitles.map((title) => (
+                  <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
+                    {title}
+                  </th>
+                ))}
               <th className="px-2.5 py-2" />
             </tr>
           </thead>
@@ -183,6 +218,7 @@ export function TeacherTable({
             {teachers.map((teacher) => {
               const isSelected = selectedIds.has(teacher.id);
               const flagged = hasAnomaly(teacher);
+              const applicableModules = showModuleColumns ? getApplicableModules(teacher) : [];
               return (
                 <tr
                   key={teacher.id}
@@ -203,6 +239,26 @@ export function TeacherTable({
                       {renderCell(col, teacher)}
                     </td>
                   ))}
+                  {showModuleColumns &&
+                    moduleTitles.map((title) => {
+                      const module = applicableModules.find((m) => m.shortTitle === title);
+                      const result = module ? teacher.moduleResults.find((r) => r.moduleId === module.id) : undefined;
+                      return (
+                        <td key={title} className="px-0.5 py-1 text-center">
+                          {result ? (
+                            <span
+                              title={`${title}: ${result.score}%`}
+                              className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: MODULE_STATUS_COLOR[result.status] }}
+                            >
+                              {result.score}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
                   <td className="px-2.5 py-1 text-slate-400">
                     <div className="flex items-center gap-1.5">
                       {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}

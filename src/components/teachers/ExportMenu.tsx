@@ -22,12 +22,14 @@ export const EXPORT_COLUMNS: ExportColumnDef[] = [
   { key: 'averageScore', label: (t) => t.columns.averageScore },
   { key: 'result', label: (t) => t.quickList.columnScore },
   { key: 'modules', label: (t) => t.exportMenu.modulesLabel },
+  { key: 'moduleColumns', label: (t) => t.columns.moduleColumns },
   { key: 'fin', label: (t) => t.detail.fields.fin },
   { key: 'phone', label: (t) => t.detail.fields.phone },
   { key: 'lmsId', label: (t) => t.detail.fields.lmsId },
   { key: 'gradeGroup', label: (t) => t.columns.gradeGroup },
   { key: 'lifecycleStatus', label: (t) => t.columns.lifecycleStatus },
   { key: 'classesTaught', label: (t) => t.detail.fields.classesTaught },
+  { key: 'startYear', label: (t) => t.detail.fields.startYear },
   { key: 'note', label: (t) => t.columns.note },
 ];
 

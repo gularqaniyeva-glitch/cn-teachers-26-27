@@ -28,6 +28,10 @@ export const TEACHER_TABLE_COLUMNS: TeacherColumnDef[] = [
   { key: 'gradeGroup', sortKey: 'gradeGroup', defaultVisible: false, label: (t) => t.columns.gradeGroup },
   { key: 'lifecycleStatus', sortKey: 'lifecycleStatus', defaultVisible: false, label: (t) => t.columns.lifecycleStatus },
   { key: 'platformStatus', sortKey: 'platformStatus', defaultVisible: false, label: (t) => t.columns.platformStatus },
+  { key: 'lmsId', defaultVisible: false, label: (t) => t.detail.fields.lmsId },
+  { key: 'fin', defaultVisible: false, label: (t) => t.detail.fields.fin },
+  { key: 'phone', defaultVisible: false, label: (t) => t.detail.fields.phone },
+  { key: 'startYear', defaultVisible: false, label: (t) => t.detail.fields.startYear },
 ];
 
 export const DEFAULT_VISIBLE_TEACHER_COLUMNS = new Set(

@@ -34,6 +34,8 @@ export interface Teacher {
   language: TeachingLanguage;
   trainingType: TrainingType;
   lifecycleStatus: TeacherLifecycleStatus;
+  /** Год начала работы в LMS "как есть" из таблицы (lifecycleStatus — уже выведенный из него OLD/NEW статус) */
+  startYear: string;
   gradeGroup: GradeGroup;
   platformStatus: PlatformStatus;
   /** Реальные классы, которые ведёт учитель (не путать с gradeGroup — это его параллель) */

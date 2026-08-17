@@ -278,6 +278,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
 
           <TeacherTable
             teachers={pageItems}
+            gradeGroups={gradeGroups}
             sort={sort}
             onSort={handleSort}
             selectedIds={selectedIds}

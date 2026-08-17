@@ -178,6 +178,7 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher | 
 
   const school = findValue(row, [...FIELD_CANDIDATES.school]);
   const lmsId = findValue(row, [...FIELD_CANDIDATES.lmsId]);
+  const startYear = findValue(row, [...FIELD_CANDIDATES.startYear]);
 
   return {
     id: lmsId || `teacher-row-${index}`,
@@ -189,7 +190,8 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher | 
     lmsId,
     language: mapSector(findValue(row, [...FIELD_CANDIDATES.sector])),
     trainingType: mapFormat(findValue(row, [...FIELD_CANDIDATES.format])),
-    lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...FIELD_CANDIDATES.startYear])),
+    lifecycleStatus: mapLifecycleFromStartYear(startYear),
+    startYear,
     gradeGroup: primary,
     platformStatus: mapPlatformStatus(findValue(row, [...FIELD_CANDIDATES.platformStatus])),
     classesTaught: findValue(row, [...FIELD_CANDIDATES.classesTaught]),
@@ -241,6 +243,8 @@ export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher | nu
     if (cell) moduleResults.push({ moduleId: `10-11-M${n}`, ...cell });
   }
 
+  const seniorStartYear = findValue(row, [...SENIOR_FIELD_CANDIDATES.startYear]);
+
   return {
     id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
     fullName,
@@ -251,7 +255,8 @@ export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher | nu
     lmsId,
     language: mapSector(findValue(row, [...SENIOR_FIELD_CANDIDATES.sector])),
     trainingType: 'əyani',
-    lifecycleStatus: mapLifecycleFromStartYear(findValue(row, [...SENIOR_FIELD_CANDIDATES.startYear])),
+    lifecycleStatus: mapLifecycleFromStartYear(seniorStartYear),
+    startYear: seniorStartYear,
     gradeGroup: '10-11',
     platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',
     classesTaught: findValue(row, [...SENIOR_FIELD_CANDIDATES.classesTaught]),
