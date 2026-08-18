@@ -89,7 +89,9 @@ function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleS
 
   if (statusText.includes('нет класса')) return null;
   if (statusText.includes('не начал')) return { status: 'not_started', score: 0 };
-  if (statusText.includes('старый учитель')) return { status: 'failed', score };
+  // "Старый учитель" — отдельная категория по бизнес-правилу таблицы, не
+  // равна провалу ("Не прошёл"), поэтому статус сохраняем отдельно.
+  if (statusText.includes('старый учитель')) return { status: 'old_teacher', score };
   if (statusText.includes('не прошёл') || statusText.includes('не прошел')) return { status: 'failed', score };
   if (statusText.includes('прошёл') || statusText.includes('прошел')) return { status: 'passed', score };
 

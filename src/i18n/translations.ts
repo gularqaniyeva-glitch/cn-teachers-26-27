@@ -46,6 +46,8 @@ export interface Dict {
     onReview: string;
     notAssigned: string;
     notAssignedTooltip: string;
+    oldTeacher: string;
+    oldTeacherShort: string;
   };
   platformStatus: {
     entered: string;
@@ -269,6 +271,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       onReview: '🔍 На проверку',
       notAssigned: 'N/A',
       notAssignedTooltip: 'Параллель не назначена учителю',
+      oldTeacher: 'Старый учитель',
+      oldTeacherShort: 'OLD',
     },
     platformStatus: {
       entered: 'Вошёл',
@@ -501,6 +505,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       onReview: '🔍 Yoxlanılmalı',
       notAssigned: 'N/A',
       notAssignedTooltip: 'Paralel müəllimə təyin edilməyib',
+      oldTeacher: 'Köhnə müəllim',
+      oldTeacherShort: 'OLD',
     },
     platformStatus: {
       entered: 'Daxil olub',

@@ -12,8 +12,13 @@ export type TeachingLanguage = 'az' | 'ru';
 
 export type PlatformStatus = 'entered' | 'not_entered';
 
-/** Три статуса прохождения модуля — без промежуточных подкатегорий */
-export type ModuleStatus = 'passed' | 'failed' | 'not_started';
+/**
+ * Статусы прохождения модуля. "old_teacher" — отдельная категория из
+ * исходной таблицы ("Старый учитель" в тексте статуса): формально балл
+ * низкий/нулевой, но по бизнес-правилу это не считается провалом — таких
+ * учителей нельзя показывать как "Не прошёл"/0%.
+ */
+export type ModuleStatus = 'passed' | 'failed' | 'not_started' | 'old_teacher';
 
 export interface ModuleResult {
   moduleId: string;

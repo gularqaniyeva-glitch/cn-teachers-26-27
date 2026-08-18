@@ -1,5 +1,5 @@
 import type { GradeGroup, Teacher } from '../types/teacher';
-import { GRADE_GROUPS, findModuleResultForColumn, getModule, getModuleColumnsForGroups } from '../data/constants';
+import { GRADE_GROUPS, getModule, getUnifiedModuleResult, getUnifiedModuleShortTitles } from '../data/constants';
 import {
   formatAssignedClassesLabel,
   getApplicableModules,
@@ -117,18 +117,22 @@ export function exportTeachersToCsv(
   const activeFields = EXPORT_FIELDS.filter((f) => selectedKeys.has(f.key));
   const includeModules = selectedKeys.has('modules');
   const includeModuleColumns = selectedKeys.has('moduleColumns');
-  const moduleColumns = includeModuleColumns ? getModuleColumnsForGroups(collectActiveGroups(teachers)) : [];
+  // Единые колонки M1..M13 (без дублей "M3 (2–4)"/"M3 (5–9)") — как и на
+  // экране "Все учителя", для каждого учителя берём результат его
+  // основной параллели.
+  const moduleTitles = includeModuleColumns ? getUnifiedModuleShortTitles(collectActiveGroups(teachers)) : [];
 
   const statusLabel = {
     passed: t.moduleStatus.passed,
     failed: t.moduleStatus.failed,
     not_started: t.moduleStatus.notStarted,
+    old_teacher: t.moduleStatus.oldTeacher,
   } as const;
 
   const headers = [
     ...activeFields.map((f) => f.header(t)),
     ...(includeModules ? [t.exportMenu.modulesLabel] : []),
-    ...moduleColumns.map((c) => c.label),
+    ...moduleTitles,
   ];
 
   const rows = teachers.map((teacher) => {
@@ -147,8 +151,8 @@ export function exportTeachersToCsv(
       : [];
 
     const moduleCells = includeModuleColumns
-      ? moduleColumns.map((col) => {
-          const result = findModuleResultForColumn(teacher.moduleResults, col);
+      ? moduleTitles.map((title) => {
+          const result = getUnifiedModuleResult(teacher, teacher.moduleResults, title);
           return result ? String(result.score) : '';
         })
       : [];

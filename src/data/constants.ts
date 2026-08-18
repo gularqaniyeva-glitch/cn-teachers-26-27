@@ -138,3 +138,35 @@ export function findModuleResultForColumn<T extends { moduleId: string }>(
 ): T | undefined {
   return results.find((r) => column.moduleIds.includes(r.moduleId));
 }
+
+/**
+ * Уникальные номера модулей (M1, M2, ..., M13) для заданных параллелей —
+ * БЕЗ разведения по параллели. Для сводных таблиц ("Все учителя"), где
+ * не нужно плодить колонки "M6 (2–4)"/"M6 (5–9)" — там достаточно одной
+ * колонки на номер, а какую именно параллель показать для конкретного
+ * учителя решает getUnifiedModuleResult. Детальное разведение по
+ * параллели — только в "Отчёт по модулю" при явном выборе модуля.
+ */
+export function getUnifiedModuleShortTitles(groups: GradeGroup[]): string[] {
+  const titles = new Set<string>();
+  for (const m of MODULES) {
+    if (groups.includes(m.group)) titles.add(m.shortTitle);
+  }
+  return Array.from(titles).sort((a, b) => moduleSortKey(a) - moduleSortKey(b));
+}
+
+/**
+ * Результат учителя по номеру модуля без разведения по параллели. Если у
+ * учителя назначены обе параллели с этим номером (M3–M6 при двух
+ * параллелях сразу), берём ту, что зафиксирована как его основная
+ * (teacher.gradeGroup) — а не первую попавшуюся.
+ */
+export function getUnifiedModuleResult<T extends { moduleId: string }>(
+  teacher: { gradeGroup: GradeGroup },
+  results: T[],
+  shortTitle: string,
+): T | undefined {
+  const matches = results.filter((r) => getModule(r.moduleId)?.shortTitle === shortTitle);
+  if (matches.length <= 1) return matches[0];
+  return matches.find((r) => r.moduleId.startsWith(`${teacher.gradeGroup}-`)) ?? matches[0];
+}

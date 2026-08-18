@@ -8,7 +8,7 @@ import { ModuleScoreCell } from './ModuleScoreCell';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
-import { findModuleResultForColumn, getModuleColumnsForGroups } from '../../data/constants';
+import { getUnifiedModuleResult, getUnifiedModuleShortTitles } from '../../data/constants';
 import { TEACHER_TABLE_COLUMNS, type TeacherColumnDef } from './teacherTableColumns';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -51,9 +51,13 @@ export function TeacherTable({
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef<HTMLDivElement>(null);
 
+  // Единые колонки M1..M13 (без разведения по параллели) — на вкладке
+  // "Все учителя" не нужно дублировать M3(2-4)/M3(5-9): для каждого
+  // учителя подтягиваем результат из его основной параллели. Разведение
+  // на две колонки — только в "Отчёт по модулю" при явном выборе модуля.
   const showModuleColumns = visibleKeys.has('moduleColumns');
-  const moduleColumns = useMemo(
-    () => (showModuleColumns ? getModuleColumnsForGroups(gradeGroups) : []),
+  const moduleTitles = useMemo(
+    () => (showModuleColumns ? getUnifiedModuleShortTitles(gradeGroups) : []),
     [showModuleColumns, gradeGroups],
   );
 
@@ -206,9 +210,9 @@ export function TeacherTable({
                 </th>
               ))}
               {showModuleColumns &&
-                moduleColumns.map((col) => (
-                  <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
-                    {col.label}
+                moduleTitles.map((title) => (
+                  <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
+                    {title}
                   </th>
                 ))}
               <th className="px-2.5 py-2" />
@@ -239,11 +243,11 @@ export function TeacherTable({
                     </td>
                   ))}
                   {showModuleColumns &&
-                    moduleColumns.map((col) => {
-                      const result = findModuleResultForColumn(teacher.moduleResults, col);
+                    moduleTitles.map((title) => {
+                      const result = getUnifiedModuleResult(teacher, teacher.moduleResults, title);
                       return (
-                        <td key={col.key} className="px-0.5 py-1 text-center">
-                          <ModuleScoreCell result={result} label={col.label} />
+                        <td key={title} className="px-0.5 py-1 text-center">
+                          <ModuleScoreCell result={result} label={title} />
                         </td>
                       );
                     })}

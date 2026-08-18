@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Eye } from 'lucide-react';
 import type { GradeGroup, Teacher } from '../../types/teacher';
-import { findModuleResultForColumn, getModuleColumnsForGroups, type ModuleColumn } from '../../data/constants';
+import {
+  findModuleResultForColumn,
+  getModuleColumnsForGroups,
+  getUnifiedModuleResult,
+  getUnifiedModuleShortTitles,
+  type ModuleColumn,
+} from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
@@ -41,12 +47,19 @@ interface ModuleQuickListPanelProps {
   onRowClick: (id: string) => void;
 }
 
-const STATUS_DOT_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#94a3b8', on_review: '#d97706' } as const;
-const ALL_STATUSES: DisplayModuleStatus[] = ['passed', 'failed', 'not_started', 'on_review'];
+const STATUS_DOT_COLOR = {
+  passed: '#059669',
+  failed: '#e11d48',
+  not_started: '#94a3b8',
+  on_review: '#d97706',
+  old_teacher: '#94a3b8',
+} as const;
+const ALL_STATUSES: DisplayModuleStatus[] = ['passed', 'failed', 'not_started', 'old_teacher', 'on_review'];
 
 function statusLabel(t: Dict, status: DisplayModuleStatus): string {
   if (status === 'not_started') return t.moduleStatus.notStarted;
   if (status === 'on_review') return t.moduleStatus.onReview;
+  if (status === 'old_teacher') return t.moduleStatus.oldTeacher;
   return t.moduleStatus[status];
 }
 
@@ -140,16 +153,28 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     return numbers;
   }, [moduleColumnOptions]);
 
-  // Столбцы, которые реально рисуются в таблице: если выбраны конкретные
-  // номера модулей — ВСЕ их колонки (для неоднозначных номеров это сразу
-  // обе параллели, напр. выбор "M6" показывает и "M6 (2–4)", и "M6 (5–9)"),
-  // иначе все модули активных параллелей. Это НЕ рендер "учитель×модуль"
-  // отдельными строками (та ошибка уже исправлена раньше) — здесь всегда
-  // 1 строка = 1 учитель, просто с несколькими узкими колонками вместо одной.
-  const displayedModuleColumns = useMemo(() => {
-    if (selectedModuleNumbers.length === 0) return moduleColumnOptions;
+  // Без явного выбора модуля ("Все модули") показываем ЕДИНЫЕ колонки
+  // M1..M13 — без дублей "M3 (2–4)"/"M3 (5–9)"; для каждого учителя
+  // подтягивается результат его основной параллели. Разведение на две
+  // колонки параллели происходит ТОЛЬКО при явном выборе конкретного
+  // номера модуля в фильтре — тогда нужно сравнить обе параллели сразу.
+  const isUnifiedView = selectedModuleNumbers.length === 0;
+
+  // Столбцы, которые реально рисуются в таблице. Это НЕ рендер
+  // "учитель×модуль" отдельными строками (та ошибка уже исправлена раньше)
+  // — здесь всегда 1 строка = 1 учитель, просто с несколькими узкими
+  // колонками вместо одной.
+  const displayedModuleColumns = useMemo<ModuleColumn[]>(() => {
+    if (isUnifiedView) {
+      return getUnifiedModuleShortTitles(activeGroups).map((title) => ({
+        key: title,
+        shortTitle: title,
+        label: title,
+        moduleIds: [],
+      }));
+    }
     return moduleColumnOptions.filter((c) => selectedModuleNumbers.includes(c.shortTitle));
-  }, [selectedModuleNumbers, moduleColumnOptions]);
+  }, [isUnifiedView, activeGroups, selectedModuleNumbers, moduleColumnOptions]);
 
   function toggleModule(shortTitle: string) {
     setSelectedModuleNumbers((prev) =>
@@ -174,18 +199,15 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // создавалась отдельная строка — на реальных ~6000 учителей это давало
   // десятки тысяч строк в DOM и вешало браузер.
   const matched = useMemo<MatchedRow[]>(() => {
-    const activeColumns =
-      selectedModuleNumbers.length === 0
-        ? moduleColumnOptions
-        : moduleColumnOptions.filter((c) => selectedModuleNumbers.includes(c.shortTitle));
-
     const rows: MatchedRow[] = [];
     for (const teacher of teachers) {
       if (!activeGroups.includes(teacher.gradeGroup)) continue;
 
       const badges: ModuleBadge[] = [];
-      for (const column of activeColumns) {
-        const result = findModuleResultForColumn(teacher.moduleResults, column);
+      for (const column of displayedModuleColumns) {
+        const result = isUnifiedView
+          ? getUnifiedModuleResult(teacher, teacher.moduleResults, column.shortTitle)
+          : findModuleResultForColumn(teacher.moduleResults, column);
         if (!result) continue;
         const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, result.moduleId);
         const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, result.moduleId);
@@ -200,7 +222,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
     return rows;
-  }, [teachers, activeGroups, selectedModuleNumbers, moduleColumnOptions, selectedStatuses, groupAnomalySet]);
+  }, [teachers, activeGroups, isUnifiedView, displayedModuleColumns, selectedStatuses, groupAnomalySet]);
 
   const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const currentPage = Math.min(page, totalPages);

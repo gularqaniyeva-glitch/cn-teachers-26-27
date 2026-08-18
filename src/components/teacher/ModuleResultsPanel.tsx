@@ -15,8 +15,15 @@ const STATUS_VARIANT = {
   failed: 'danger',
   not_started: 'neutral',
   on_review: 'warning',
+  old_teacher: 'neutral',
 } as const;
-const STATUS_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#cbd5e1', on_review: '#d97706' } as const;
+const STATUS_COLOR = {
+  passed: '#059669',
+  failed: '#e11d48',
+  not_started: '#cbd5e1',
+  on_review: '#d97706',
+  old_teacher: '#94a3b8',
+} as const;
 
 export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
   const t = useT();
@@ -34,7 +41,9 @@ export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
             ? t.moduleStatus.notStarted
             : status === 'on_review'
               ? t.moduleStatus.onReview
-              : t.moduleStatus[status];
+              : status === 'old_teacher'
+                ? t.moduleStatus.oldTeacher
+                : t.moduleStatus[status];
         return (
           <div key={module.id} className="flex items-center justify-between gap-4 py-3">
             <div>
