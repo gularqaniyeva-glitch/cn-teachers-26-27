@@ -5,6 +5,7 @@ import { X, ExternalLink } from 'lucide-react';
 import type { Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
+import { LmsLink } from '../ui/LmsLink';
 import { ModuleResultsPanel } from './ModuleResultsPanel';
 import { DeadlineStatsBar } from './DeadlineStatsBar';
 import { formatAssignedClassesLabel, getTeacherAverageScore } from '../../utils/stats';
@@ -68,7 +69,7 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <ProfileField label={t.detail.fields.district} value={teacher.district} />
             <ProfileField label={t.detail.fields.fin} value={<NoTranslate>{teacher.fin}</NoTranslate>} />
-            <ProfileField label={t.detail.fields.lmsId} value={<NoTranslate>{teacher.lmsId}</NoTranslate>} />
+            <ProfileField label={t.detail.fields.lmsId} value={<LmsLink lmsId={teacher.lmsId} />} />
             <ProfileField label={t.filters.sectorSection} value={t.language[teacher.language]} />
             <ProfileField label={t.quickList.columnFormat} value={t.trainingType[teacher.trainingType]} />
             <ProfileField label={t.detail.fields.lifecycleStatus} value={teacher.lifecycleStatus} />

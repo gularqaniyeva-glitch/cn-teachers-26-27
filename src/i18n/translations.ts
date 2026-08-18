@@ -139,6 +139,7 @@ export interface Dict {
     editTitle: string;
     saveChanges: string;
     openFullProfile: string;
+    openInLms: string;
     fields: {
       fullName: string;
       fin: string;
@@ -370,6 +371,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       editTitle: 'Редактирование данных',
       saveChanges: 'Сохранить изменения',
       openFullProfile: 'Открыть полную карточку',
+      openInLms: 'Перейти в LMS',
       fields: {
         fullName: 'ФИО',
         fin: 'FIN',
@@ -599,6 +601,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       editTitle: 'Məlumatların redaktəsi',
       saveChanges: 'Dəyişiklikləri yadda saxla',
       openFullProfile: 'Tam kartı aç',
+      openInLms: 'LMS-ə keç',
       fields: {
         fullName: 'Ad, soyad',
         fin: 'FİN',

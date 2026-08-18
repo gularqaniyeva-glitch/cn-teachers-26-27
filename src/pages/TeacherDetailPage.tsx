@@ -6,6 +6,7 @@ import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { NoTranslate } from '../components/ui/NoTranslate';
+import { LmsLink } from '../components/ui/LmsLink';
 import { TeacherEditForm } from '../components/teacher/TeacherEditForm';
 import { ModuleResultsPanel } from '../components/teacher/ModuleResultsPanel';
 import { NotesPanel } from '../components/teacher/NotesPanel';
@@ -96,7 +97,7 @@ export function TeacherDetailPage() {
               <InfoRow label={t.detail.fields.fullName} value={<NoTranslate>{teacher.fullName}</NoTranslate>} />
               <InfoRow label={t.detail.fields.fin} value={<NoTranslate>{teacher.fin}</NoTranslate>} />
               <InfoRow label={t.detail.fields.phone} value={teacher.phone} />
-              <InfoRow label={t.detail.fields.lmsId} value={<NoTranslate>{teacher.lmsId}</NoTranslate>} />
+              <InfoRow label={t.detail.fields.lmsId} value={<LmsLink lmsId={teacher.lmsId} />} />
               <InfoRow label={t.detail.fields.language} value={t.language[teacher.language]} />
             </Card>
 

@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Eye, StickyNote, Search }
 import type { GradeGroup, Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
+import { LmsLink } from '../ui/LmsLink';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
@@ -85,7 +86,7 @@ export function TeacherTable({
       case 'classesTaught':
         return formatAssignedClassesLabel(teacher, t.gradeGroup);
       case 'lmsId':
-        return teacher.lmsId ? <NoTranslate>{teacher.lmsId}</NoTranslate> : t.common.noData;
+        return <LmsLink lmsId={teacher.lmsId} />;
       case 'fin':
         return teacher.fin ? <NoTranslate>{teacher.fin}</NoTranslate> : t.common.noData;
       case 'phone':
