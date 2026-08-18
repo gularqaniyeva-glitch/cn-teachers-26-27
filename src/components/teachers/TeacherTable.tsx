@@ -4,6 +4,7 @@ import type { GradeGroup, Teacher } from '../../types/teacher';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
 import { LmsLink } from '../ui/LmsLink';
+import { ModuleScoreCell } from './ModuleScoreCell';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
@@ -23,8 +24,6 @@ interface TeacherTableProps {
   visibleKeys: Set<string>;
   onToggleColumn: (key: string) => void;
 }
-
-const MODULE_STATUS_COLOR = { passed: '#059669', failed: '#e11d48', not_started: '#94a3b8' } as const;
 
 function scoreVariant(score: number | null): 'success' | 'warning' | 'danger' | 'neutral' {
   if (score === null) return 'neutral';
@@ -244,17 +243,7 @@ export function TeacherTable({
                       const result = findModuleResultForColumn(teacher.moduleResults, col);
                       return (
                         <td key={col.key} className="px-0.5 py-1 text-center">
-                          {result ? (
-                            <span
-                              title={`${col.label}: ${result.score}%`}
-                              className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
-                              style={{ backgroundColor: MODULE_STATUS_COLOR[result.status] }}
-                            >
-                              {result.score}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
+                          <ModuleScoreCell result={result} label={col.label} />
                         </td>
                       );
                     })}

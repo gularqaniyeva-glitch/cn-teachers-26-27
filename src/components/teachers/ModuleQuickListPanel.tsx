@@ -11,6 +11,7 @@ import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
 import { Pagination } from './Pagination';
 import { ExportMenu } from './ExportMenu';
+import { ModuleScoreCell } from './ModuleScoreCell';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
 
@@ -422,19 +423,19 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                         )}
                       {displayedModuleColumns.map((col) => {
                         const cell = badgeByColKey.get(col.key);
+                        const isOnReview = cell?.status === 'on_review';
                         return (
                           <td key={col.key} className="px-0.5 py-1 text-center">
-                            {cell ? (
-                              <span
-                                title={`${col.label}: ${statusLabel(t, cell.status)} (${cell.score}%)`}
-                                className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
-                                style={{ backgroundColor: STATUS_DOT_COLOR[cell.status] }}
-                              >
-                                {cell.score}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
+                            <ModuleScoreCell
+                              result={cell}
+                              label={col.label}
+                              colorOverride={isOnReview ? STATUS_DOT_COLOR.on_review : undefined}
+                              tooltipOverride={
+                                isOnReview
+                                  ? `${col.label}: ${statusLabel(t, cell!.status)} (${cell!.score}%)`
+                                  : undefined
+                              }
+                            />
                           </td>
                         );
                       })}

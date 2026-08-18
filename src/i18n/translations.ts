@@ -44,6 +44,8 @@ export interface Dict {
     failed: string;
     notStarted: string;
     onReview: string;
+    notAssigned: string;
+    notAssignedTooltip: string;
   };
   platformStatus: {
     entered: string;
@@ -265,6 +267,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       failed: '🔴 Не сдал',
       notStarted: '⚪ Не начал',
       onReview: '🔍 На проверку',
+      notAssigned: 'N/A',
+      notAssignedTooltip: 'Параллель не назначена учителю',
     },
     platformStatus: {
       entered: 'Вошёл',
@@ -495,6 +499,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       failed: '🔴 Keçmədi',
       notStarted: '⚪ Başlamayıb',
       onReview: '🔍 Yoxlanılmalı',
+      notAssigned: 'N/A',
+      notAssignedTooltip: 'Paralel müəllimə təyin edilməyib',
     },
     platformStatus: {
       entered: 'Daxil olub',
