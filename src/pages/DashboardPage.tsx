@@ -8,7 +8,7 @@ import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
 import {
   formatTeachersPassed,
-  getModuleStatsByGradeGroup,
+  getModuleStatsForGroup,
   getOverallTeacherPassStat,
   getOverviewStats,
   getTeacherPassStatsByGradeGroup,
@@ -37,8 +37,7 @@ export function DashboardPage() {
   const overview = getOverviewStats(teachers);
   const overallTeacherPass = getOverallTeacherPassStat(teachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
-  const groupStats = getModuleStatsByGradeGroup(teachers, GRADE_GROUPS);
-  const activeGroupModules = groupStats.find((g) => g.group === activeDetailGroup)?.modules ?? [];
+  const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);
 
   return (
     <div className="space-y-6">

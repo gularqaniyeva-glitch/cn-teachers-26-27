@@ -1,5 +1,5 @@
 import type { GradeGroup, ModuleDefinition, Teacher, TrainingType } from '../types/teacher';
-import { LIFECYCLE_STATUSES, MODULES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
+import { LIFECYCLE_STATUSES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
   total: number;
@@ -75,72 +75,55 @@ export interface ModuleStat {
   moduleId: string;
   shortTitle: string;
   group: GradeGroup;
-  /** Сколько учителей должны проходить этот модуль (входит в их программу) */
+  /** Всего учителей, которым модуль назначен по программе — для M1/M2 это ВСЯ система (обе параллели), а не только текущая вкладка */
   assigned: number;
-  /** Сколько уже начали сдавать (сдал или не сдал) */
-  started: number;
+  /** Сколько из них сдали: балл >=70% либо статус "Старый учитель" */
   passed: number;
-  /** Доля прошедших среди начавших, % */
   passRate: number;
 }
 
-/** Один проход по всем результатам всех учителей вместо N проходов на каждый модуль каталога — важно на реальных ~6000 строках */
-export function getModuleStats(teachers: Teacher[]): ModuleStat[] {
-  const byModule = new Map<string, { assigned: number; started: number; passed: number }>();
+const SHARED_MODULE_SHORT_TITLES = new Set(['M1', 'M2']);
 
-  for (const t of teachers) {
-    for (const r of t.moduleResults) {
-      const entry = byModule.get(r.moduleId) ?? { assigned: 0, started: 0, passed: 0 };
-      entry.assigned += 1;
-      if (r.status === 'passed' || r.status === 'failed') {
-        entry.started += 1;
-        if (r.status === 'passed') entry.passed += 1;
-      }
-      byModule.set(r.moduleId, entry);
+/**
+ * Статистика по каждому модулю ОДНОЙ параллели, с "умным" знаменателем:
+ * - M1/M2 общие для 2–4 и 5–9 и назначены НЕЗАВИСИМО от параллели —
+ *   поэтому их база (знаменатель) это ВСЕ учителя основных 2–9 классов
+ *   сразу (обе параллели вместе), а не только те, кто относится к
+ *   текущей вкладке.
+ * - M3 и далее — база строго по учителям, которым назначена именно эта
+ *   параллель (включая тех, кто ведёт сразу обе — getAssignedGradeGroups).
+ * В числитель ("сдали") попадают только те, у кого балл >=70%, либо
+ * статус "Старый учитель" (по бизнес-правилу их не считаем должниками).
+ * Учителя без назначенного класса (hasAssignedClass=false) исключены из
+ * любого знаменателя — их отсутствие параллели не портит процент другим.
+ */
+export function getModuleStatsForGroup(teachers: Teacher[], group: GradeGroup): ModuleStat[] {
+  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  const sharedPopulation = eligible.filter((te) => te.gradeGroup !== '10-11');
+
+  return modulesForGrade(group).map((m) => {
+    const shared = SHARED_MODULE_SHORT_TITLES.has(m.shortTitle);
+    const population = shared
+      ? sharedPopulation
+      : eligible.filter((te) => getAssignedGradeGroups(te).includes(group));
+    const moduleIdsToCheck = shared ? [`2-4-${m.shortTitle}`, `5-9-${m.shortTitle}`] : [m.id];
+
+    let assigned = 0;
+    let passed = 0;
+    for (const teacher of population) {
+      const result = teacher.moduleResults.find((r) => moduleIdsToCheck.includes(r.moduleId));
+      if (!result) continue;
+      assigned += 1;
+      if (result.status === 'old_teacher' || result.score >= PASS_THRESHOLD) passed += 1;
     }
-  }
 
-  return MODULES.map((module) => {
-    const entry = byModule.get(module.id) ?? { assigned: 0, started: 0, passed: 0 };
     return {
-      moduleId: module.id,
-      shortTitle: module.shortTitle,
-      group: module.group,
-      assigned: entry.assigned,
-      started: entry.started,
-      passed: entry.passed,
-      passRate: passRateOf(entry.passed, entry.started),
-    };
-  });
-}
-
-export interface GradeGroupModuleStat {
-  group: GradeGroup;
-  assigned: number;
-  started: number;
-  passed: number;
-  passRate: number;
-  modules: ModuleStat[];
-}
-
-/** Статистика модулей, агрегированная по группам классов — для Главной и Статистики */
-export function getModuleStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupModuleStat[] {
-  const allModuleStats = getModuleStats(teachers);
-
-  return groups.map((group) => {
-    const modules = allModuleStats.filter((m) => m.group === group);
-    const started = modules.reduce((sum, m) => sum + m.started, 0);
-    const passed = modules.reduce((sum, m) => sum + m.passed, 0);
-    return {
+      moduleId: m.id,
+      shortTitle: m.shortTitle,
       group,
-      // "Назначено" на уровне группы — это учителя, у которых есть хотя бы
-      // один модуль этой параллели (а не строго teacher.gradeGroup === group,
-      // так как один учитель может вести сразу несколько параллелей).
-      assigned: teachers.filter((t) => t.moduleResults.some((r) => getModule(r.moduleId)?.group === group)).length,
-      started,
+      assigned,
       passed,
-      passRate: passRateOf(passed, started),
-      modules,
+      passRate: assigned > 0 ? Math.round((passed / assigned) * 100) : 0,
     };
   });
 }
