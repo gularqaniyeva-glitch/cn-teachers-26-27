@@ -77,11 +77,31 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
 
   // Пустые/фантомные строки (без ФИО на листе 2-9 классов, либо полностью
   // пустые на листе 10-11) отбрасываем здесь же — на сайте их быть не должно.
-  const teachers2to9 = data.teachers
-    .map((row, i) => mapTeachersSheetRow(row, i))
+  // Array.isArray + try/catch на каждую строку — если API вдруг вернёт
+  // не совсем то, что ожидалось (пустой/битый ряд), одна плохая строка не
+  // должна ронять всю загрузку данных.
+  const teachersRaw = Array.isArray(data.teachers) ? data.teachers : [];
+  const seniorRaw = Array.isArray(data.senior) ? data.senior : [];
+
+  const teachers2to9 = teachersRaw
+    .map((row, i) => {
+      try {
+        return mapTeachersSheetRow(row, i);
+      } catch (err) {
+        console.warn(`[teacherService] Пропущена строка ${i + 2} листа "Все учителя" — ошибка разбора:`, err);
+        return null;
+      }
+    })
     .filter((teacher): teacher is Teacher => teacher !== null);
-  const teachersSenior = data.senior
-    .map((row, i) => mapSeniorSheetRow(row, i))
+  const teachersSenior = seniorRaw
+    .map((row, i) => {
+      try {
+        return mapSeniorSheetRow(row, i);
+      } catch (err) {
+        console.warn(`[teacherService] Пропущена строка ${i + 2} листа "ИТ классы" — ошибка разбора:`, err);
+        return null;
+      }
+    })
     .filter((teacher): teacher is Teacher => teacher !== null);
 
   return [...teachers2to9, ...teachersSenior];

@@ -1,10 +1,12 @@
 // Преобразование "сырой" строки Google Sheets (объект {заголовок: значение})
 // в наш внутренний тип Teacher.
 //
-// Названия колонок ниже — ТОЧНЫЕ заголовки из реальной таблицы (подтверждены
-// напрямую через /api/sheets), а не предположения. Сопоставление всё равно
-// ищет значение по названию заголовка (через normalizeHeader), а не по
-// номеру колонки — это устойчивее к перестановке столбцов в будущем.
+// ВАЖНО: строки приходят из google-spreadsheet как row.toObject() — то есть
+// УЖЕ объект {заголовок: значение}, а не позиционный массив. Мы никогда не
+// читаем ячейки по индексу колонки (row[24] и т.п.) — только по названию
+// заголовка через findValue/findValueFuzzy ниже. Это специально: если в
+// таблице добавят новый столбец, порядок колонок сдвинется, но названия
+// заголовков останутся прежними — сайт не сломается.
 
 import type {
   GradeGroup,
@@ -23,14 +25,45 @@ function normalizeHeader(header: string): string {
   return header.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-function findValue(row: RawSheetRow, candidates: string[]): string {
+function normalizedEntries(row: RawSheetRow | null | undefined): Map<string, string> {
   const normalizedRow = new Map<string, string>();
+  if (!row) return normalizedRow;
   for (const [key, value] of Object.entries(row)) {
     normalizedRow.set(normalizeHeader(key), (value ?? '').toString());
   }
+  return normalizedRow;
+}
+
+/** Точный поиск по названию заголовка (после trim+lowercase) — для модулей, где важна точность (иначе "M1" случайно поймает "M10"-"M13"). */
+function findValue(row: RawSheetRow | null | undefined, candidates: string[]): string {
+  const normalizedRow = normalizedEntries(row);
   for (const candidate of candidates) {
     const value = normalizedRow.get(normalizeHeader(candidate));
     if (value !== undefined && value !== '') return value;
+  }
+  return '';
+}
+
+/**
+ * То же самое, но с запасным вариантом "по вхождению подстроки" — если
+ * заголовок в таблице слегка изменился (дописали слово, поменяли регистр),
+ * поле всё равно найдётся, а не станет пустым. Используется только для
+ * стабильных бизнес-полей (ФИО, школа, стаж и т.д.), НЕ для номеров
+ * модулей — там короткие имена вроде "M1" случайно совпали бы с "M10".
+ * Никогда не бросает исключение — при отсутствии данных просто "".
+ */
+function findValueFuzzy(row: RawSheetRow | null | undefined, candidates: string[]): string {
+  const exact = findValue(row, candidates);
+  if (exact) return exact;
+
+  const normalizedRow = normalizedEntries(row);
+  for (const candidate of candidates) {
+    const needle = normalizeHeader(candidate);
+    if (needle.length < 3) continue;
+    for (const [header, value] of normalizedRow) {
+      if (!value) continue;
+      if (header.includes(needle) || needle.includes(header)) return value;
+    }
   }
   return '';
 }
@@ -100,18 +133,25 @@ function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleS
   return score > 0 ? { status: score >= 60 ? 'passed' : 'failed', score } : { status: 'not_started', score: 0 };
 }
 
+// Первый вариант в каждом списке — ТОЧНОЕ название из реальной таблицы
+// (подтверждено напрямую через /api/sheets). Остальные — синонимы/запасные
+// варианты на случай, если заголовок в Sheets слегка изменится; ищутся
+// через findValueFuzzy (точное совпадение, а если не нашлось — по
+// вхождению подстроки), так что новый или переименованный столбец не
+// уронит сайт.
 const FIELD_CANDIDATES = {
-  fullName: ['S.A.A'],
-  school: ['Məktəb'],
+  fullName: ['S.A.A', 'ФИО'],
+  school: ['Məktəb', 'Школа'],
+  district: ['Rayon', 'Район'],
   fin: ['FIN', 'FİN'],
-  phone: ['Müəllimin əlaqə nömrəsi'],
+  phone: ['Müəllimin əlaqə nömrəsi', 'əlaqə nömrəsi', 'Телефон'],
   email: ['Müəllimin E-maili'],
-  lmsId: ['ID LMS'],
+  lmsId: ['ID LMS', 'LMS ID'],
   sector: ['Bölmə AZ/RU/AZ-RU'],
-  format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi'],
-  startYear: ['Başlama ili - yeni məlumat lms'],
-  platformStatus: ['Статус входа на платформу'],
-  classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)'],
+  format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi', 'Tədris növü', 'Тип обучения'],
+  startYear: ['Başlama ili - yeni məlumat lms', 'Başlama ili', 'Год начала'],
+  platformStatus: ['Статус входа на платформу', 'Статус входа', 'LMS daxil'],
+  classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)', 'Классы учителя', 'sinif'],
 } as const;
 
 /**
@@ -170,8 +210,9 @@ function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active
  * строка "пустая" (нет ФИО) — это мусорные/фантомные строки в исходной
  * таблице, их нужно полностью исключать, а не показывать заглушкой.
  */
-export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher | null {
-  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]).trim();
+export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: number): Teacher | null {
+  if (!row) return null;
+  const fullName = findValueFuzzy(row, [...FIELD_CANDIDATES.fullName]).trim();
   if (!fullName) return null;
 
   const { active1to4, active5to9 } = detectActiveBands(row);
@@ -179,26 +220,29 @@ export function mapTeachersSheetRow(row: RawSheetRow, index: number): Teacher | 
   // наиболее частый случай), если активна только 1–4 — используем её.
   const primary: GradeGroup = active5to9 ? '5-9' : '2-4';
 
-  const school = findValue(row, [...FIELD_CANDIDATES.school]);
-  const lmsId = findValue(row, [...FIELD_CANDIDATES.lmsId]);
-  const startYear = findValue(row, [...FIELD_CANDIDATES.startYear]);
+  const school = findValueFuzzy(row, [...FIELD_CANDIDATES.school]);
+  const lmsId = findValueFuzzy(row, [...FIELD_CANDIDATES.lmsId]);
+  const startYear = findValueFuzzy(row, [...FIELD_CANDIDATES.startYear]);
+  // Явная колонка района, если она есть в таблице, иначе — как раньше,
+  // берём первую часть названия школы до запятой.
+  const explicitDistrict = findValueFuzzy(row, [...FIELD_CANDIDATES.district]);
 
   return {
     id: lmsId || `teacher-row-${index}`,
     fullName,
     school,
-    district: deriveDistrict(school),
-    fin: findValue(row, [...FIELD_CANDIDATES.fin]),
-    phone: findValue(row, [...FIELD_CANDIDATES.phone]),
-    email: findValue(row, [...FIELD_CANDIDATES.email]),
+    district: explicitDistrict || deriveDistrict(school),
+    fin: findValueFuzzy(row, [...FIELD_CANDIDATES.fin]),
+    phone: findValueFuzzy(row, [...FIELD_CANDIDATES.phone]),
+    email: findValueFuzzy(row, [...FIELD_CANDIDATES.email]),
     lmsId,
-    language: mapSector(findValue(row, [...FIELD_CANDIDATES.sector])),
-    trainingType: mapFormat(findValue(row, [...FIELD_CANDIDATES.format])),
+    language: mapSector(findValueFuzzy(row, [...FIELD_CANDIDATES.sector])),
+    trainingType: mapFormat(findValueFuzzy(row, [...FIELD_CANDIDATES.format])),
     lifecycleStatus: mapLifecycleFromStartYear(startYear),
     startYear,
     gradeGroup: primary,
-    platformStatus: mapPlatformStatus(findValue(row, [...FIELD_CANDIDATES.platformStatus])),
-    classesTaught: findValue(row, [...FIELD_CANDIDATES.classesTaught]),
+    platformStatus: mapPlatformStatus(findValueFuzzy(row, [...FIELD_CANDIDATES.platformStatus])),
+    classesTaught: findValueFuzzy(row, [...FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: active1to4 || active5to9,
     moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9),
     note: '',
@@ -213,14 +257,15 @@ const SENIOR_FIELD_CANDIDATES = {
   // напрямую по заголовкам) — оставляем варианты на случай, если она
   // появится, но полагаться на неё нельзя.
   fullName: ['S.A.A', 'ФИО'],
-  school: ['Школа название как LMS', 'Məktəb'],
+  school: ['Школа название как LMS', 'Məktəb', 'Школа'],
+  district: ['Rayon', 'Район'],
   fin: ['ФИН КОД', 'FIN', 'FİN'],
-  phone: ['Телефон учителя'],
+  phone: ['Телефон учителя', 'əlaqə nömrəsi', 'Телефон'],
   email: ['E-mail учителя'],
   lmsId: ['ID'],
   sector: ['Sektor'],
-  startYear: ['IT-yə başladıqları il', 'Годы преподавания'],
-  classesTaught: ['Siniflər'],
+  startYear: ['IT-yə başladıqları il', 'Годы преподавания', 'Başlama ili', 'Год начала'],
+  classesTaught: ['Siniflər', 'sinif', 'Классы учителя'],
 } as const;
 
 /**
@@ -230,17 +275,19 @@ const SENIOR_FIELD_CANDIDATES = {
  * одновременно — по отдельности любое из этих полей уже делает учителя
  * идентифицируемым и реальным.
  */
-export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher | null {
-  const school = findValue(row, [...SENIOR_FIELD_CANDIDATES.school]);
-  const lmsId = findValue(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
-  const email = findValue(row, [...SENIOR_FIELD_CANDIDATES.email]);
-  const phone = findValue(row, [...SENIOR_FIELD_CANDIDATES.phone]);
+export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: number): Teacher | null {
+  if (!row) return null;
+  const school = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.school]);
+  const lmsId = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
+  const email = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.email]);
+  const phone = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.phone]);
 
   if (!school.trim() && !lmsId.trim() && !email.trim() && !phone.trim()) return null;
 
   // Имени в этом листе нет — показываем хоть какой-то реальный
   // идентификатор учителя вместо пустой заглушки.
-  const fullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]) || email || phone || `ID ${lmsId || index + 2}`;
+  const fullName =
+    findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fullName]) || email || phone || `ID ${lmsId || index + 2}`;
 
   const moduleResults: ModuleResult[] = [];
   for (const n of SENIOR_MODULE_NUMBERS) {
@@ -248,24 +295,25 @@ export function mapSeniorSheetRow(row: RawSheetRow, index: number): Teacher | nu
     if (cell) moduleResults.push({ moduleId: `10-11-M${n}`, ...cell });
   }
 
-  const seniorStartYear = findValue(row, [...SENIOR_FIELD_CANDIDATES.startYear]);
+  const seniorStartYear = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.startYear]);
+  const explicitDistrict = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district]);
 
   return {
     id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
     fullName,
     school,
-    district: deriveDistrict(school),
-    fin: findValue(row, [...SENIOR_FIELD_CANDIDATES.fin]),
+    district: explicitDistrict || deriveDistrict(school),
+    fin: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fin]),
     phone,
     email,
     lmsId,
-    language: mapSector(findValue(row, [...SENIOR_FIELD_CANDIDATES.sector])),
+    language: mapSector(findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.sector])),
     trainingType: 'əyani',
     lifecycleStatus: mapLifecycleFromStartYear(seniorStartYear),
     startYear: seniorStartYear,
     gradeGroup: '10-11',
     platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',
-    classesTaught: findValue(row, [...SENIOR_FIELD_CANDIDATES.classesTaught]),
+    classesTaught: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: true,
     moduleResults,
     note: '',

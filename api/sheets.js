@@ -31,8 +31,19 @@ function getAuth() {
   return new JWT({ email, key, scopes: SCOPES });
 }
 
+// row.toObject() уже возвращает объект {заголовок: значение} — не позиции
+// колонок. Один битый ряд (редкая ошибка библиотеки на пустой/повреждённой
+// строке листа) не должен ронять весь ответ — просто пропускаем его.
 function rowsToObjects(rows) {
-  return rows.map((row) => row.toObject());
+  const result = [];
+  for (const row of rows) {
+    try {
+      result.push(row.toObject());
+    } catch (err) {
+      console.warn('api/sheets: пропущена строка при чтении — ошибка toObject():', err);
+    }
+  }
+  return result;
 }
 
 export default async function handler(req, res) {
