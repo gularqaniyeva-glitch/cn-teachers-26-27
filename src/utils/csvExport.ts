@@ -1,5 +1,5 @@
 import type { GradeGroup, Teacher } from '../types/teacher';
-import { GRADE_GROUPS, getModule, getUnifiedModuleResult, getUnifiedModuleShortTitles } from '../data/constants';
+import { GRADE_GROUPS, findModuleResultForColumn, getModule, getModuleColumnsForGroups } from '../data/constants';
 import {
   formatAssignedClassesLabel,
   getApplicableModules,
@@ -96,6 +96,7 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
   },
   { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => excelTextLiteral(te.fin) },
   { key: 'phone', header: (t) => t.detail.fields.phone, value: (te) => te.phone },
+  { key: 'email', header: (t) => t.detail.fields.email, value: (te) => te.email },
   { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => excelTextLiteral(te.lmsId) },
   { key: 'gradeGroup', header: (t) => t.columns.gradeGroup, value: (te, t) => t.gradeGroup[te.gradeGroup] },
   { key: 'lifecycleStatus', header: (t) => t.columns.lifecycleStatus, value: (te) => te.lifecycleStatus },
@@ -117,10 +118,9 @@ export function exportTeachersToCsv(
   const activeFields = EXPORT_FIELDS.filter((f) => selectedKeys.has(f.key));
   const includeModules = selectedKeys.has('modules');
   const includeModuleColumns = selectedKeys.has('moduleColumns');
-  // Единые колонки M1..M13 (без дублей "M3 (2–4)"/"M3 (5–9)") — как и на
-  // экране "Все учителя", для каждого учителя берём результат его
-  // основной параллели.
-  const moduleTitles = includeModuleColumns ? getUnifiedModuleShortTitles(collectActiveGroups(teachers)) : [];
+  // Раздельные колонки по параллели (M3 (2–4), M3 (5–9) и т.д.) — как и
+  // на экране "Все учителя"; M1/M2 общие, без суффикса.
+  const moduleColumns = includeModuleColumns ? getModuleColumnsForGroups(collectActiveGroups(teachers)) : [];
 
   const statusLabel = {
     passed: t.moduleStatus.passed,
@@ -132,7 +132,7 @@ export function exportTeachersToCsv(
   const headers = [
     ...activeFields.map((f) => f.header(t)),
     ...(includeModules ? [t.exportMenu.modulesLabel] : []),
-    ...moduleTitles,
+    ...moduleColumns.map((c) => c.label),
   ];
 
   const rows = teachers.map((teacher) => {
@@ -151,8 +151,8 @@ export function exportTeachersToCsv(
       : [];
 
     const moduleCells = includeModuleColumns
-      ? moduleTitles.map((title) => {
-          const result = getUnifiedModuleResult(teacher, teacher.moduleResults, title);
+      ? moduleColumns.map((col) => {
+          const result = findModuleResultForColumn(teacher.moduleResults, col);
           return result ? String(result.score) : '';
         })
       : [];

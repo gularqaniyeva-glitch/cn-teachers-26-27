@@ -98,6 +98,7 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
       district,
       fin: buildFin(rng),
       phone: buildPhone(rng),
+      email: `teacher${i + 1}@example.test`,
       lmsId: buildLmsId(i),
       language,
       trainingType,

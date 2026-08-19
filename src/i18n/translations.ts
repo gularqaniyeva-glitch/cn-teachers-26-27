@@ -112,6 +112,8 @@ export interface Dict {
     anyStatus: string;
     trainingTypeLabel: string;
     platformStatusLabel: string;
+    districtLabel: string;
+    allDistricts: string;
   };
   quickList: {
     title: string;
@@ -161,6 +163,7 @@ export interface Dict {
       platformStatus: string;
       classesTaught: string;
       startYear: string;
+      email: string;
     };
     notePlaceholder: string;
   };
@@ -351,6 +354,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'Любой статус',
       trainingTypeLabel: 'Тип обучения',
       platformStatusLabel: 'Статус платформы',
+      districtLabel: 'Район / Регион',
+      allDistricts: 'Все регионы',
     },
     quickList: {
       title: 'Список по модулю',
@@ -400,6 +405,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         platformStatus: 'Статус платформы',
         classesTaught: 'Назначенные классы',
         startYear: 'Год начала / стаж',
+        email: 'Email / Почта',
       },
       notePlaceholder: 'Внутренняя заметка администратора — не видна учителю…',
     },
@@ -588,6 +594,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'İstənilən status',
       trainingTypeLabel: 'Təhsil növü',
       platformStatusLabel: 'Platforma statusu',
+      districtLabel: 'Rayon / Region',
+      allDistricts: 'Bütün regionlar',
     },
     quickList: {
       title: 'Modula görə siyahı',
@@ -637,6 +645,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
         platformStatus: 'Platforma statusu',
         classesTaught: 'Təyin edilmiş siniflər',
         startYear: 'Başlama ili / təcrübə',
+        email: 'E-mail / Poçt',
       },
       notePlaceholder: 'Administrasiyanın daxili qeydi — müəllimə görünmür…',
     },

@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Eye } from 'lucide-react';
 import type { GradeGroup, Teacher } from '../../types/teacher';
-import {
-  findModuleResultForColumn,
-  getModuleColumnsForGroups,
-  getUnifiedModuleResult,
-  getUnifiedModuleShortTitles,
-  type ModuleColumn,
-} from '../../data/constants';
+import { findModuleResultForColumn, getModuleColumnsForGroups, type ModuleColumn } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { formatAssignedClassesLabel, getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
@@ -154,28 +148,19 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     return numbers;
   }, [moduleColumnOptions]);
 
-  // Без явного выбора модуля ("Все модули") показываем ЕДИНЫЕ колонки
-  // M1..M13 — без дублей "M3 (2–4)"/"M3 (5–9)"; для каждого учителя
-  // подтягивается результат его основной параллели. Разведение на две
-  // колонки параллели происходит ТОЛЬКО при явном выборе конкретного
-  // номера модуля в фильтре — тогда нужно сравнить обе параллели сразу.
-  const isUnifiedView = selectedModuleNumbers.length === 0;
-
-  // Столбцы, которые реально рисуются в таблице. Это НЕ рендер
-  // "учитель×модуль" отдельными строками (та ошибка уже исправлена раньше)
-  // — здесь всегда 1 строка = 1 учитель, просто с несколькими узкими
-  // колонками вместо одной.
+  // Столбцы, которые реально рисуются в таблице: если выбраны конкретные
+  // номера — только их колонки (для неоднозначных номеров это сразу обе
+  // параллели, напр. выбор "M6" показывает и "M6 (2–4)", и "M6 (5–9)"),
+  // иначе — ВСЕ колонки активных параллелей, тоже раздельно (M3-M6 у 2-4
+  // и 5-9 — разные назначения с одинаковым номером, схлопывать их нельзя,
+  // иначе один из двух реальных баллов у двухпараллельных учителей теряется).
+  // Это НЕ рендер "учитель×модуль" отдельными строками (та ошибка уже
+  // исправлена раньше) — здесь всегда 1 строка = 1 учитель, просто с
+  // несколькими узкими колонками вместо одной.
   const displayedModuleColumns = useMemo<ModuleColumn[]>(() => {
-    if (isUnifiedView) {
-      return getUnifiedModuleShortTitles(activeGroups).map((title) => ({
-        key: title,
-        shortTitle: title,
-        label: title,
-        moduleIds: [],
-      }));
-    }
+    if (selectedModuleNumbers.length === 0) return moduleColumnOptions;
     return moduleColumnOptions.filter((c) => selectedModuleNumbers.includes(c.shortTitle));
-  }, [isUnifiedView, activeGroups, selectedModuleNumbers, moduleColumnOptions]);
+  }, [selectedModuleNumbers, moduleColumnOptions]);
 
   function toggleModule(shortTitle: string) {
     setSelectedModuleNumbers((prev) =>
@@ -206,9 +191,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
       const badges: ModuleBadge[] = [];
       for (const column of displayedModuleColumns) {
-        const result = isUnifiedView
-          ? getUnifiedModuleResult(teacher, teacher.moduleResults, column.shortTitle)
-          : findModuleResultForColumn(teacher.moduleResults, column);
+        const result = findModuleResultForColumn(teacher.moduleResults, column);
         if (!result) continue;
         const groupFlagged = isGroupAnomalyRow(groupAnomalySet, teacher, result.moduleId);
         const status = groupFlagged ? 'on_review' : getEffectiveModuleStatus(teacher, result.moduleId);
@@ -223,7 +206,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
     return rows;
-  }, [teachers, activeGroups, isUnifiedView, displayedModuleColumns, selectedStatuses, groupAnomalySet]);
+  }, [teachers, activeGroups, displayedModuleColumns, selectedStatuses, groupAnomalySet]);
 
   const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const currentPage = Math.min(page, totalPages);

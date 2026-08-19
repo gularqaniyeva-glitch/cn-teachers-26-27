@@ -31,7 +31,8 @@ export const TEACHER_TABLE_COLUMNS: TeacherColumnDef[] = [
   { key: 'lmsId', defaultVisible: false, label: (t) => t.detail.fields.lmsId },
   { key: 'fin', defaultVisible: false, label: (t) => t.detail.fields.fin },
   { key: 'phone', defaultVisible: false, label: (t) => t.detail.fields.phone },
-  { key: 'startYear', defaultVisible: false, label: (t) => t.detail.fields.startYear },
+  { key: 'startYear', defaultVisible: true, label: (t) => t.detail.fields.startYear },
+  { key: 'email', defaultVisible: false, label: (t) => t.detail.fields.email },
 ];
 
 export const DEFAULT_VISIBLE_TEACHER_COLUMNS = new Set(

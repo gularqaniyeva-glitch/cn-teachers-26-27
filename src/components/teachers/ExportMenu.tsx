@@ -25,6 +25,7 @@ export const EXPORT_COLUMNS: ExportColumnDef[] = [
   { key: 'moduleColumns', label: (t) => t.columns.moduleColumns },
   { key: 'fin', label: (t) => t.detail.fields.fin },
   { key: 'phone', label: (t) => t.detail.fields.phone },
+  { key: 'email', label: (t) => t.detail.fields.email },
   { key: 'lmsId', label: (t) => t.detail.fields.lmsId },
   { key: 'gradeGroup', label: (t) => t.columns.gradeGroup },
   { key: 'lifecycleStatus', label: (t) => t.columns.lifecycleStatus },

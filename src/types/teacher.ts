@@ -35,6 +35,7 @@ export interface Teacher {
   /** Идентификационный номер (FIN) — в тестовых данных случайный, не связан с реальными людьми */
   fin: string;
   phone: string;
+  email: string;
   lmsId: string;
   language: TeachingLanguage;
   trainingType: TrainingType;

@@ -8,7 +8,7 @@ import { ModuleScoreCell } from './ModuleScoreCell';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
-import { getUnifiedModuleResult, getUnifiedModuleShortTitles } from '../../data/constants';
+import { findModuleResultForColumn, getModuleColumnsForGroups } from '../../data/constants';
 import { TEACHER_TABLE_COLUMNS, type TeacherColumnDef } from './teacherTableColumns';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -51,13 +51,14 @@ export function TeacherTable({
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
   const columnMenuRef = useRef<HTMLDivElement>(null);
 
-  // Единые колонки M1..M13 (без разведения по параллели) — на вкладке
-  // "Все учителя" не нужно дублировать M3(2-4)/M3(5-9): для каждого
-  // учителя подтягиваем результат из его основной параллели. Разведение
-  // на две колонки — только в "Отчёт по модулю" при явном выборе модуля.
+  // Явные колонки по каждой параллели — M3-M6 у 2-4 и 5-9 это РАЗНЫЕ
+  // назначения с одинаковым номером (у двухпараллельного учителя оба
+  // балла существуют одновременно и разные), поэтому здесь всегда
+  // раздельные колонки "M3 (2–4)"/"M3 (5–9)" и т.д.; M1/M2 общие — одна
+  // колонка без суффикса.
   const showModuleColumns = visibleKeys.has('moduleColumns');
-  const moduleTitles = useMemo(
-    () => (showModuleColumns ? getUnifiedModuleShortTitles(gradeGroups) : []),
+  const moduleColumns = useMemo(
+    () => (showModuleColumns ? getModuleColumnsForGroups(gradeGroups) : []),
     [showModuleColumns, gradeGroups],
   );
 
@@ -98,6 +99,8 @@ export function TeacherTable({
         return teacher.fin ? <NoTranslate>{teacher.fin}</NoTranslate> : t.common.noData;
       case 'phone':
         return teacher.phone || t.common.noData;
+      case 'email':
+        return teacher.email ? <NoTranslate>{teacher.email}</NoTranslate> : t.common.noData;
       case 'startYear':
         return teacher.startYear || t.common.noData;
       case 'sector':
@@ -214,9 +217,9 @@ export function TeacherTable({
                 </th>
               ))}
               {showModuleColumns &&
-                moduleTitles.map((title) => (
-                  <th key={title} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
-                    {title}
+                moduleColumns.map((col) => (
+                  <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
+                    {col.label}
                   </th>
                 ))}
               <th className="px-2.5 py-2" />
@@ -247,11 +250,11 @@ export function TeacherTable({
                     </td>
                   ))}
                   {showModuleColumns &&
-                    moduleTitles.map((title) => {
-                      const result = getUnifiedModuleResult(teacher, teacher.moduleResults, title);
+                    moduleColumns.map((col) => {
+                      const result = findModuleResultForColumn(teacher.moduleResults, col);
                       return (
-                        <td key={title} className="px-0.5 py-1 text-center">
-                          <ModuleScoreCell result={result} label={title} />
+                        <td key={col.key} className="px-0.5 py-1 text-center">
+                          <ModuleScoreCell result={result} label={col.label} />
                         </td>
                       );
                     })}

@@ -72,6 +72,10 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   );
 
   const allSchools = useMemo(() => Array.from(new Set(scopedTeachers.map((t) => t.school))).sort(), [scopedTeachers]);
+  const allDistricts = useMemo(
+    () => Array.from(new Set(scopedTeachers.map((t) => t.district))).sort(),
+    [scopedTeachers],
+  );
   const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
 
   const filtered = useMemo(() => filterTeachers(scopedTeachers, filters), [scopedTeachers, filters]);
@@ -276,7 +280,12 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
                     onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
                     onSectorChange={(sector) => handleFilterChange('sector', sector)}
                   />
-                  <TeacherFiltersBar filters={filters} onChange={handleFilterChange} onReset={handleReset} />
+                  <TeacherFiltersBar
+                    filters={filters}
+                    districts={allDistricts}
+                    onChange={handleFilterChange}
+                    onReset={handleReset}
+                  />
                 </div>
               </aside>
             </div>
