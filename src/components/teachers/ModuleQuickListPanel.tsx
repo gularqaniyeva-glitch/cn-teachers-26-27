@@ -9,7 +9,7 @@ import {
   type ModuleColumn,
 } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
-import { getTeacherOverallStats } from '../../utils/stats';
+import { formatAssignedClassesLabel, getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
@@ -28,13 +28,14 @@ interface TableColumnDef {
   label: (t: Dict) => string;
 }
 
-// По умолчанию видны ФИО, Школа, Район, Тип обучения и Результат — как и в
-// таблице "Все учителя". Параллель и Сектор скрыты по умолчанию, но
-// доступны через "Столбцы 👁️".
+// По умолчанию видны ФИО, Школа, Район, Назначенные классы, Тип обучения и
+// Результат — как и в таблице "Все учителя". Параллель и Сектор скрыты по
+// умолчанию, но доступны через "Столбцы 👁️".
 const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', defaultVisible: true, label: (t) => t.columns.school },
   { key: 'district', defaultVisible: true, label: (t) => t.columns.district },
+  { key: 'classesTaught', defaultVisible: true, label: (t) => t.detail.fields.classesTaught },
   { key: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
   { key: 'gradeGroup', defaultVisible: false, label: (t) => t.quickList.gradeGroupLabel },
   { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },
@@ -246,6 +247,12 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
         return <NoTranslate>{teacher.school}</NoTranslate>;
       case 'district':
         return teacher.district;
+      case 'classesTaught':
+        return teacher.hasAssignedClass ? (
+          formatAssignedClassesLabel(teacher, t.gradeGroup, t.common.classNotAssigned)
+        ) : (
+          <Badge variant="neutral">{t.common.classNotAssigned}</Badge>
+        );
       case 'trainingType':
         return t.trainingType[teacher.trainingType];
       case 'gradeGroup':

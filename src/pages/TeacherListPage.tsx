@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { RefreshCw, Search, Settings2, X } from 'lucide-react';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { useTeacherStore } from '../store/useTeacherStore';
@@ -30,7 +31,21 @@ type PageTab = 'all' | 'moduleReport';
 export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
   const t = useT();
   const { teachers: allTeachers, loading, refreshing, error, load, reload, updateManyTeachers } = useTeacherStore();
-  const [activeTab, setActiveTab] = useState<PageTab>('all');
+  // Активная подвкладка живёт в URL (?tab=moduleReport), а не в локальном
+  // состоянии — иначе F5 всегда сбрасывал бы пользователя на "Все учителя".
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab: PageTab = searchParams.get('tab') === 'moduleReport' ? 'moduleReport' : 'all';
+  function setActiveTab(tab: PageTab) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (tab === 'all') next.delete('tab');
+        else next.set('tab', tab);
+        return next;
+      },
+      { replace: true },
+    );
+  }
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>({ key: 'fullName', direction: 'asc' });
   const [page, setPage] = useState(1);

@@ -1,17 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, LogIn, LogOut, TrendingUp } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
-import { getModuleStatsByGradeGroup, getOverviewStats } from '../utils/stats';
+import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
+import {
+  formatTeachersPassed,
+  getModuleStatsByGradeGroup,
+  getOverallTeacherPassStat,
+  getOverviewStats,
+  getTeacherPassStatsByGradeGroup,
+} from '../utils/stats';
 import { GRADE_GROUPS } from '../data/constants';
+import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
 export function DashboardPage() {
   const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
+  const [activeDetailGroup, setActiveDetailGroup] = useState<GradeGroup>('2-4');
 
   useEffect(() => {
     load();
@@ -26,7 +35,10 @@ export function DashboardPage() {
   }
 
   const overview = getOverviewStats(teachers);
+  const overallTeacherPass = getOverallTeacherPassStat(teachers);
+  const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const groupStats = getModuleStatsByGradeGroup(teachers, GRADE_GROUPS);
+  const activeGroupModules = groupStats.find((g) => g.group === activeDetailGroup)?.modules ?? [];
 
   return (
     <div className="space-y-6">
@@ -57,47 +69,56 @@ export function DashboardPage() {
         />
         <StatCard
           label={t.dashboard.successRate}
-          value={`${overview.successRate}%`}
+          value={`${overallTeacherPass.percent}%`}
           icon={TrendingUp}
           accent="violet"
-          sublabel={t.dashboard.successRateHint}
+          sublabel={`${overallTeacherPass.passedTeachers} ${t.common.of} ${overallTeacherPass.totalTeachers} ${t.dashboard.ofTotal}`}
           tooltip={t.dashboard.successRateTooltip}
         />
       </div>
 
+      {/* KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
+          сданных модулей — "X из Y учителей прошли курс (Z%)" на каждую
+          параллель. */}
       <Card title={t.dashboard.moduleStatsTitle}>
         <div className="space-y-4">
-          {groupStats.map((g) => (
+          {teacherPassByGroup.map((g) => (
             <Bar
               key={g.group}
-              label={`${t.gradeGroup[g.group]} · ${t.dashboard.passedOf} ${g.passed} ${t.common.of} ${g.started}`}
-              count={g.passed}
-              percent={g.passRate}
-              color={g.passRate >= 60 ? '#059669' : g.passRate >= 40 ? '#d97706' : '#e11d48'}
+              label={`${t.gradeGroup[g.group]}: ${formatTeachersPassed(
+                t.dashboard.teachersPassedFormat,
+                g.passedTeachers,
+                g.totalTeachers,
+                g.percent,
+              )}`}
+              count={g.passedTeachers}
+              percent={g.percent}
+              color={g.percent >= 90 ? '#059669' : g.percent >= 70 ? '#d97706' : '#e11d48'}
             />
           ))}
         </div>
       </Card>
 
       <Card title={t.dashboard.moduleDetailTitle}>
-        <div className="space-y-6">
-          {groupStats.map((g) => (
-            <div key={g.group}>
-              <h4 className="mb-3 text-sm font-semibold text-slate-800">{t.gradeGroup[g.group]}</h4>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {g.modules.map((m) => (
-                  <Bar
-                    key={m.moduleId}
-                    label={`${m.shortTitle} · ${t.dashboard.passedOf} ${m.passed} ${t.common.of} ${m.started}`}
-                    count={m.passed}
-                    percent={m.passRate}
-                    color={m.passRate >= 60 ? '#059669' : m.passRate >= 40 ? '#d97706' : '#e11d48'}
-                  />
-                ))}
-              </div>
-            </div>
+        <div className="mb-4 flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
+          {GRADE_GROUPS.map((g) => (
+            <button
+              key={g}
+              onClick={() => setActiveDetailGroup(g)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                activeDetailGroup === g ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {t.gradeGroup[g]}
+            </button>
           ))}
         </div>
+        <ModuleHeatmapGrid
+          modules={activeGroupModules}
+          passedLabel={t.dashboard.passedOf}
+          ofLabel={t.common.of}
+          emptyLabel={t.dashboard.moduleGridEmpty}
+        />
       </Card>
     </div>
   );

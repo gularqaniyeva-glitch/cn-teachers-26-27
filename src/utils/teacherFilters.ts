@@ -16,6 +16,8 @@ export interface TeacherFilters {
   moduleId: string;
   /** '' — любой, 'passed' | 'failed' | 'not_started' | 'on_review' */
   moduleResult: string;
+  /** Показывать только учителей, которым ещё не назначили класс/параллель */
+  unassignedClassOnly: boolean;
 }
 
 export const DEFAULT_FILTERS: TeacherFilters = {
@@ -29,6 +31,7 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   sector: '',
   moduleId: '',
   moduleResult: '',
+  unassignedClassOnly: false,
 };
 
 export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Teacher[] {
@@ -46,6 +49,7 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.trainingType && t.trainingType !== filters.trainingType) return false;
     if (filters.platformStatus && t.platformStatus !== filters.platformStatus) return false;
     if (filters.sector && t.language !== filters.sector) return false;
+    if (filters.unassignedClassOnly && t.hasAssignedClass) return false;
 
     if (filters.moduleId && filters.moduleResult) {
       if (getEffectiveModuleStatus(t, filters.moduleId) !== filters.moduleResult) return false;

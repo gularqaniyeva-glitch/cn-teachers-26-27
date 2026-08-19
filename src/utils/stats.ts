@@ -200,12 +200,17 @@ export function getAssignedGradeGroups(teacher: Teacher): GradeGroup[] {
 /**
  * Текст для колонки "Классы" — вместо сырого (часто пустого) значения из
  * Sheets выводим параллели, реально выведенные из назначенных модулей.
- * "нет данных" здесь принципиально не показываем: пустая строка бывает
- * только в исключительном случае, когда у учителя нет вообще ни одного
- * назначенного модуля — тогда используем то, что реально есть в Sheets,
- * либо прочерк.
+ * Если учителю ещё не назначили класс/параллель вовсе (hasAssignedClass
+ * false) — явно говорим об этом, а не подставляем технический gradeGroup
+ * по умолчанию как будто это настоящее назначение. "нет данных" в этой
+ * колонке принципиально не показываем.
  */
-export function formatAssignedClassesLabel(teacher: Teacher, gradeGroupLabels: Record<GradeGroup, string>): string {
+export function formatAssignedClassesLabel(
+  teacher: Teacher,
+  gradeGroupLabels: Record<GradeGroup, string>,
+  notAssignedLabel: string,
+): string {
+  if (!teacher.hasAssignedClass) return notAssignedLabel;
   const groups = getAssignedGradeGroups(teacher);
   if (groups.length > 0) return groups.map((g) => gradeGroupLabels[g]).join(', ');
   return teacher.classesTaught || '—';
@@ -227,6 +232,71 @@ export function getOverallPassPercent(teachers: Teacher[]): number {
     }
   }
   return assigned > 0 ? Math.round((passed / assigned) * 100) : 0;
+}
+
+/**
+ * "Прошёл курс" — считаем по УЧИТЕЛЮ (человеку), а не по сумме отдельных
+ * модулей: все его назначенные модули набрали >=70%. Модули со статусом
+ * old_teacher по бизнес-правилу исключаются из проверки (таких учителей
+ * не считаем должниками) — если после исключения ничего не остаётся,
+ * учитель всё равно засчитывается прошедшим.
+ */
+export function hasTeacherPassedCourse(teacher: Teacher): boolean {
+  const relevant = teacher.moduleResults.filter((r) => r.status !== 'old_teacher');
+  if (relevant.length === 0) return teacher.moduleResults.length > 0;
+  return relevant.every((r) => r.score >= PASS_THRESHOLD);
+}
+
+export interface GradeGroupTeacherPassStat {
+  group: GradeGroup;
+  totalTeachers: number;
+  passedTeachers: number;
+  percent: number;
+}
+
+/**
+ * KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
+ * сданных модулей — "X из Y учителей прошли курс (Z%)" по каждой
+ * параллели. Учителя без назначенного класса (hasAssignedClass=false) не
+ * входят ни в одну параллель — их результаты видны в таблицах, но в этот
+ * KPI они не в знаменателе ни одной группы.
+ */
+export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
+  return groups.map((group) => {
+    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
+    const passedTeachers = groupTeachers.filter(hasTeacherPassedCourse).length;
+    return {
+      group,
+      totalTeachers: groupTeachers.length,
+      passedTeachers,
+      percent: groupTeachers.length > 0 ? Math.round((passedTeachers / groupTeachers.length) * 100) : 0,
+    };
+  });
+}
+
+export interface OverallTeacherPassStat {
+  totalTeachers: number;
+  passedTeachers: number;
+  percent: number;
+}
+
+/** То же самое, но по всем учителям сразу (для верхней KPI-карточки) */
+export function getOverallTeacherPassStat(teachers: Teacher[]): OverallTeacherPassStat {
+  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  const passedTeachers = eligible.filter(hasTeacherPassedCourse).length;
+  return {
+    totalTeachers: eligible.length,
+    passedTeachers,
+    percent: eligible.length > 0 ? Math.round((passedTeachers / eligible.length) * 100) : 0,
+  };
+}
+
+/** Подставляет {passed}/{total}/{percent} в шаблон вида "{passed} из {total} учителей..." */
+export function formatTeachersPassed(template: string, passed: number, total: number, percent: number): string {
+  return template
+    .replace('{passed}', String(passed))
+    .replace('{total}', String(total))
+    .replace('{percent}', String(percent));
 }
 
 export interface TrainingTypeSummary {

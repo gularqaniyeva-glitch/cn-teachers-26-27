@@ -87,7 +87,11 @@ export function TeacherTable({
       case 'district':
         return teacher.district;
       case 'classesTaught':
-        return formatAssignedClassesLabel(teacher, t.gradeGroup);
+        return teacher.hasAssignedClass ? (
+          formatAssignedClassesLabel(teacher, t.gradeGroup, t.common.classNotAssigned)
+        ) : (
+          <Badge variant="neutral">{t.common.classNotAssigned}</Badge>
+        );
       case 'lmsId':
         return <LmsLink lmsId={teacher.lmsId} />;
       case 'fin':

@@ -36,6 +36,16 @@ export function TeacherFiltersBar({ filters, onChange, onReset }: TeacherFilters
           ]}
         />
 
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+          <input
+            type="checkbox"
+            checked={filters.unassignedClassOnly}
+            onChange={(e) => onChange('unassignedClassOnly', e.target.checked)}
+            className="accent-brand-600"
+          />
+          {t.common.classNotAssignedFilter}
+        </label>
+
         <button
           onClick={onReset}
           className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"

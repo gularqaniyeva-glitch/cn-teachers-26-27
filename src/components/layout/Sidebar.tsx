@@ -49,8 +49,6 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           </NavLink>
         ))}
       </nav>
-
-      <div className="px-5 py-4 text-xs text-slate-500">{t.nav.footerNote}</div>
     </>
   );
 }

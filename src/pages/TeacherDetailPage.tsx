@@ -108,7 +108,7 @@ export function TeacherDetailPage() {
               <InfoRow label={t.detail.fields.trainingType} value={t.trainingType[teacher.trainingType]} />
               <InfoRow
                 label={t.detail.fields.classesTaught}
-                value={formatAssignedClassesLabel(teacher, t.gradeGroup)}
+                value={formatAssignedClassesLabel(teacher, t.gradeGroup, t.common.classNotAssigned)}
               />
               <div className="flex items-center justify-between gap-4 py-2 text-sm">
                 <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>

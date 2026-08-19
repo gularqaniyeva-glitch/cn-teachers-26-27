@@ -102,7 +102,7 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
   {
     key: 'classesTaught',
     header: (t) => t.detail.fields.classesTaught,
-    value: (te, t) => formatAssignedClassesLabel(te, t.gradeGroup),
+    value: (te, t) => formatAssignedClassesLabel(te, t.gradeGroup, t.common.classNotAssigned),
   },
   { key: 'startYear', header: (t) => t.detail.fields.startYear, value: (te) => te.startYear },
   { key: 'note', header: (t) => t.columns.note, value: (te) => te.note },

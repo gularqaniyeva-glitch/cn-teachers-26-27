@@ -8,7 +8,6 @@ export interface Dict {
     teachers: string;
     seniorGrades: string;
     statistics: string;
-    footerNote: string;
   };
   common: {
     search: string;
@@ -38,6 +37,8 @@ export interface Dict {
     refreshing: string;
     retry: string;
     columnsToggle: string;
+    classNotAssigned: string;
+    classNotAssignedFilter: string;
   };
   moduleStatus: {
     passed: string;
@@ -84,6 +85,8 @@ export interface Dict {
     successRateTooltip: string;
     enteredTooltip: string;
     notEnteredTooltip: string;
+    teachersPassedFormat: string;
+    moduleGridEmpty: string;
   };
   teachers: {
     title: string;
@@ -233,7 +236,6 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       teachers: 'Учителя',
       seniorGrades: '10–11 классы',
       statistics: 'Статистика',
-      footerNote: 'Тестовые данные · 50 учителей',
     },
     common: {
       search: 'Поиск по ФИО, школе, FIN или LMS ID…',
@@ -263,6 +265,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       refreshing: 'Обновление…',
       retry: 'Повторить',
       columnsToggle: 'Столбцы',
+      classNotAssigned: 'Класс не назначен',
+      classNotAssignedFilter: 'Не назначен класс',
     },
     moduleStatus: {
       passed: '🟢 Сдал',
@@ -311,15 +315,17 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachers: 'Всего учителей',
       entered: 'Вошли на платформу',
       notEntered: 'Не вошли',
-      successRate: 'Успеваемость по модулям',
-      successRateHint: 'доля пройденных результатов среди начатых',
+      successRate: 'Прошли курс',
+      successRateHint: 'учителей, а не сумма отдельных модулей',
       ofTotal: 'от общего числа',
-      moduleStatsTitle: 'Статистика по модулям (по группам классов)',
+      moduleStatsTitle: 'Прошли курс (по параллелям)',
       moduleDetailTitle: 'Детализация по каждому модулю',
       passedOf: 'сдали',
-      successRateTooltip: 'Доля модулей со статусом «Сдал» среди всех модулей, которые учителя уже начали проходить (не считая «Не начал»).',
+      successRateTooltip: 'Учитель считается прошедшим курс, если у него сданы (≥70%) все назначенные модули, либо у него статус «Старый учитель».',
       enteredTooltip: 'Учителя, которые хотя бы раз заходили на обучающую платформу.',
       notEnteredTooltip: 'Учителя, которые ни разу не заходили на платформу — у них все модули со статусом «Не начал».',
+      teachersPassedFormat: '{passed} из {total} учителей прошли курс ({percent}%)',
+      moduleGridEmpty: 'Нет данных по этой параллели',
     },
     teachers: {
       title: 'Учителя',
@@ -413,15 +419,15 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       byPlatformStatus: 'По статусу платформы',
       byModule: 'По результатам модулей (доля прошедших)',
       passedOf: 'сдали',
-      expandHint: 'нажмите, чтобы раскрыть модули',
+      expandHint: 'Подробности по каждому модулю — во вкладках «2–4 классы» и «5–9 классы» выше',
       tooltipTrainingType: 'Распределение учителей по способу обучения: асинхронно, онлайн или очно.',
-      tooltipGradeGroup: 'Сколько учителей ведут какую параллель классов. Нажмите на строку, чтобы увидеть результаты по модулям этой параллели.',
+      tooltipGradeGroup: 'Доля учителей каждой параллели, у которых сданы все назначенные модули (≥70%) или статус «Старый учитель».',
       tooltipLifecycle: 'OLD — учителя, уже работавшие в системе ранее. NEW — новые учителя, добавленные в этом цикле обучения.',
       tooltipPlatformStatus: 'Доля учителей, которые хотя бы раз заходили на обучающую платформу.',
       tooltipModule: 'Доля со статусом «Сдал» среди учителей, которые уже начали проходить этот модуль.',
       tabOverview: 'Общая статистика',
       kpiAttestationTitle: 'Сдали аттестацию',
-      kpiAttestationHint: '% от всех назначенных модулей программы',
+      kpiAttestationHint: '% учителей, сдавших все свои модули (или статус OLD)',
       kpiPlatformActivityTitle: 'Активность на платформе',
       trainingTypeSummaryTitle: 'Сводка по типам обучения',
       columnTeacherCount: 'Учителей',
@@ -467,7 +473,6 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       teachers: 'Müəllimlər',
       seniorGrades: '10–11-ci siniflər',
       statistics: 'Statistika',
-      footerNote: 'Test məlumatları · 50 müəllim',
     },
     common: {
       search: 'Ad, soyad, məktəb, FİN və ya LMS ID üzrə axtarış…',
@@ -497,6 +502,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       refreshing: 'Yenilənir…',
       retry: 'Yenidən cəhd et',
       columnsToggle: 'Sütunlar',
+      classNotAssigned: 'Sinif təyin edilməyib',
+      classNotAssignedFilter: 'Sinif təyin edilməyib',
     },
     moduleStatus: {
       passed: '🟢 Keçdi',
@@ -545,15 +552,17 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachers: 'Ümumi müəllim sayı',
       entered: 'Platformaya daxil olanlar',
       notEntered: 'Daxil olmayanlar',
-      successRate: 'Modullar üzrə müvəffəqiyyət',
-      successRateHint: 'başlanmış nəticələr arasında keçilmiş faiz',
+      successRate: 'Kursu keçdi',
+      successRateHint: 'müəllim sayı, modul cəmi deyil',
       ofTotal: 'ümumi sayın',
-      moduleStatsTitle: 'Modullar üzrə statistika (sinif qrupları üzrə)',
+      moduleStatsTitle: 'Kursu keçdi (paralellər üzrə)',
       moduleDetailTitle: 'Hər modul üzrə təfərrüat',
       passedOf: 'keçdi',
-      successRateTooltip: 'Müəllimlərin artıq başladığı modullar arasında (Başlamayıb hesaba alınmır) «Keçdi» statuslu modulların payı.',
+      successRateTooltip: 'Müəllim, təyin edilmiş bütün modulları (≥70%) keçibsə, ya da «Köhnə müəllim» statusundadırsa, kursu keçmiş sayılır.',
       enteredTooltip: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlər.',
       notEnteredTooltip: 'Platformaya heç vaxt daxil olmayan müəllimlər — bütün modulları «Başlamayıb» statusundadır.',
+      teachersPassedFormat: '{total} müəllimdən {passed}-i kursu keçib ({percent}%)',
+      moduleGridEmpty: 'Bu paralel üzrə məlumat yoxdur',
     },
     teachers: {
       title: 'Müəllimlər',
@@ -647,15 +656,15 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       byPlatformStatus: 'Platforma statusu üzrə',
       byModule: 'Modul nəticələri üzrə (keçmə payı)',
       passedOf: 'keçdi',
-      expandHint: 'modulları görmək üçün klikləyin',
+      expandHint: 'Hər modul üzrə təfərrüat — yuxarıdakı «2–4 sinif» və «5–9 sinif» sekmelerinde',
       tooltipTrainingType: 'Müəllimlərin təhsil üsuluna görə bölgüsü: asinxron, onlayn və ya əyani.',
-      tooltipGradeGroup: 'Hansı paralellə neçə müəllimin işlədiyi. Həmin paralelin modul nəticələrini görmək üçün sətrə klikləyin.',
+      tooltipGradeGroup: 'Hər paraleldə təyin edilmiş bütün modulları (≥70%) keçmiş və ya «Köhnə müəllim» statuslu müəllimlərin payı.',
       tooltipLifecycle: 'OLD — sistemdə əvvəllər işləmiş müəllimlər. NEW — bu tədris dövründə əlavə olunan yeni müəllimlər.',
       tooltipPlatformStatus: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlərin payı.',
       tooltipModule: 'Bu modula artıq başlamış müəllimlər arasında «Keçdi» statuslu olanların payı.',
       tabOverview: 'Ümumi statistika',
       kpiAttestationTitle: 'Attestasiyanı keçdi',
-      kpiAttestationHint: 'proqramın bütün təyin edilmiş modullarının %-i',
+      kpiAttestationHint: 'bütün modulları keçmiş (və ya OLD statuslu) müəllimlərin %-i',
       kpiPlatformActivityTitle: 'Platformada aktivlik',
       trainingTypeSummaryTitle: 'Təhsil növləri üzrə xülasə',
       columnTeacherCount: 'Müəllim',

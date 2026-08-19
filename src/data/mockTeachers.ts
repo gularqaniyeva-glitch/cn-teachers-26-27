@@ -106,6 +106,7 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
       gradeGroup,
       platformStatus: entered ? 'entered' : 'not_entered',
       classesTaught: '',
+      hasAssignedClass: true,
       moduleResults,
       note: '',
       updatedAt: new Date(2026, 7, randomInt(rng, 1, 12)).toISOString(),
@@ -128,6 +129,21 @@ export function createMockTeachers(count: number, seed = 42): Teacher[] {
         ? { moduleId: r.moduleId, status: 'not_started' as ModuleStatus, score: 0 }
         : { moduleId: r.moduleId, status: 'passed' as ModuleStatus, score: randomInt(rng, 80, 95) },
     );
+  }
+
+  // Пара наглядных "класс ещё не назначен" учителей — М1/М2 уже сданы (эти
+  // модули общие и не зависят от параллели), но полноценной параллели в
+  // столбце Y ещё нет. Такие учителя не должны прятаться из отчётов, и их
+  // реальные баллы должны быть видны как обычно.
+  const unassignedIndices = [9, 19].filter((idx) => idx < teachers.length);
+  for (const idx of unassignedIndices) {
+    const teacher = teachers[idx];
+    teacher.hasAssignedClass = false;
+    teacher.gradeGroup = '2-4';
+    teacher.moduleResults = [
+      { moduleId: '2-4-M1', status: 'passed', score: randomInt(rng, 70, 95) },
+      { moduleId: '2-4-M2', status: 'passed', score: randomInt(rng, 70, 95) },
+    ];
   }
 
   return teachers;

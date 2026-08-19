@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Award, ChevronDown, ChevronRight, Download, Search } from 'lucide-react';
+import { Activity, Award, Download, Search } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
@@ -10,18 +10,18 @@ import { ModuleBreakdownTable } from '../components/statistics/ModuleBreakdownTa
 import { ModulePassRateChart } from '../components/statistics/ModulePassRateChart';
 import {
   countByKey,
+  formatTeachersPassed,
   getModulePassRateByLifecycle,
   getModulePassRateByTrainingType,
-  getModuleStatsByGradeGroup,
-  getOverallPassPercent,
+  getOverallTeacherPassStat,
   getOverviewStats,
+  getTeacherPassStatsByGradeGroup,
   getTrainingTypeSummary,
 } from '../utils/stats';
 import { findGroupAnomalies, findIndividualAnomalies } from '../utils/anomalies';
 import { exportAnomaliesToCsv } from '../utils/csvExport';
 import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
 import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES, getModule } from '../data/constants';
-import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
 const PALETTE = ['#5d00e9', '#059669', '#d97706', '#e11d48', '#0891b2', '#7c3aed'];
@@ -35,7 +35,6 @@ export function StatisticsPage() {
   const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeTab, setActiveTab] = useState<StatTab>('overview');
-  const [expandedGroup, setExpandedGroup] = useState<GradeGroup | null>(null);
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,7 +66,8 @@ export function StatisticsPage() {
 
   const total = teachers.length || 1;
   const overview = getOverviewStats(teachers);
-  const overallPassPercent = getOverallPassPercent(teachers);
+  const overallTeacherPass = getOverallTeacherPassStat(teachers);
+  const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const trainingTypeSummary = getTrainingTypeSummary(teachers);
 
   const byLifecycle = countByKey(teachers, (te) => te.lifecycleStatus, { OLD: 'OLD', NEW: 'NEW' }, LIFECYCLE_STATUSES);
@@ -77,7 +77,6 @@ export function StatisticsPage() {
     { entered: t.platformStatus.entered, not_entered: t.platformStatus.notEntered },
     ['entered', 'not_entered'],
   );
-  const groupStats = getModuleStatsByGradeGroup(teachers, GRADE_GROUPS);
 
   const trainingTypeSeries = TRAINING_TYPES.map((type) => ({
     key: type,
@@ -127,10 +126,10 @@ export function StatisticsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <StatCard
               label={t.statistics.kpiAttestationTitle}
-              value={`${overallPassPercent}%`}
+              value={`${overallTeacherPass.percent}%`}
               icon={Award}
               accent="violet"
-              sublabel={t.statistics.kpiAttestationHint}
+              sublabel={`${overallTeacherPass.passedTeachers} ${t.common.of} ${overallTeacherPass.totalTeachers} · ${t.statistics.kpiAttestationHint}`}
             />
             <StatCard
               label={t.statistics.kpiPlatformActivityTitle}
@@ -168,48 +167,23 @@ export function StatisticsPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card title={t.statistics.byGradeGroup} titleTooltip={t.statistics.tooltipGradeGroup}>
-              <div className="divide-y divide-slate-100">
-                {groupStats.map((g, i) => {
-                  const isOpen = expandedGroup === g.group;
-                  const percent = Math.round((g.assigned / total) * 100);
-                  return (
-                    <div key={g.group} className="py-2">
-                      <button
-                        onClick={() => setExpandedGroup(isOpen ? null : g.group)}
-                        className="flex w-full items-center gap-2 text-left"
-                      >
-                        {isOpen ? (
-                          <ChevronDown size={15} className="shrink-0 text-slate-400" />
-                        ) : (
-                          <ChevronRight size={15} className="shrink-0 text-slate-400" />
-                        )}
-                        <div className="flex-1">
-                          <Bar
-                            label={t.gradeGroup[g.group]}
-                            count={g.assigned}
-                            percent={percent}
-                            color={PALETTE[i % PALETTE.length]}
-                          />
-                        </div>
-                      </button>
-                      {isOpen && (
-                        <div className="mt-3 space-y-3 rounded-lg bg-slate-50 p-3 pl-9">
-                          {g.modules.map((m) => (
-                            <Bar
-                              key={m.moduleId}
-                              label={`${m.shortTitle} · ${t.statistics.passedOf} ${m.passed} ${t.common.of} ${m.started}`}
-                              count={m.passed}
-                              percent={m.passRate}
-                              color={m.passRate >= 60 ? '#059669' : m.passRate >= 40 ? '#d97706' : '#e11d48'}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {!isOpen && <p className="ml-6 mt-1 text-xs text-slate-400">{t.statistics.expandHint}</p>}
-                    </div>
-                  );
-                })}
+              <div className="space-y-4">
+                {teacherPassByGroup.map((g, i) => (
+                  <Bar
+                    key={g.group}
+                    label={`${t.gradeGroup[g.group]}: ${formatTeachersPassed(
+                      t.dashboard.teachersPassedFormat,
+                      g.passedTeachers,
+                      g.totalTeachers,
+                      g.percent,
+                    )}`}
+                    count={g.passedTeachers}
+                    percent={g.percent}
+                    color={PALETTE[i % PALETTE.length]}
+                  />
+                ))}
               </div>
+              <p className="mt-2 text-xs text-slate-400">{t.statistics.expandHint}</p>
             </Card>
 
             <Card title={t.statistics.byLifecycle} titleTooltip={t.statistics.tooltipLifecycle}>

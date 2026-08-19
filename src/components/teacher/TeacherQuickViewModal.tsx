@@ -75,7 +75,7 @@ export function TeacherQuickViewModal({ teacher, onClose }: TeacherQuickViewModa
             <ProfileField label={t.detail.fields.lifecycleStatus} value={teacher.lifecycleStatus} />
             <ProfileField
               label={t.detail.fields.classesTaught}
-              value={formatAssignedClassesLabel(teacher, t.gradeGroup)}
+              value={formatAssignedClassesLabel(teacher, t.gradeGroup, t.common.classNotAssigned)}
             />
           </div>
 
