@@ -21,8 +21,11 @@ import type {
 
 export type RawSheetRow = Record<string, string>;
 
+// Точки убираем отдельно (не просто trim/lowercase) — реальные заголовки
+// вида "S.A.A." и наш кандидат "S.A.A" (без точки на конце) иначе не
+// совпадут при строгом сравнении, хотя это один и тот же столбец.
 function normalizeHeader(header: string): string {
-  return header.trim().toLowerCase().replace(/\s+/g, ' ');
+  return header.trim().toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
 }
 
 function normalizedEntries(row: RawSheetRow | null | undefined): Map<string, string> {
@@ -221,7 +224,9 @@ function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active
  */
 export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: number): Teacher | null {
   if (!row) return null;
-  const fullName = findValueFuzzy(row, [...FIELD_CANDIDATES.fullName]).trim();
+  // Строго заголовок "S.A.A." / "ФИО" — без подстрочного fallback, чтобы
+  // случайно не подхватить соседний столбец (Email, FIN и т.п.).
+  const fullName = findValue(row, [...FIELD_CANDIDATES.fullName]).trim();
   if (!fullName) return null;
 
   const { active1to4, active5to9 } = detectActiveBands(row);
@@ -287,7 +292,9 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
   const lmsId = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
   const email = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.email]);
   const phone = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.phone]);
-  const rawFullName = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fullName]);
+  // Строго заголовок "S.A.A." / "ФИО" — без подстрочного fallback, чтобы
+  // случайно не подхватить соседний столбец (Email, FIN и т.п.).
+  const rawFullName = findValue(row, [...SENIOR_FIELD_CANDIDATES.fullName]);
   const rawFin = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fin]);
 
   // Строка с ошибкой формулы (#N/A и т.п.) в ФИО или FIN — не реальный

@@ -65,15 +65,16 @@ interface ExportFieldDef {
 // одна сводная колонка со всеми результатами учителя.
 const EXPORT_FIELDS: ExportFieldDef[] = [
   { key: 'district', header: (t) => t.columns.district, value: (te) => te.district },
-  { key: 'fullName', header: (t) => t.columns.fullName, value: (te) => te.fullName },
   { key: 'school', header: (t) => t.columns.school, value: (te) => te.school },
-  { key: 'sector', header: (t) => t.filters.sectorSection, value: (te, t) => t.language[te.language] },
-  { key: 'trainingType', header: (t) => t.columns.trainingType, value: (te, t) => t.trainingType[te.trainingType] },
+  { key: 'fullName', header: (t) => t.columns.fullName, value: (te) => te.fullName },
+  { key: 'startYear', header: (t) => t.detail.fields.startYear, value: (te) => te.startYear },
+  { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => excelTextLiteral(te.lmsId) },
   {
-    key: 'platformStatus',
-    header: (t) => t.columns.platformStatus,
-    value: (te, t) => t.platformStatus[te.platformStatus === 'entered' ? 'entered' : 'notEntered'],
+    key: 'classesTaught',
+    header: (t) => t.detail.fields.classesTaught,
+    value: (te, t) => formatAssignedClassesLabel(te, t.gradeGroup, t.common.classNotAssigned),
   },
+  { key: 'trainingType', header: (t) => t.columns.trainingType, value: (te, t) => t.trainingType[te.trainingType] },
   {
     key: 'averageScore',
     header: (t) => t.columns.averageScore,
@@ -94,18 +95,17 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
         : '';
     },
   },
+  { key: 'sector', header: (t) => t.filters.sectorSection, value: (te, t) => t.language[te.language] },
+  {
+    key: 'platformStatus',
+    header: (t) => t.columns.platformStatus,
+    value: (te, t) => t.platformStatus[te.platformStatus === 'entered' ? 'entered' : 'notEntered'],
+  },
   { key: 'fin', header: (t) => t.detail.fields.fin, value: (te) => excelTextLiteral(te.fin) },
   { key: 'phone', header: (t) => t.detail.fields.phone, value: (te) => te.phone },
   { key: 'email', header: (t) => t.detail.fields.email, value: (te) => te.email },
-  { key: 'lmsId', header: (t) => t.detail.fields.lmsId, value: (te) => excelTextLiteral(te.lmsId) },
   { key: 'gradeGroup', header: (t) => t.columns.gradeGroup, value: (te, t) => t.gradeGroup[te.gradeGroup] },
   { key: 'lifecycleStatus', header: (t) => t.columns.lifecycleStatus, value: (te) => te.lifecycleStatus },
-  {
-    key: 'classesTaught',
-    header: (t) => t.detail.fields.classesTaught,
-    value: (te, t) => formatAssignedClassesLabel(te, t.gradeGroup, t.common.classNotAssigned),
-  },
-  { key: 'startYear', header: (t) => t.detail.fields.startYear, value: (te) => te.startYear },
   { key: 'note', header: (t) => t.columns.note, value: (te) => te.note },
 ];
 

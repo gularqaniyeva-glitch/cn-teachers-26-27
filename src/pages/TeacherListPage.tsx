@@ -80,6 +80,13 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
     () => Array.from(new Set(allTeachers.map((t) => t.district).filter(Boolean))).sort(),
     [allTeachers],
   );
+  // "Год начала / Стаж" — наоборот, СВОЙ список на каждой вкладке: у 2–9 и
+  // 10–11 классов это разные столбцы источника (Başlama ili vs IT-yə
+  // başladıqları il), смешивать их значения в одном фильтре не нужно.
+  const allStartYears = useMemo(
+    () => Array.from(new Set(scopedTeachers.map((t) => t.startYear).filter(Boolean))).sort(),
+    [scopedTeachers],
+  );
   const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
 
   const filtered = useMemo(() => filterTeachers(scopedTeachers, filters), [scopedTeachers, filters]);
@@ -287,6 +294,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
                   <TeacherFiltersBar
                     filters={filters}
                     districts={allDistricts}
+                    startYears={allStartYears}
                     onChange={handleFilterChange}
                     onReset={handleReset}
                   />

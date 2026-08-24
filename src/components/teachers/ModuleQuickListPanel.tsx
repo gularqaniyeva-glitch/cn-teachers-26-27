@@ -9,6 +9,7 @@ import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
 import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
+import { LmsLink } from '../ui/LmsLink';
 import { Pagination } from './Pagination';
 import { ExportMenu } from './ExportMenu';
 import { ModuleScoreCell } from './ModuleScoreCell';
@@ -22,13 +23,16 @@ interface TableColumnDef {
   label: (t: Dict) => string;
 }
 
-// По умолчанию видны ФИО, Школа, Район, Назначенные классы, Тип обучения и
-// Результат — как и в таблице "Все учителя". Параллель и Сектор скрыты по
-// умолчанию, но доступны через "Столбцы 👁️".
+// Тот же зафиксированный порядок базовых колонок, что и в таблице "Все
+// учителя": Tabeçilik, Школа, ФИО, Год начала/стаж, LMS ID, Назначенные
+// классы, Тип обучения. Параллель и Сектор скрыты по умолчанию, но
+// доступны через "Столбцы 👁️".
 const TABLE_COLUMNS: TableColumnDef[] = [
   { key: 'district', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.district },
-  { key: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', defaultVisible: true, label: (t) => t.columns.school },
+  { key: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
+  { key: 'startYear', defaultVisible: true, label: (t) => t.detail.fields.startYear },
+  { key: 'lmsId', defaultVisible: true, label: (t) => t.detail.fields.lmsId },
   { key: 'classesTaught', defaultVisible: true, label: (t) => t.detail.fields.classesTaught },
   { key: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
   { key: 'gradeGroup', defaultVisible: false, label: (t) => t.quickList.gradeGroupLabel },
@@ -230,6 +234,10 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
         return <NoTranslate>{teacher.school}</NoTranslate>;
       case 'district':
         return teacher.district;
+      case 'startYear':
+        return teacher.startYear || t.common.noData;
+      case 'lmsId':
+        return <LmsLink lmsId={teacher.lmsId} />;
       case 'classesTaught':
         return teacher.hasAssignedClass ? (
           formatAssignedClassesLabel(teacher, t.gradeGroup, t.common.classNotAssigned)

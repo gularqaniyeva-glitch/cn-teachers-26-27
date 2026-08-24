@@ -114,6 +114,7 @@ export interface Dict {
     platformStatusLabel: string;
     districtLabel: string;
     allDistricts: string;
+    startYearLabel: string;
   };
   quickList: {
     title: string;
@@ -356,6 +357,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatusLabel: 'Статус платформы',
       districtLabel: 'Tabeçilik / Управление',
       allDistricts: 'Все',
+      startYearLabel: 'Год начала / Стаж',
     },
     quickList: {
       title: 'Список по модулю',
@@ -596,6 +598,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatusLabel: 'Platforma statusu',
       districtLabel: 'Tabeçilik',
       allDistricts: 'Hamısı',
+      startYearLabel: 'Başlama ili / Təcrübə',
     },
     quickList: {
       title: 'Modula görə siyahı',

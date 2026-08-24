@@ -7,11 +7,12 @@ import { useT } from '../../i18n/useLocaleStore';
 interface TeacherFiltersProps {
   filters: TeacherFiltersState;
   districts: string[];
+  startYears: string[];
   onChange: <K extends keyof TeacherFiltersState>(key: K, value: TeacherFiltersState[K]) => void;
   onReset: () => void;
 }
 
-export function TeacherFiltersBar({ filters, districts, onChange, onReset }: TeacherFiltersProps) {
+export function TeacherFiltersBar({ filters, districts, startYears, onChange, onReset }: TeacherFiltersProps) {
   const t = useT();
 
   return (
@@ -24,6 +25,15 @@ export function TeacherFiltersBar({ filters, districts, onChange, onReset }: Tea
           options={[
             { value: '', label: t.filters.allDistricts },
             ...districts.map((d) => ({ value: d, label: d })),
+          ]}
+        />
+        <FilterSelect
+          label={t.filters.startYearLabel}
+          value={filters.startYears[0] ?? ''}
+          onChange={(v) => onChange('startYears', v ? [v] : [])}
+          options={[
+            { value: '', label: t.common.any },
+            ...startYears.map((y) => ({ value: y, label: y })),
           ]}
         />
         <FilterSelect

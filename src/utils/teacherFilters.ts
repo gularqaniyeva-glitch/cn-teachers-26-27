@@ -6,6 +6,8 @@ export interface TeacherFilters {
   search: string;
   /** Множественный выбор — пустой массив означает "любой" */
   districts: string[];
+  /** Значения года начала берутся из ТЕКУЩЕЙ вкладки (2–9 либо 10–11) — год из другой параллели тут не показывается */
+  startYears: string[];
   schools: string[];
   gradeGroups: GradeGroup[];
   lifecycleStatuses: TeacherLifecycleStatus[];
@@ -23,6 +25,7 @@ export interface TeacherFilters {
 export const DEFAULT_FILTERS: TeacherFilters = {
   search: '',
   districts: [],
+  startYears: [],
   schools: [],
   gradeGroups: [],
   lifecycleStatuses: [],
@@ -43,6 +46,7 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
       if (!haystack.includes(search)) return false;
     }
     if (filters.districts.length && !filters.districts.includes(t.district)) return false;
+    if (filters.startYears.length && !filters.startYears.includes(t.startYear)) return false;
     if (filters.schools.length && !filters.schools.includes(t.school)) return false;
     if (filters.gradeGroups.length && !filters.gradeGroups.includes(t.gradeGroup)) return false;
     if (filters.lifecycleStatuses.length && !filters.lifecycleStatuses.includes(t.lifecycleStatus)) return false;
