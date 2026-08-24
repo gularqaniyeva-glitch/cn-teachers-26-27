@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, Laptop, BarChart3, GraduationCap, X } from 'lucide-react';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
+import { trackTabSwitch } from '../../utils/analytics';
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -10,6 +11,8 @@ interface SidebarProps {
 
 interface NavItem {
   to: string;
+  /** Стабильный (не зависящий от языка интерфейса) ключ раздела — для событий аналитики */
+  section: string;
   label: (t: Dict) => string;
   icon: typeof LayoutDashboard;
   end: boolean;
@@ -28,10 +31,10 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: (t) => t.nav.projectLabel,
     items: [
-      { to: '/', label: (t) => t.nav.home, icon: LayoutDashboard, end: true },
-      { to: '/statistics', label: (t) => t.nav.statistics, icon: BarChart3, end: false },
-      { to: '/teachers', label: (t) => t.nav.teachers, icon: Users, end: false },
-      { to: '/senior', label: (t) => t.nav.seniorGrades, icon: Laptop, end: false },
+      { to: '/', section: 'home', label: (t) => t.nav.home, icon: LayoutDashboard, end: true },
+      { to: '/statistics', section: 'statistics', label: (t) => t.nav.statistics, icon: BarChart3, end: false },
+      { to: '/teachers', section: 'teachers_2_9', label: (t) => t.nav.teachers, icon: Users, end: false },
+      { to: '/senior', section: 'senior_10_11', label: (t) => t.nav.seniorGrades, icon: Laptop, end: false },
     ],
   },
 ];
@@ -58,12 +61,15 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
               {group.label(t)}
             </p>
             <div className="space-y-1">
-              {group.items.map(({ to, label, icon: Icon, end }) => (
+              {group.items.map(({ to, section, label, icon: Icon, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
-                  onClick={onNavigate}
+                  onClick={() => {
+                    trackTabSwitch(section);
+                    onNavigate?.();
+                  }}
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                       isActive

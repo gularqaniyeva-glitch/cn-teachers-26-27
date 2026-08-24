@@ -3,6 +3,7 @@ import { ChevronDown, Eye } from 'lucide-react';
 import type { GradeGroup, Teacher } from '../../types/teacher';
 import { findModuleResultForColumn, getModuleColumnsForGroups, type ModuleColumn } from '../../data/constants';
 import { exportTeachersToCsv } from '../../utils/csvExport';
+import { trackExport, trackFilterApplied } from '../../utils/analytics';
 import { formatAssignedClassesLabel, getTeacherOverallStats } from '../../utils/stats';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
@@ -180,6 +181,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   }
 
   function toggleStatus(status: DisplayModuleStatus) {
+    trackFilterApplied('moduleStatus', status);
     setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]));
     setPage(1);
   }
@@ -217,6 +219,7 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   const pageRows = matched.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   function handleExport(keys: Set<string>) {
+    trackExport('module_report');
     const moduleSuffix = selectedModuleNumbers.length > 0 ? selectedModuleNumbers.join('-') : 'all';
     exportTeachersToCsv(
       matched.map((row) => row.teacher),

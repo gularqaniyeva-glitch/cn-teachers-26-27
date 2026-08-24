@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "google-auth-library": "^9.14.2",
     "google-spreadsheet": "^4.1.4",
     "lucide-react": "^0.462.0",

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -6,6 +6,7 @@ import { TeachersPage } from './pages/TeachersPage';
 import { SeniorGradesPage } from './pages/SeniorGradesPage';
 import { TeacherDetailPage } from './pages/TeacherDetailPage';
 import { useT } from './i18n/useLocaleStore';
+import { initAnalytics } from './utils/analytics';
 
 // Статистика тянет за собой recharts (тяжёлая библиотека графиков) — грузим
 // её отдельным чанком, только когда пользователь реально открывает эту
@@ -14,6 +15,10 @@ const StatisticsPage = lazy(() => import('./pages/StatisticsPage').then((m) => (
 
 export default function App() {
   const t = useT();
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
 
   return (
     <Routes>

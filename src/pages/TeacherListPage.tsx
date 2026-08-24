@@ -19,6 +19,23 @@ import { moduleAppliesToTeacher, upsertModuleResult } from '../utils/bulkActions
 import type { GradeGroup, ModuleStatus, Teacher, TrainingType } from '../types/teacher';
 import { MODULES } from '../data/constants';
 import { useT } from '../i18n/useLocaleStore';
+import { trackExport, trackFilterApplied } from '../utils/analytics';
+
+// Свободный текстовый поиск не трекаем как "фильтр" — иначе событие
+// летело бы на каждое нажатие клавиши.
+const TRACKED_FILTER_KEYS = new Set([
+  'districts',
+  'startYears',
+  'schools',
+  'gradeGroups',
+  'lifecycleStatuses',
+  'trainingType',
+  'platformStatus',
+  'sector',
+  'moduleId',
+  'moduleResult',
+  'unassignedClassOnly',
+]);
 
 interface TeacherListPageProps {
   gradeGroups: GradeGroup[];
@@ -103,6 +120,9 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   function handleFilterChange<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPage(1);
+    if (TRACKED_FILTER_KEYS.has(key as string)) {
+      trackFilterApplied(key as string, Array.isArray(value) ? value.join(',') : String(value));
+    }
   }
 
   function toggleArrayValue<K extends 'districts' | 'schools' | 'gradeGroups' | 'lifecycleStatuses'>(
@@ -115,6 +135,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
       return { ...prev, [key]: next };
     });
     setPage(1);
+    trackFilterApplied(key, value);
   }
 
   function handleReset() {
@@ -246,7 +267,10 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
             <ExportMenu
               buttonLabel={t.common.exportCsv}
               defaultCheckedKeys={visibleColumnKeys}
-              onExport={(keys) => exportTeachersToCsv(sorted, t, keys, 'teachers.csv')}
+              onExport={(keys) => {
+                trackExport('teachers_table');
+                exportTeachersToCsv(sorted, t, keys, 'teachers.csv');
+              }}
             />
           </div>
 
