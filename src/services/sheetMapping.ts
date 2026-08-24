@@ -101,6 +101,15 @@ function mapPlatformStatus(raw: string): PlatformStatus {
   return positive.some((p) => v === p || v.includes(p)) ? 'entered' : 'not_entered';
 }
 
+const ERROR_VALUE_MARKERS = ['none', 'null', 'undefined', '#n/a'];
+
+/** true для ячейки-ошибки формулы (#N/A, #REF!, #VALUE! и т.п.) или текстовых заглушек None/Null */
+function isErrorValue(raw: string): boolean {
+  const v = raw.trim().toLowerCase();
+  if (!v) return false;
+  return v.startsWith('#') || ERROR_VALUE_MARKERS.includes(v);
+}
+
 function parseScorePercent(raw: string): number {
   const trimmed = (raw ?? '').trim();
   if (!trimmed || trimmed === '-' || trimmed === '—') return 0;
@@ -281,21 +290,43 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
   const lmsId = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
   const email = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.email]);
   const phone = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.phone]);
+  const rawFullName = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fullName]);
+  const rawFin = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fin]);
+
+  // Строка с ошибкой формулы (#N/A и т.п.) в ФИО или FIN — не реальный
+  // учитель, а артефакт таблицы; полностью исключаем такую строку.
+  if (isErrorValue(rawFullName) || isErrorValue(rawFin)) return null;
 
   if (!school.trim() && !lmsId.trim() && !email.trim() && !phone.trim()) return null;
 
-  // Имени в этом листе нет — показываем хоть какой-то реальный
+  // Имени в этом листе может не быть — показываем хоть какой-то реальный
   // идентификатор учителя вместо пустой заглушки.
-  const fullName =
-    findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fullName]) || email || phone || `ID ${lmsId || index + 2}`;
+  const fullName = rawFullName || email || phone || `ID ${lmsId || index + 2}`;
+
+  const seniorStartYear = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.startYear]);
+  // "Старый учитель" для 10–11: начал IT раньше сезона 2024/2025 (тот же
+  // порог, что и в mapLifecycleFromStartYear) — таким учителям низкий/
+  // нулевой балл не должен считаться провалом.
+  const isOldTeacher = mapLifecycleFromStartYear(seniorStartYear) === 'OLD';
 
   const moduleResults: ModuleResult[] = [];
   for (const n of SENIOR_MODULE_NUMBERS) {
-    const cell = parseModuleCell(findValue(row, [`М${n} Статус`]), findValue(row, [`M${n}`]));
-    if (cell) moduleResults.push({ moduleId: `10-11-M${n}`, ...cell });
+    const statusRaw = findValue(row, [`М${n} Статус`]);
+    const scoreRaw = findValue(row, [`M${n}`]);
+    // Ячейка балла полностью пустая (нет ни статуса, ни числа) — модуль не
+    // назначен, в таблице это должна быть полностью пустая ячейка, а не "0%".
+    if (!statusRaw.trim() && !scoreRaw.trim()) continue;
+
+    const cell = parseModuleCell(statusRaw, scoreRaw);
+    if (!cell) continue;
+
+    const finalCell =
+      isOldTeacher && cell.status !== 'old_teacher' && cell.score < 70
+        ? { status: 'old_teacher' as ModuleStatus, score: cell.score }
+        : cell;
+    moduleResults.push({ moduleId: `10-11-M${n}`, ...finalCell });
   }
 
-  const seniorStartYear = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.startYear]);
   const explicitDistrict = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district]);
 
   return {
@@ -303,7 +334,7 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
     fullName,
     school,
     district: explicitDistrict || deriveDistrict(school),
-    fin: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.fin]),
+    fin: rawFin,
     phone,
     email,
     lmsId,
