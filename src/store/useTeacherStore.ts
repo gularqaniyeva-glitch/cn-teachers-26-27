@@ -28,7 +28,11 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
     if (get().loaded || get().loading) return;
     set({ loading: true, error: null });
     try {
-      const teachers = await teacherService.getTeachers();
+      // Отдаём сохранённые локально данные мгновенно (если есть), а свежую
+      // версию из Google Sheets подтягиваем в фоне без повторного "loading".
+      const teachers = await teacherService.getTeachersStaleWhileRevalidate((fresh) => {
+        set({ teachers: fresh });
+      });
       set({ teachers, loading: false, loaded: true });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Не удалось загрузить список учителей', loading: false });

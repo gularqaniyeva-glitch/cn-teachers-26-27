@@ -4,6 +4,9 @@ export type Locale = 'ru' | 'az';
 
 export interface Dict {
   nav: {
+    brandTitle: string;
+    brandSubtitle: string;
+    projectLabel: string;
     home: string;
     teachers: string;
     seniorGrades: string;
@@ -236,9 +239,12 @@ export interface Dict {
 export const TRANSLATIONS: Record<Locale, Dict> = {
   ru: {
     nav: {
+      brandTitle: 'ЦН Обучение учителей 26/27',
+      brandSubtitle: 'Мониторинг обучения учителей',
+      projectLabel: 'ЦН Обучение учителей 26/27',
       home: 'Главная',
-      teachers: 'Учителя',
-      seniorGrades: '10–11 классы',
+      teachers: 'Учителя (2–9 классы)',
+      seniorGrades: '10–11 классы (ИТ)',
       statistics: 'Статистика',
     },
     common: {
@@ -315,7 +321,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
     },
     dashboard: {
       title: 'Главная',
-      subtitle: 'Общая картина по учителям проекта «ЦН обучение 26/27»',
+      subtitle: 'Общая картина по учителям проекта «ЦН Обучение учителей 26/27»',
       totalTeachers: 'Всего учителей',
       entered: 'Вошли на платформу',
       notEntered: 'Не вошли',
@@ -477,9 +483,12 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
   },
   az: {
     nav: {
+      brandTitle: 'Müəllimlərin təlimi 26/27',
+      brandSubtitle: 'Müəllim təliminin monitorinqi',
+      projectLabel: 'Müəllimlərin təlimi 26/27',
       home: 'Əsas səhifə',
-      teachers: 'Müəllimlər',
-      seniorGrades: '10–11-ci siniflər',
+      teachers: 'Müəllimlər (2–9-cu siniflər)',
+      seniorGrades: '10–11-ci siniflər (İT)',
       statistics: 'Statistika',
     },
     common: {
@@ -556,7 +565,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
     },
     dashboard: {
       title: 'Əsas səhifə',
-      subtitle: '«ÇN təhsil 26/27» layihəsi üzrə müəllimlər haqqında ümumi mənzərə',
+      subtitle: '«Müəllimlərin təlimi 26/27» layihəsi üzrə müəllimlər haqqında ümumi mənzərə',
       totalTeachers: 'Ümumi müəllim sayı',
       entered: 'Platformaya daxil olanlar',
       notEntered: 'Daxil olmayanlar',

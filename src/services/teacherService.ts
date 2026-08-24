@@ -40,16 +40,21 @@ const LOCAL_CACHE_TTL_MS = 5 * 60 * 1000;
 let cache: Teacher[] | null = null;
 let inFlight: Promise<Teacher[]> | null = null;
 
-function loadFromLocalCache(): Teacher[] | null {
+function loadFromLocalCacheRaw(): { teachers: Teacher[]; savedAt: number } | null {
   try {
     const raw = localStorage.getItem(LOCAL_CACHE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { teachers: Teacher[]; savedAt: number };
-    if (Date.now() - parsed.savedAt > LOCAL_CACHE_TTL_MS) return null;
-    return parsed.teachers;
+    return JSON.parse(raw) as { teachers: Teacher[]; savedAt: number };
   } catch {
     return null;
   }
+}
+
+function loadFromLocalCache(): Teacher[] | null {
+  const parsed = loadFromLocalCacheRaw();
+  if (!parsed) return null;
+  if (Date.now() - parsed.savedAt > LOCAL_CACHE_TTL_MS) return null;
+  return parsed.teachers;
 }
 
 function saveToLocalCache(teachers: Teacher[]): void {
@@ -144,6 +149,33 @@ async function loadTeachers(): Promise<Teacher[]> {
 
 export async function getTeachers(): Promise<Teacher[]> {
   return [...(await loadTeachers())];
+}
+
+/**
+ * SWR-подход (stale-while-revalidate) без отдельной библиотеки: если в
+ * localStorage уже есть хоть какой-то (пусть устаревший) список учителей —
+ * отдаём его СРАЗУ, не дожидаясь сети, чтобы сайт открывался мгновенно, а
+ * актуальные данные из Google Sheets в это время подтягиваются в фоне и
+ * приходят через onRevalidated, когда будут готовы. Каждый браузер держит
+ * свой собственный кэш и свою копию состояния в памяти — сотрудники,
+ * одновременно открывшие сайт, друг другу не мешают.
+ */
+export async function getTeachersStaleWhileRevalidate(
+  onRevalidated: (teachers: Teacher[]) => void,
+): Promise<Teacher[]> {
+  if (cache) return [...cache];
+
+  const stale = loadFromLocalCacheRaw();
+  if (stale) {
+    loadTeachers()
+      .then((fresh) => onRevalidated([...fresh]))
+      .catch(() => {
+        // Фоновое обновление не удалось — то, что уже показано на экране, остаётся.
+      });
+    return [...stale.teachers];
+  }
+
+  return getTeachers();
 }
 
 /** Принудительно перезапрашивает данные из Google Sheets, минуя кэш — для кнопки "Обновить данные" */

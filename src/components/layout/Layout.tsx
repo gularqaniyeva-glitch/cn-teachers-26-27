@@ -3,8 +3,10 @@ import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { useT } from '../../i18n/useLocaleStore';
 
 export function Layout() {
+  const t = useT();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -21,7 +23,7 @@ export function Layout() {
             >
               <Menu size={20} />
             </button>
-            <span className="text-sm font-semibold text-slate-900">ЦН обучение 26/27</span>
+            <span className="text-sm font-semibold text-slate-900">{t.nav.brandTitle}</span>
           </div>
           <div className="ml-auto">
             <LanguageSwitcher />

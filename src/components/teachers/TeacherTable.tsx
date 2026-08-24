@@ -73,7 +73,11 @@ export function TeacherTable({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [columnMenuOpen]);
 
-  const columns = TEACHER_TABLE_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
+  // "Результат" идёт ПОСЛЕ колонок модулей (пункт 9 в зафиксированном
+  // порядке столбцов) — рендерим его отдельно, а не в общем потоке columns.
+  const allColumns = TEACHER_TABLE_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
+  const columns = allColumns.filter((c) => c.key !== 'result');
+  const resultColumn = allColumns.find((c) => c.key === 'result');
 
   function renderCell(col: TeacherColumnDef, teacher: Teacher) {
     switch (col.key) {
@@ -222,6 +226,7 @@ export function TeacherTable({
                     {col.label}
                   </th>
                 ))}
+              {resultColumn && <th className="px-2.5 py-2 whitespace-nowrap">{resultColumn.label(t)}</th>}
               <th className="px-2.5 py-2" />
             </tr>
           </thead>
@@ -258,6 +263,9 @@ export function TeacherTable({
                         </td>
                       );
                     })}
+                  {resultColumn && (
+                    <td className="px-2.5 py-1 whitespace-nowrap text-slate-600">{renderCell(resultColumn, teacher)}</td>
+                  )}
                   <td className="px-2.5 py-1 text-slate-400">
                     <div className="flex items-center gap-1.5">
                       {teacher.note && <StickyNote size={15} aria-label={t.columns.note} />}
