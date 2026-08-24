@@ -72,9 +72,13 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   );
 
   const allSchools = useMemo(() => Array.from(new Set(scopedTeachers.map((t) => t.school))).sort(), [scopedTeachers]);
+  // Список значений "Tabeçilik" собираем из ВСЕХ учителей (2–9 и 10–11
+  // классы сразу), а не только текущей вкладки — фильтр должен работать
+  // единообразно по всей системе, даже если на этой вкладке видна только
+  // часть параллелей.
   const allDistricts = useMemo(
-    () => Array.from(new Set(scopedTeachers.map((t) => t.district))).sort(),
-    [scopedTeachers],
+    () => Array.from(new Set(allTeachers.map((t) => t.district).filter(Boolean))).sort(),
+    [allTeachers],
   );
   const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
 

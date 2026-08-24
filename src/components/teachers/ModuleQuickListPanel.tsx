@@ -26,9 +26,9 @@ interface TableColumnDef {
 // Результат — как и в таблице "Все учителя". Параллель и Сектор скрыты по
 // умолчанию, но доступны через "Столбцы 👁️".
 const TABLE_COLUMNS: TableColumnDef[] = [
+  { key: 'district', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.district },
   { key: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', defaultVisible: true, label: (t) => t.columns.school },
-  { key: 'district', defaultVisible: true, label: (t) => t.columns.district },
   { key: 'classesTaught', defaultVisible: true, label: (t) => t.detail.fields.classesTaught },
   { key: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
   { key: 'gradeGroup', defaultVisible: false, label: (t) => t.quickList.gradeGroupLabel },

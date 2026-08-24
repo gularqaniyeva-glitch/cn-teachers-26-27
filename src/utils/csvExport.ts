@@ -64,9 +64,9 @@ interface ExportFieldDef {
 // колонка-на-модуль (их было бы под три десятка, в основном пустых), а
 // одна сводная колонка со всеми результатами учителя.
 const EXPORT_FIELDS: ExportFieldDef[] = [
+  { key: 'district', header: (t) => t.columns.district, value: (te) => te.district },
   { key: 'fullName', header: (t) => t.columns.fullName, value: (te) => te.fullName },
   { key: 'school', header: (t) => t.columns.school, value: (te) => te.school },
-  { key: 'district', header: (t) => t.columns.district, value: (te) => te.district },
   { key: 'sector', header: (t) => t.filters.sectorSection, value: (te, t) => t.language[te.language] },
   { key: 'trainingType', header: (t) => t.columns.trainingType, value: (te, t) => t.trainingType[te.trainingType] },
   {

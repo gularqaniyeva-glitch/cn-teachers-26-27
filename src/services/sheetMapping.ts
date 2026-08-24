@@ -68,11 +68,6 @@ function findValueFuzzy(row: RawSheetRow | null | undefined, candidates: string[
   return '';
 }
 
-function deriveDistrict(school: string): string {
-  const commaIndex = school.indexOf(',');
-  return commaIndex > -1 ? school.slice(0, commaIndex).trim() : school.trim();
-}
-
 function mapSector(raw: string): TeachingLanguage {
   const v = raw.trim().toLowerCase();
   // "az-ru" (смешанный сектор) относим к азербайджанскому — наша модель
@@ -151,7 +146,7 @@ function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleS
 const FIELD_CANDIDATES = {
   fullName: ['S.A.A', 'ФИО'],
   school: ['Məktəb', 'Школа'],
-  district: ['Rayon', 'Район'],
+  district: ['Tabeçilik', 'Tabeciliyi', 'Tabecilik'],
   fin: ['FIN', 'FİN'],
   phone: ['Müəllimin əlaqə nömrəsi', 'əlaqə nömrəsi', 'Телефон'],
   email: ['Müəllimin E-maili'],
@@ -232,15 +227,12 @@ export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: 
   const school = findValueFuzzy(row, [...FIELD_CANDIDATES.school]);
   const lmsId = findValueFuzzy(row, [...FIELD_CANDIDATES.lmsId]);
   const startYear = findValueFuzzy(row, [...FIELD_CANDIDATES.startYear]);
-  // Явная колонка района, если она есть в таблице, иначе — как раньше,
-  // берём первую часть названия школы до запятой.
-  const explicitDistrict = findValueFuzzy(row, [...FIELD_CANDIDATES.district]);
 
   return {
     id: lmsId || `teacher-row-${index}`,
     fullName,
     school,
-    district: explicitDistrict || deriveDistrict(school),
+    district: findValueFuzzy(row, [...FIELD_CANDIDATES.district]),
     fin: findValueFuzzy(row, [...FIELD_CANDIDATES.fin]),
     phone: findValueFuzzy(row, [...FIELD_CANDIDATES.phone]),
     email: findValueFuzzy(row, [...FIELD_CANDIDATES.email]),
@@ -267,7 +259,7 @@ const SENIOR_FIELD_CANDIDATES = {
   // появится, но полагаться на неё нельзя.
   fullName: ['S.A.A', 'ФИО'],
   school: ['Школа название как LMS', 'Məktəb', 'Школа'],
-  district: ['Rayon', 'Район'],
+  district: ['Tabeçilik', 'Tabeciliyi', 'Tabecilik'],
   fin: ['ФИН КОД', 'FIN', 'FİN'],
   phone: ['Телефон учителя', 'əlaqə nömrəsi', 'Телефон'],
   email: ['E-mail учителя'],
@@ -327,13 +319,11 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
     moduleResults.push({ moduleId: `10-11-M${n}`, ...finalCell });
   }
 
-  const explicitDistrict = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district]);
-
   return {
     id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
     fullName,
     school,
-    district: explicitDistrict || deriveDistrict(school),
+    district: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district]),
     fin: rawFin,
     phone,
     email,

@@ -17,9 +17,9 @@ export interface TeacherColumnDef {
 // модалки настройки экспорта (по умолчанию отмечены ровно те столбцы,
 // что сейчас видны в таблице).
 export const TEACHER_TABLE_COLUMNS: TeacherColumnDef[] = [
+  { key: 'district', sortKey: 'district', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.district },
   { key: 'fullName', sortKey: 'fullName', alwaysVisible: true, defaultVisible: true, label: (t) => t.columns.fullName },
   { key: 'school', sortKey: 'school', defaultVisible: true, label: (t) => t.columns.school },
-  { key: 'district', sortKey: 'district', defaultVisible: true, label: (t) => t.columns.district },
   { key: 'classesTaught', defaultVisible: true, label: (t) => t.detail.fields.classesTaught },
   { key: 'trainingType', sortKey: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
   { key: 'averageScore', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.averageScore },
