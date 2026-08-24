@@ -118,6 +118,11 @@ export interface Dict {
     districtLabel: string;
     allDistricts: string;
     startYearLabel: string;
+    classesTaughtLabel: string;
+    multiSelectAny: string;
+    multiSelectCountSuffix: string;
+    selectAll: string;
+    clearSelection: string;
   };
   quickList: {
     title: string;
@@ -360,10 +365,15 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyModule: 'Любой модуль',
       anyStatus: 'Любой статус',
       trainingTypeLabel: 'Тип обучения',
-      platformStatusLabel: 'Статус платформы',
+      platformStatusLabel: 'Статус прохождения',
       districtLabel: 'Tabeçilik / Управление',
       allDistricts: 'Все',
       startYearLabel: 'Год начала / Стаж',
+      classesTaughtLabel: 'Классы',
+      multiSelectAny: 'Все',
+      multiSelectCountSuffix: 'выбрано',
+      selectAll: 'Выбрать все',
+      clearSelection: 'Сбросить',
     },
     quickList: {
       title: 'Список по модулю',
@@ -604,10 +614,15 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyModule: 'İstənilən modul',
       anyStatus: 'İstənilən status',
       trainingTypeLabel: 'Təhsil növü',
-      platformStatusLabel: 'Platforma statusu',
+      platformStatusLabel: 'Keçmə statusu',
       districtLabel: 'Tabeçilik',
       allDistricts: 'Hamısı',
       startYearLabel: 'Başlama ili / Təcrübə',
+      classesTaughtLabel: 'Siniflər',
+      multiSelectAny: 'Hamısı',
+      multiSelectCountSuffix: 'seçildi',
+      selectAll: 'Hamısını seç',
+      clearSelection: 'Təmizlə',
     },
     quickList: {
       title: 'Modula görə siyahı',

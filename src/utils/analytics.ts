@@ -1,11 +1,11 @@
-// Лёгкий трекинг ключевых действий поверх Vercel Analytics (тот же пакет,
-// что уже подключён в main.tsx для просмотров страниц) — отдельный сервис
-// вроде PostHog не подключаем: он потребовал бы своего аккаунта/API-ключа,
-// а свойства (properties) на кастомных событиях track() уже дают то же
-// самое разделение "кто что сделал" без сторонних скриптов и cookie.
+// Лёгкий фоновый трекинг ключевых действий поверх Vercel Analytics (тот же
+// пакет, что уже подключён в main.tsx для просмотров страниц). Никаких
+// prompt/модалок при входе — Vercel Analytics сам различает посетителей
+// на сервере по IP+User-Agent (без cookie и без клиентского fingerprint-
+// кода), поэтому клиенту не нужно ничего спрашивать и ничего собирать
+// самостоятельно, чтобы события на дашборде Vercel группировались по
+// уникальным посещениям.
 //
-// В приложении нет авторизации, поэтому "личность" пользователя — это имя,
-// которое он один раз указывает сам (localStorage, не спрашиваем повторно).
 // Разработчик исключает свои собственные визиты либо явным
 // localStorage.setItem('ignore_analytics', 'true'), либо один раз открыв
 // сайт с ?debug=true — после этого флаг сохраняется навсегда, пока его не
@@ -13,8 +13,6 @@
 import { track } from '@vercel/analytics';
 
 const IGNORE_KEY = 'ignore_analytics';
-const USER_KEY = 'analytics_user';
-const USER_PROMPTED_KEY = 'analytics_user_prompted';
 const SESSION_LOGGED_KEY = 'analytics_session_logged';
 
 export function isAnalyticsDisabled(): boolean {
@@ -37,35 +35,18 @@ export function applyDebugFlagFromUrl(): void {
   }
 }
 
-/** Спрашиваем имя РОВНО один раз за браузер — дальше берём то, что уже сохранено (даже пустое "Гость") */
-function getAnalyticsUser(): string {
-  try {
-    const stored = localStorage.getItem(USER_KEY);
-    if (stored) return stored;
-    if (localStorage.getItem(USER_PROMPTED_KEY) === 'true') return 'Гость';
-
-    localStorage.setItem(USER_PROMPTED_KEY, 'true');
-    const input = window.prompt('Как вас зовут? (для статистики использования сайта, можно пропустить)');
-    const resolved = input?.trim() || 'Гость';
-    localStorage.setItem(USER_KEY, resolved);
-    return resolved;
-  } catch {
-    return 'Гость';
-  }
-}
-
 type EventProps = Record<string, string | number | boolean>;
 
 function safeTrack(name: string, props?: EventProps): void {
   if (isAnalyticsDisabled()) return;
   try {
-    track(name, { user: getAnalyticsUser(), ...props });
+    track(name, props);
   } catch {
     // Блокировщики рекламы иногда режут скрипт аналитики — интерфейс это не должно ломать.
   }
 }
 
-/** Вызывается один раз при старте приложения — фиксирует ?debug=true и шлёт "User Login" один раз за вкладку браузера */
+/** Вызывается один раз при старте приложения — фиксирует ?debug=true и шлёт "session_start" один раз за вкладку браузера */
 export function initAnalytics(): void {
   applyDebugFlagFromUrl();
   if (isAnalyticsDisabled()) return;
@@ -74,10 +55,10 @@ export function initAnalytics(): void {
     if (sessionStorage.getItem(SESSION_LOGGED_KEY) === 'true') return;
     sessionStorage.setItem(SESSION_LOGGED_KEY, 'true');
   } catch {
-    // sessionStorage недоступен — просто отправим "User Login" ещё раз, не критично
+    // sessionStorage недоступен — просто отправим событие ещё раз, не критично
   }
 
-  safeTrack('User Login');
+  safeTrack('session_start');
 }
 
 /** Переключение вкладок верхнего уровня (Главная, Статистика, 2–9 классы, 10–11 классы) */

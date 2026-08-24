@@ -9,10 +9,13 @@ export interface TeacherFilters {
   /** Значения года начала берутся из ТЕКУЩЕЙ вкладки (2–9 либо 10–11) — год из другой параллели тут не показывается */
   startYears: string[];
   schools: string[];
+  /** Множественный выбор — сырые значения "Назначенные классы" как есть в таблице */
+  classesTaught: string[];
   gradeGroups: GradeGroup[];
   lifecycleStatuses: TeacherLifecycleStatus[];
   trainingType: string;
-  platformStatus: string;
+  /** Множественный выбор — 'entered' | 'not_entered' */
+  platformStatuses: string[];
   /** '' — все, 'az' | 'ru' */
   sector: string;
   moduleId: string;
@@ -27,10 +30,11 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   districts: [],
   startYears: [],
   schools: [],
+  classesTaught: [],
   gradeGroups: [],
   lifecycleStatuses: [],
   trainingType: '',
-  platformStatus: '',
+  platformStatuses: [],
   sector: '',
   moduleId: '',
   moduleResult: '',
@@ -48,10 +52,11 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.districts.length && !filters.districts.includes(t.district)) return false;
     if (filters.startYears.length && !filters.startYears.includes(t.startYear)) return false;
     if (filters.schools.length && !filters.schools.includes(t.school)) return false;
+    if (filters.classesTaught.length && !filters.classesTaught.includes(t.classesTaught)) return false;
     if (filters.gradeGroups.length && !filters.gradeGroups.includes(t.gradeGroup)) return false;
     if (filters.lifecycleStatuses.length && !filters.lifecycleStatuses.includes(t.lifecycleStatus)) return false;
     if (filters.trainingType && t.trainingType !== filters.trainingType) return false;
-    if (filters.platformStatus && t.platformStatus !== filters.platformStatus) return false;
+    if (filters.platformStatuses.length && !filters.platformStatuses.includes(t.platformStatus)) return false;
     if (filters.sector && t.language !== filters.sector) return false;
     if (filters.unassignedClassOnly && t.hasAssignedClass) return false;
 

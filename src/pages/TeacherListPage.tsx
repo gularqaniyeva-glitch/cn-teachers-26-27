@@ -27,10 +27,11 @@ const TRACKED_FILTER_KEYS = new Set([
   'districts',
   'startYears',
   'schools',
+  'classesTaught',
   'gradeGroups',
   'lifecycleStatuses',
   'trainingType',
-  'platformStatus',
+  'platformStatuses',
   'sector',
   'moduleId',
   'moduleResult',
@@ -106,6 +107,10 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   const allStartYears = useMemo(
     () =>
       Array.from(new Set(scopedTeachers.map((t) => t.startYear).filter((y) => /\d{4}/.test(y)))).sort(),
+    [scopedTeachers],
+  );
+  const allClassesTaught = useMemo(
+    () => Array.from(new Set(scopedTeachers.map((t) => t.classesTaught).filter(Boolean))).sort(),
     [scopedTeachers],
   );
   const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
@@ -258,6 +263,67 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
         </button>
       </div>
 
+      {/* Поиск и панель фильтров — сквозные, общие для "Все учителя" и
+          "Отчёт по модулю": фильтруют один и тот же scopedTeachers, а
+          дальше каждая вкладка работает уже с отфильтрованным списком. */}
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={filters.search}
+          onChange={(e) => handleFilterChange('search', e.target.value)}
+          placeholder={t.common.search}
+          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+
+      <button
+        onClick={() => setFiltersOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        <Settings2 size={15} />
+        {t.common.filtersToggle}
+      </button>
+
+      {filtersOpen && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setFiltersOpen(false)} />
+          <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-slate-50 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-900">{t.filters.treeTitle}</h2>
+              <button
+                onClick={() => setFiltersOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                aria-label={t.common.close}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 space-y-4 p-4">
+              <TeacherFilterTree
+                teachers={scopedTeachers}
+                filters={filters}
+                gradeGroupOptions={gradeGroups}
+                onToggleDistrict={(d) => toggleArrayValue('districts', d)}
+                onToggleSchool={(s) => toggleArrayValue('schools', s)}
+                onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
+                onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
+                onModuleChange={(id) => handleFilterChange('moduleId', id)}
+                onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
+                onSectorChange={(sector) => handleFilterChange('sector', sector)}
+              />
+              <TeacherFiltersBar
+                filters={filters}
+                districts={allDistricts}
+                startYears={allStartYears}
+                classesTaught={allClassesTaught}
+                onChange={handleFilterChange}
+                onReset={handleReset}
+              />
+            </div>
+          </aside>
+        </div>
+      )}
+
       {activeTab === 'all' ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -273,63 +339,6 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
               }}
             />
           </div>
-
-          <div className="relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              placeholder={t.common.search}
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-            />
-          </div>
-
-          <button
-            onClick={() => setFiltersOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <Settings2 size={15} />
-            {t.common.filtersToggle}
-          </button>
-
-          {filtersOpen && (
-            <div className="fixed inset-0 z-40">
-              <div className="absolute inset-0 bg-black/30" onClick={() => setFiltersOpen(false)} />
-              <aside className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col overflow-y-auto bg-slate-50 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-                  <h2 className="text-sm font-semibold text-slate-900">{t.filters.treeTitle}</h2>
-                  <button
-                    onClick={() => setFiltersOpen(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                    aria-label={t.common.close}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-                <div className="flex-1 space-y-4 p-4">
-                  <TeacherFilterTree
-                    teachers={scopedTeachers}
-                    filters={filters}
-                    gradeGroupOptions={gradeGroups}
-                    onToggleDistrict={(d) => toggleArrayValue('districts', d)}
-                    onToggleSchool={(s) => toggleArrayValue('schools', s)}
-                    onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
-                    onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
-                    onModuleChange={(id) => handleFilterChange('moduleId', id)}
-                    onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
-                    onSectorChange={(sector) => handleFilterChange('sector', sector)}
-                  />
-                  <TeacherFiltersBar
-                    filters={filters}
-                    districts={allDistricts}
-                    startYears={allStartYears}
-                    onChange={handleFilterChange}
-                    onReset={handleReset}
-                  />
-                </div>
-              </aside>
-            </div>
-          )}
 
           <BulkActionBar
             count={selectedIds.size}
@@ -365,7 +374,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
           />
         </div>
       ) : (
-        <ModuleQuickListPanel teachers={scopedTeachers} gradeGroupOptions={gradeGroups} onRowClick={setQuickViewId} />
+        <ModuleQuickListPanel teachers={filtered} gradeGroupOptions={gradeGroups} onRowClick={setQuickViewId} />
       )}
 
       <TeacherQuickViewModal teacher={quickViewTeacher} onClose={() => setQuickViewId(null)} />
