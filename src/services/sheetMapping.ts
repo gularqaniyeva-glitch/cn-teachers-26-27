@@ -105,6 +105,11 @@ function isErrorValue(raw: string): boolean {
   return v.startsWith('#') || ERROR_VALUE_MARKERS.includes(v);
 }
 
+/** Ячейка-ошибка формулы для второстепенного поля — не повод выкидывать всю строку, но и показывать "#N/A" в интерфейсе не нужно, просто считаем поле пустым. */
+function cleanField(raw: string): string {
+  return isErrorValue(raw) ? '' : raw;
+}
+
 function parseScorePercent(raw: string): number {
   const trimmed = (raw ?? '').trim();
   if (!trimmed || trimmed === '-' || trimmed === '—') return 0;
@@ -232,7 +237,7 @@ export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: 
     id: lmsId || `teacher-row-${index}`,
     fullName,
     school,
-    district: findValueFuzzy(row, [...FIELD_CANDIDATES.district]),
+    district: cleanField(findValueFuzzy(row, [...FIELD_CANDIDATES.district])),
     fin: findValueFuzzy(row, [...FIELD_CANDIDATES.fin]),
     phone: findValueFuzzy(row, [...FIELD_CANDIDATES.phone]),
     email: findValueFuzzy(row, [...FIELD_CANDIDATES.email]),
@@ -323,7 +328,7 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
     id: lmsId ? `senior-${lmsId}` : `senior-row-${index}`,
     fullName,
     school,
-    district: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district]),
+    district: cleanField(findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.district])),
     fin: rawFin,
     phone,
     email,
