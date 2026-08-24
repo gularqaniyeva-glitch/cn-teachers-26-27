@@ -81,25 +81,35 @@ const GRADE_RANGE_LABEL: Record<GradeGroup, string> = { '2-4': '2–4', '5-9': '
  * развести по отдельным колонкам, один из двух результатов на экране просто
  * исчезает (перезаписывается другим) — реальный баг, который здесь и чинится.
  */
+// Порядок ПОСЛЕДОВАТЕЛЬНЫХ БЛОКОВ столбцов: сперва общие вводные (M1, M2),
+// затем целиком блок 2–4, затем целиком блок 5–9 — без чередования номеров
+// между параллелями. -1 — общие модули, дальше по GRADE_GROUPS.
+const BLOCK_RANK: Record<GradeGroup, number> = { '2-4': 0, '5-9': 1, '10-11': 2 };
+const SHARED_BLOCK_RANK = -1;
+
 export function getModuleColumnsForGroups(groups: GradeGroup[]): ModuleColumn[] {
-  const columns: ModuleColumn[] = [];
+  const entries: { column: ModuleColumn; blockRank: number }[] = [];
 
   // M1/M2 — общие, колонка одна, но проверяем оба возможных id (реально
   // заполнен только один — тот, что относится к основной параллели учителя).
   const sharedOwners = groups.filter((g) => g === '2-4' || g === '5-9');
   for (const n of [1, 2]) {
     if (sharedOwners.length === 0) continue;
-    columns.push({
-      key: `M${n}`,
-      shortTitle: `M${n}`,
-      label: `M${n}`,
-      moduleIds: sharedOwners.map((g) => `${g}-M${n}`),
+    entries.push({
+      blockRank: SHARED_BLOCK_RANK,
+      column: {
+        key: `M${n}`,
+        shortTitle: `M${n}`,
+        label: `M${n}`,
+        moduleIds: sharedOwners.map((g) => `${g}-M${n}`),
+      },
     });
   }
 
   // Остальные номера — считаем, в скольких активных параллелях встречается
   // каждый: если больше чем в одной (это всегда M3–M6 у 2-4+5-9 вместе) —
-  // отдельная колонка на каждую параллель с уточнением в заголовке.
+  // отдельная колонка на каждую параллель с уточнением в заголовке, и весь
+  // блок этой параллели идёт подряд (не чередуясь с другой параллелью).
   const ownersByShortTitle = new Map<string, GradeGroup[]>();
   for (const group of groups) {
     for (const m of modulesForGrade(group)) {
@@ -110,6 +120,12 @@ export function getModuleColumnsForGroups(groups: GradeGroup[]): ModuleColumn[] 
     }
   }
 
+  // Пока видны сразу обе параллели (2–4 и 5–9), подписываем параллелью
+  // ВЕСЬ блок целиком (даже номера вроде M7-M13, которых в 2–4 нет) — так
+  // граница между блоками читается однозначно с первого взгляда. Если
+  // активна только одна параллель, суффикс не нужен — неоднозначности нет.
+  const showSuffix = sharedOwners.length > 1;
+
   const seen = new Set<string>();
   for (const group of groups) {
     for (const m of modulesForGrade(group)) {
@@ -119,16 +135,25 @@ export function getModuleColumnsForGroups(groups: GradeGroup[]): ModuleColumn[] 
       const key = ambiguous ? `${m.shortTitle}:${group}` : m.shortTitle;
       if (seen.has(key)) continue;
       seen.add(key);
-      columns.push({
-        key,
-        shortTitle: m.shortTitle,
-        label: ambiguous ? `${m.shortTitle} (${GRADE_RANGE_LABEL[group]})` : m.shortTitle,
-        moduleIds: [m.id],
+      entries.push({
+        blockRank: BLOCK_RANK[group],
+        column: {
+          key,
+          shortTitle: m.shortTitle,
+          label: showSuffix ? `${m.shortTitle} (${GRADE_RANGE_LABEL[group]})` : m.shortTitle,
+          moduleIds: [m.id],
+        },
       });
     }
   }
 
-  return columns.sort((a, b) => moduleSortKey(a.shortTitle) - moduleSortKey(b.shortTitle) || a.label.localeCompare(b.label));
+  entries.sort(
+    (a, b) =>
+      a.blockRank - b.blockRank ||
+      moduleSortKey(a.column.shortTitle) - moduleSortKey(b.column.shortTitle) ||
+      a.column.label.localeCompare(b.column.label),
+  );
+  return entries.map((e) => e.column);
 }
 
 /** Ищет у учителя результат, относящийся к одной из колонок getModuleColumnsForGroups */
