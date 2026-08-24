@@ -82,9 +82,13 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
   );
   // "Год начала / Стаж" — наоборот, СВОЙ список на каждой вкладке: у 2–9 и
   // 10–11 классов это разные столбцы источника (Başlama ili vs IT-yə
-  // başladıqları il), смешивать их значения в одном фильтре не нужно.
+  // başladıqları il), смешивать их значения в одном фильтре не нужно. В
+  // реальной таблице в этом столбце иногда встречается произвольный текст
+  // вместо сезона (напр. "Metodistimizdir") — такие значения из дропдауна
+  // исключаем, оставляя только похожие на год/сезон ("2022/2023" и т.п.).
   const allStartYears = useMemo(
-    () => Array.from(new Set(scopedTeachers.map((t) => t.startYear).filter(Boolean))).sort(),
+    () =>
+      Array.from(new Set(scopedTeachers.map((t) => t.startYear).filter((y) => /\d{4}/.test(y)))).sort(),
     [scopedTeachers],
   );
   const scopedModules = useMemo(() => MODULES.filter((m) => gradeGroups.includes(m.group)), [gradeGroups]);
