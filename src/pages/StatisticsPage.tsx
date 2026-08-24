@@ -64,15 +64,25 @@ export function StatisticsPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  const total = teachers.length || 1;
-  const overview = getOverviewStats(teachers);
-  const overallTeacherPass = getOverallTeacherPassStat(teachers);
+  // Единая база для ВСЕХ KPI-карточек этой страницы — учителя без
+  // назначенного класса/параллели (hasAssignedClass=false) исключены из
+  // знаменателя везде одинаково, иначе разные карточки считают "всего
+  // учителей" по-разному (напр. 5183 против 5054) и цифры расходятся.
+  const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
+  const total = eligibleTeachers.length || 1;
+  const overview = getOverviewStats(eligibleTeachers);
+  const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
-  const trainingTypeSummary = getTrainingTypeSummary(teachers);
+  const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
 
-  const byLifecycle = countByKey(teachers, (te) => te.lifecycleStatus, { OLD: 'OLD', NEW: 'NEW' }, LIFECYCLE_STATUSES);
+  const byLifecycle = countByKey(
+    eligibleTeachers,
+    (te) => te.lifecycleStatus,
+    { OLD: 'OLD', NEW: 'NEW' },
+    LIFECYCLE_STATUSES,
+  );
   const byPlatformStatus = countByKey(
-    teachers,
+    eligibleTeachers,
     (te) => te.platformStatus,
     { entered: t.platformStatus.entered, not_entered: t.platformStatus.notEntered },
     ['entered', 'not_entered'],

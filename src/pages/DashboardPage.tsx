@@ -34,8 +34,12 @@ export function DashboardPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  const overview = getOverviewStats(teachers);
-  const overallTeacherPass = getOverallTeacherPassStat(teachers);
+  // Та же единая база, что и на странице "Статистика": учителя без
+  // назначенного класса исключены из знаменателя КАЖДОЙ верхней карточки,
+  // иначе "Всего учителей" и "Прошли курс" считают по-разному.
+  const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
+  const overview = getOverviewStats(eligibleTeachers);
+  const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);
 
