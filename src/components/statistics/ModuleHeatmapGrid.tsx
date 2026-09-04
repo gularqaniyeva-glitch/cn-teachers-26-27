@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { ModuleStat } from '../../utils/stats';
 
 interface ModuleHeatmapGridProps {
@@ -7,11 +8,15 @@ interface ModuleHeatmapGridProps {
   emptyLabel: string;
 }
 
-const TIER_STYLES = {
-  high: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  mid: 'border-amber-200 bg-amber-50 text-amber-800',
-  low: 'border-rose-200 bg-rose-50 text-rose-800',
-} as const;
+// Явные inline-стили (не классы Tailwind) — конкретные hex-цвета, которые
+// html2canvas-pro читает напрямую через style, без обращения к CSS-файлу
+// и без риска споткнуться на цветовых функциях/каскаде Tailwind при
+// экспорте карточки в PNG кнопкой "Скачать PNG"/"Скопировать как картинку".
+const TIER_STYLES: Record<'high' | 'mid' | 'low', CSSProperties> = {
+  high: { borderColor: '#a7f3d0', backgroundColor: '#ecfdf5', color: '#065f46' },
+  mid: { borderColor: '#fde68a', backgroundColor: '#fffbeb', color: '#92400e' },
+  low: { borderColor: '#fecdd3', backgroundColor: '#fff1f2', color: '#9f1239' },
+};
 
 function tierFor(passRate: number, assigned: number): keyof typeof TIER_STYLES {
   if (assigned === 0) return 'low';
@@ -36,10 +41,17 @@ export function ModuleHeatmapGrid({ modules, passedLabel, ofLabel, emptyLabel }:
       {modules.map((m) => {
         const tier = tierFor(m.passRate, m.assigned);
         return (
-          <div key={m.moduleId} className={`rounded-xl border p-3 ${TIER_STYLES[tier]}`}>
-            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">{m.shortTitle}</p>
-            <p className="mt-1 text-2xl font-bold">{m.assigned > 0 ? `${m.passRate}%` : '—'}</p>
-            <p className="mt-0.5 text-xs opacity-70">
+          <div
+            key={m.moduleId}
+            style={{ borderRadius: 12, border: '1px solid', padding: 12, ...TIER_STYLES[tier] }}
+          >
+            <p style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.02em', opacity: 0.7, margin: 0 }}>
+              {m.shortTitle}
+            </p>
+            <p style={{ marginTop: 4, fontSize: 24, fontWeight: 700, margin: '4px 0 0' }}>
+              {m.assigned > 0 ? `${m.passRate}%` : '—'}
+            </p>
+            <p style={{ marginTop: 2, fontSize: 12, opacity: 0.7, margin: '2px 0 0' }}>
               {passedLabel} {m.passed} {ofLabel} {m.assigned}
             </p>
           </div>

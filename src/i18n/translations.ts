@@ -119,6 +119,8 @@ export interface Dict {
     allDistricts: string;
     startYearLabel: string;
     classesTaughtLabel: string;
+    scoreFromLabel: string;
+    scoreToLabel: string;
     multiSelectAny: string;
     multiSelectCountSuffix: string;
     selectAll: string;
@@ -138,12 +140,6 @@ export interface Dict {
     allGradeGroups: string;
     allModules: string;
     columnModule: string;
-    scoreRangeLabel: string;
-    scoreRangeLow: string;
-    scoreRangeMid: string;
-    scoreRangeHigh: string;
-    scoreRangeFrom: string;
-    scoreRangeTo: string;
   };
   bulk: {
     changeModuleStatus: string;
@@ -216,6 +212,8 @@ export interface Dict {
     moduleByLifecycleTitle: string;
     downloadPng: string;
     downloadPngError: string;
+    copyImage: string;
+    copyImageError: string;
   };
   pagination: {
     shown: string;
@@ -328,7 +326,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       lifecycleStatus: 'OLD/NEW',
       platformStatus: 'Платформа',
       result: 'Результат',
-      averageScore: '📈 Средний результат, %',
+      averageScore: 'Средний балл (по решённым)',
       note: 'Заметка',
       moduleColumns: 'Отдельные модули (M1, M2, M3…)',
     },
@@ -378,6 +376,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allDistricts: 'Все',
       startYearLabel: 'Год начала / Стаж',
       classesTaughtLabel: 'Классы',
+      scoreFromLabel: 'От %',
+      scoreToLabel: 'До %',
       multiSelectAny: 'Все',
       multiSelectCountSuffix: 'выбрано',
       selectAll: 'Выбрать все',
@@ -396,12 +396,6 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Все параллели',
       allModules: 'Все модули',
       columnModule: 'Модуль',
-      scoreRangeLabel: 'Процент / Балл',
-      scoreRangeLow: '<70% (Не сдал)',
-      scoreRangeMid: '70–89% (Средний)',
-      scoreRangeHigh: '≥90% (Высокий)',
-      scoreRangeFrom: 'От',
-      scoreRangeTo: 'До',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -475,6 +469,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleByLifecycleTitle: 'По стажу (Old / New)',
       downloadPng: 'Скачать PNG',
       downloadPngError: 'Не удалось сохранить карточку как изображение. Попробуйте ещё раз.',
+      copyImage: 'Скопировать как картинку',
+      copyImageError: 'Не удалось скопировать карточку в буфер обмена. Попробуйте ещё раз.',
     },
     pagination: {
       shown: 'Показано',
@@ -585,7 +581,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       lifecycleStatus: 'OLD/NEW',
       platformStatus: 'Platforma',
       result: 'Nəticə',
-      averageScore: '📈 Orta nəticə, %',
+      averageScore: 'Ortalama bal (həll edilənlər)',
       note: 'Qeyd',
       moduleColumns: 'Ayrı-ayrı modullar (M1, M2, M3…)',
     },
@@ -635,6 +631,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allDistricts: 'Hamısı',
       startYearLabel: 'Başlama ili / Təcrübə',
       classesTaughtLabel: 'Siniflər',
+      scoreFromLabel: 'Dan %',
+      scoreToLabel: 'Qədər %',
       multiSelectAny: 'Hamısı',
       multiSelectCountSuffix: 'seçildi',
       selectAll: 'Hamısını seç',
@@ -653,12 +651,6 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Bütün paralellər',
       allModules: 'Bütün modullar',
       columnModule: 'Modul',
-      scoreRangeLabel: 'Faiz / Bal',
-      scoreRangeLow: '<70% (Keçməyib)',
-      scoreRangeMid: '70–89% (Orta)',
-      scoreRangeHigh: '≥90% (Yüksək)',
-      scoreRangeFrom: 'Dan',
-      scoreRangeTo: 'Qədər',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {
@@ -732,6 +724,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleByLifecycleTitle: 'Təcrübəyə görə (Old / New)',
       downloadPng: 'PNG yüklə',
       downloadPngError: 'Kartı şəkil kimi saxlamaq mümkün olmadı. Yenidən cəhd edin.',
+      copyImage: 'Şəkil kimi kopyala',
+      copyImageError: 'Kartı mübadilə buferinə kopyalamaq mümkün olmadı. Yenidən cəhd edin.',
     },
     pagination: {
       shown: 'Göstərilir:',

@@ -36,6 +36,8 @@ const TRACKED_FILTER_KEYS = new Set([
   'moduleId',
   'moduleResult',
   'unassignedClassOnly',
+  'scoreMin',
+  'scoreMax',
 ]);
 
 interface TeacherListPageProps {

@@ -63,6 +63,31 @@ export function TeacherFiltersBar({ filters, districts, startYears, classesTaugh
           searchable={false}
         />
 
+        <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+            {t.filters.scoreFromLabel}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={filters.scoreMin ?? ''}
+              onChange={(e) => onChange('scoreMin', e.target.value === '' ? null : Number(e.target.value))}
+              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+            {t.filters.scoreToLabel}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={filters.scoreMax ?? ''}
+              onChange={(e) => onChange('scoreMax', e.target.value === '' ? null : Number(e.target.value))}
+              className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
+        </div>
+
         <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
           <input
             type="checkbox"

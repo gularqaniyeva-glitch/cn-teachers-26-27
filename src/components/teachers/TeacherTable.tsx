@@ -73,10 +73,12 @@ export function TeacherTable({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [columnMenuOpen]);
 
-  // "Результат" идёт ПОСЛЕ колонок модулей (пункт 9 в зафиксированном
-  // порядке столбцов) — рендерим его отдельно, а не в общем потоке columns.
+  // "Средний балл (по решённым)" и "Результат" идут ПОСЛЕ колонок модулей,
+  // строго друг за другом в этом порядке — рендерим их отдельно, а не в
+  // общем потоке columns.
   const allColumns = TEACHER_TABLE_COLUMNS.filter((c) => c.alwaysVisible || visibleKeys.has(c.key));
-  const columns = allColumns.filter((c) => c.key !== 'result');
+  const columns = allColumns.filter((c) => c.key !== 'result' && c.key !== 'averageScore');
+  const averageScoreColumn = allColumns.find((c) => c.key === 'averageScore');
   const resultColumn = allColumns.find((c) => c.key === 'result');
 
   function renderCell(col: TeacherColumnDef, teacher: Teacher) {
@@ -226,6 +228,9 @@ export function TeacherTable({
                     {col.label}
                   </th>
                 ))}
+              {averageScoreColumn && (
+                <th className="px-2.5 py-2 whitespace-nowrap">{averageScoreColumn.label(t)}</th>
+              )}
               {resultColumn && <th className="px-2.5 py-2 whitespace-nowrap">{resultColumn.label(t)}</th>}
               <th className="px-2.5 py-2" />
             </tr>
@@ -263,6 +268,11 @@ export function TeacherTable({
                         </td>
                       );
                     })}
+                  {averageScoreColumn && (
+                    <td className="px-2.5 py-1 whitespace-nowrap text-slate-600">
+                      {renderCell(averageScoreColumn, teacher)}
+                    </td>
+                  )}
                   {resultColumn && (
                     <td className="px-2.5 py-1 whitespace-nowrap text-slate-600">{renderCell(resultColumn, teacher)}</td>
                   )}

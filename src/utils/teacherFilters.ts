@@ -23,6 +23,9 @@ export interface TeacherFilters {
   moduleResult: string;
   /** Показывать только учителей, которым ещё не назначили класс/параллель */
   unassignedClassOnly: boolean;
+  /** Фильтр по среднему баллу учителя (getTeacherAverageScore) — null означает "без ограничения" */
+  scoreMin: number | null;
+  scoreMax: number | null;
 }
 
 export const DEFAULT_FILTERS: TeacherFilters = {
@@ -39,6 +42,8 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   moduleId: '',
   moduleResult: '',
   unassignedClassOnly: false,
+  scoreMin: null,
+  scoreMax: null,
 };
 
 export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Teacher[] {
@@ -62,6 +67,14 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
 
     if (filters.moduleId && filters.moduleResult) {
       if (getEffectiveModuleStatus(t, filters.moduleId) !== filters.moduleResult) return false;
+    }
+
+    if (filters.scoreMin !== null || filters.scoreMax !== null) {
+      const avg = getTeacherAverageScore(t);
+      // Нет ни одного решённого модуля — вне любого заданного диапазона.
+      if (avg === null) return false;
+      if (filters.scoreMin !== null && avg < filters.scoreMin) return false;
+      if (filters.scoreMax !== null && avg > filters.scoreMax) return false;
     }
 
     return true;
