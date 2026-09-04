@@ -90,6 +90,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // этот номер неоднозначен (M3–M6 есть и в 2–4, и в 5–9 одновременно).
   const [selectedModuleNumbers, setSelectedModuleNumbers] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<DisplayModuleStatus[]>([]);
+  // null = "Все" (без фильтра по проценту). Пресеты — быстрое заполнение
+  // этого же диапазона; поля "От"/"До" позволяют задать произвольный.
+  const [scoreRange, setScoreRange] = useState<{ min: number; max: number } | null>(null);
   const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
   const moduleDropdownRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(1);
@@ -186,6 +189,16 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
     setPage(1);
   }
 
+  function applyScorePreset(range: { min: number; max: number } | null) {
+    trackFilterApplied('scoreRange', range ? `${range.min}-${range.max}` : '');
+    setScoreRange(range);
+    setPage(1);
+  }
+
+  function isPresetActive(range: { min: number; max: number }): boolean {
+    return scoreRange !== null && scoreRange.min === range.min && scoreRange.max === range.max;
+  }
+
   // ВАЖНО: одна строка результата = один учитель, независимо от того,
   // сколько модулей выбрано. Раньше здесь на каждую пару "учитель+модуль"
   // создавалась отдельная строка — на реальных ~6000 учителей это давало
@@ -208,11 +221,14 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
       const matchesStatus = selectedStatuses.length === 0 || badges.some((b) => selectedStatuses.includes(b.status));
       if (!matchesStatus) continue;
 
+      const matchesScore = !scoreRange || badges.some((b) => b.score >= scoreRange.min && b.score <= scoreRange.max);
+      if (!matchesScore) continue;
+
       rows.push({ teacher, badges });
     }
     rows.sort((a, b) => a.teacher.fullName.localeCompare(b.teacher.fullName));
     return rows;
-  }, [teachers, activeGroups, displayedModuleColumns, selectedStatuses, groupAnomalySet]);
+  }, [teachers, activeGroups, displayedModuleColumns, selectedStatuses, scoreRange, groupAnomalySet]);
 
   const totalPages = Math.max(1, Math.ceil(matched.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -386,6 +402,85 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
               {statusLabel(t, s)}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+          {t.quickList.scoreRangeLabel}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => applyScorePreset(null)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                scoreRange === null
+                  ? 'bg-brand-600 text-white ring-brand-600'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {t.common.any}
+            </button>
+            <button
+              onClick={() => applyScorePreset({ min: 0, max: 69 })}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                isPresetActive({ min: 0, max: 69 })
+                  ? 'bg-rose-600 text-white ring-rose-600'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {t.quickList.scoreRangeLow}
+            </button>
+            <button
+              onClick={() => applyScorePreset({ min: 70, max: 89 })}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                isPresetActive({ min: 70, max: 89 })
+                  ? 'bg-amber-500 text-white ring-amber-500'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {t.quickList.scoreRangeMid}
+            </button>
+            <button
+              onClick={() => applyScorePreset({ min: 90, max: 100 })}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset ${
+                isPresetActive({ min: 90, max: 100 })
+                  ? 'bg-emerald-600 text-white ring-emerald-600'
+                  : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {t.quickList.scoreRangeHigh}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+            {t.quickList.scoreRangeFrom}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={scoreRange?.min ?? ''}
+              onChange={(e) => {
+                const min = e.target.value === '' ? 0 : Number(e.target.value);
+                applyScorePreset({ min, max: scoreRange?.max ?? 100 });
+              }}
+              className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+            {t.quickList.scoreRangeTo}
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={scoreRange?.max ?? ''}
+              onChange={(e) => {
+                const max = e.target.value === '' ? 100 : Number(e.target.value);
+                applyScorePreset({ min: scoreRange?.min ?? 0, max });
+              }}
+              className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
         </div>
       </div>
 

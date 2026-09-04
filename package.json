@@ -13,6 +13,7 @@
     "@vercel/analytics": "^2.0.1",
     "google-auth-library": "^9.14.2",
     "google-spreadsheet": "^4.1.4",
+    "html2canvas-pro": "^2.4.1",
     "lucide-react": "^0.462.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

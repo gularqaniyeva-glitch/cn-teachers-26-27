@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Users, LogIn, LogOut, TrendingUp } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
+import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
 import {
   formatTeachersPassed,
@@ -21,6 +22,8 @@ export function DashboardPage() {
   const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeDetailGroup, setActiveDetailGroup] = useState<GradeGroup>('2-4');
+  const passByGroupRef = useRef<HTMLDivElement>(null);
+  const moduleHeatmapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     load();
@@ -83,8 +86,11 @@ export function DashboardPage() {
       {/* KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
           сданных модулей — "X из Y учителей прошли курс (Z%)" на каждую
           параллель. */}
-      <Card title={t.dashboard.moduleStatsTitle}>
-        <div className="space-y-4">
+      <Card
+        title={t.dashboard.moduleStatsTitle}
+        action={<DownloadPngButton targetRef={passByGroupRef} filename="proshli-kurs-po-parallelyam.png" />}
+      >
+        <div ref={passByGroupRef} className="space-y-4 bg-white">
           {teacherPassByGroup.map((g) => (
             <Bar
               key={g.group}
@@ -102,7 +108,15 @@ export function DashboardPage() {
         </div>
       </Card>
 
-      <Card title={t.dashboard.moduleDetailTitle}>
+      <Card
+        title={t.dashboard.moduleDetailTitle}
+        action={
+          <DownloadPngButton
+            targetRef={moduleHeatmapRef}
+            filename={`moduli-${activeDetailGroup}.png`}
+          />
+        }
+      >
         <div className="mb-4 flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
           {GRADE_GROUPS.map((g) => (
             <button
@@ -116,12 +130,14 @@ export function DashboardPage() {
             </button>
           ))}
         </div>
-        <ModuleHeatmapGrid
-          modules={activeGroupModules}
-          passedLabel={t.dashboard.passedOf}
-          ofLabel={t.common.of}
-          emptyLabel={t.dashboard.moduleGridEmpty}
-        />
+        <div ref={moduleHeatmapRef} className="bg-white">
+          <ModuleHeatmapGrid
+            modules={activeGroupModules}
+            passedLabel={t.dashboard.passedOf}
+            ofLabel={t.common.of}
+            emptyLabel={t.dashboard.moduleGridEmpty}
+          />
+        </div>
       </Card>
     </div>
   );

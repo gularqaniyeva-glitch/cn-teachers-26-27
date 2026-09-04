@@ -138,6 +138,12 @@ export interface Dict {
     allGradeGroups: string;
     allModules: string;
     columnModule: string;
+    scoreRangeLabel: string;
+    scoreRangeLow: string;
+    scoreRangeMid: string;
+    scoreRangeHigh: string;
+    scoreRangeFrom: string;
+    scoreRangeTo: string;
   };
   bulk: {
     changeModuleStatus: string;
@@ -208,6 +214,8 @@ export interface Dict {
     columnSuccessRatePercent: string;
     moduleByTrainingTypeTitle: string;
     moduleByLifecycleTitle: string;
+    downloadPng: string;
+    downloadPngError: string;
   };
   pagination: {
     shown: string;
@@ -388,6 +396,12 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Все параллели',
       allModules: 'Все модули',
       columnModule: 'Модуль',
+      scoreRangeLabel: 'Процент / Балл',
+      scoreRangeLow: '<70% (Не сдал)',
+      scoreRangeMid: '70–89% (Средний)',
+      scoreRangeHigh: '≥90% (Высокий)',
+      scoreRangeFrom: 'От',
+      scoreRangeTo: 'До',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -459,6 +473,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       columnSuccessRatePercent: '% успеваемости',
       moduleByTrainingTypeTitle: 'По типам обучения (Tədris növü)',
       moduleByLifecycleTitle: 'По стажу (Old / New)',
+      downloadPng: 'Скачать PNG',
+      downloadPngError: 'Не удалось сохранить карточку как изображение. Попробуйте ещё раз.',
     },
     pagination: {
       shown: 'Показано',
@@ -637,6 +653,12 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Bütün paralellər',
       allModules: 'Bütün modullar',
       columnModule: 'Modul',
+      scoreRangeLabel: 'Faiz / Bal',
+      scoreRangeLow: '<70% (Keçməyib)',
+      scoreRangeMid: '70–89% (Orta)',
+      scoreRangeHigh: '≥90% (Yüksək)',
+      scoreRangeFrom: 'Dan',
+      scoreRangeTo: 'Qədər',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {
@@ -708,6 +730,8 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       columnSuccessRatePercent: '% müvəffəqiyyət',
       moduleByTrainingTypeTitle: 'Tədris növü üzrə',
       moduleByLifecycleTitle: 'Təcrübəyə görə (Old / New)',
+      downloadPng: 'PNG yüklə',
+      downloadPngError: 'Kartı şəkil kimi saxlamaq mümkün olmadı. Yenidən cəhd edin.',
     },
     pagination: {
       shown: 'Göstərilir:',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, Award, Download, Search } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { Card } from '../components/ui/Card';
@@ -6,6 +6,7 @@ import { Bar } from '../components/ui/Bar';
 import { StatCard } from '../components/ui/StatCard';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { NoTranslate } from '../components/ui/NoTranslate';
+import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleBreakdownTable } from '../components/statistics/ModuleBreakdownTable';
 import { ModulePassRateChart } from '../components/statistics/ModulePassRateChart';
 import {
@@ -36,6 +37,11 @@ export function StatisticsPage() {
   const t = useT();
   const [activeTab, setActiveTab] = useState<StatTab>('overview');
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
+  const byGradeGroupRef = useRef<HTMLDivElement>(null);
+  const byLifecycleRef = useRef<HTMLDivElement>(null);
+  const byPlatformStatusRef = useRef<HTMLDivElement>(null);
+  const byTrainingTypeChartRef = useRef<HTMLDivElement>(null);
+  const byLifecycleChartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     load();
@@ -176,8 +182,12 @@ export function StatisticsPage() {
           </Card>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card title={t.statistics.byGradeGroup} titleTooltip={t.statistics.tooltipGradeGroup}>
-              <div className="space-y-4">
+            <Card
+              title={t.statistics.byGradeGroup}
+              titleTooltip={t.statistics.tooltipGradeGroup}
+              action={<DownloadPngButton targetRef={byGradeGroupRef} filename="po-klassam.png" />}
+            >
+              <div ref={byGradeGroupRef} className="space-y-4 bg-white">
                 {teacherPassByGroup.map((g, i) => (
                   <Bar
                     key={g.group}
@@ -196,16 +206,24 @@ export function StatisticsPage() {
               <p className="mt-2 text-xs text-slate-400">{t.statistics.expandHint}</p>
             </Card>
 
-            <Card title={t.statistics.byLifecycle} titleTooltip={t.statistics.tooltipLifecycle}>
-              <div className="space-y-4">
+            <Card
+              title={t.statistics.byLifecycle}
+              titleTooltip={t.statistics.tooltipLifecycle}
+              action={<DownloadPngButton targetRef={byLifecycleRef} filename="po-stazhu-old-new.png" />}
+            >
+              <div ref={byLifecycleRef} className="space-y-4 bg-white">
                 {byLifecycle.map((e, i) => (
                   <Bar key={e.key} label={e.label} count={e.count} percent={e.percent} color={PALETTE[i % PALETTE.length]} />
                 ))}
               </div>
             </Card>
 
-            <Card title={t.statistics.byPlatformStatus} titleTooltip={t.statistics.tooltipPlatformStatus}>
-              <div className="space-y-4">
+            <Card
+              title={t.statistics.byPlatformStatus}
+              titleTooltip={t.statistics.tooltipPlatformStatus}
+              action={<DownloadPngButton targetRef={byPlatformStatusRef} filename="po-statusu-platformy.png" />}
+            >
+              <div ref={byPlatformStatusRef} className="space-y-4 bg-white">
                 {byPlatformStatus.map((e) => (
                   <Bar
                     key={e.key}
@@ -289,8 +307,13 @@ export function StatisticsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <Card title={`${t.statistics.moduleByTrainingTypeTitle} — ${t.gradeGroup[activeTab]}`}>
-            <div className="space-y-4">
+          <Card
+            title={`${t.statistics.moduleByTrainingTypeTitle} — ${t.gradeGroup[activeTab]}`}
+            action={
+              <DownloadPngButton targetRef={byTrainingTypeChartRef} filename={`moduli-po-tipu-obucheniya-${activeTab}.png`} />
+            }
+          >
+            <div ref={byTrainingTypeChartRef} className="space-y-4 bg-white">
               <ModulePassRateChart rows={trainingTypeRowsByTab[activeTab]} series={trainingTypeSeries} />
               <ModuleBreakdownTable
                 rows={trainingTypeRowsByTab[activeTab]}
@@ -300,8 +323,13 @@ export function StatisticsPage() {
             </div>
           </Card>
 
-          <Card title={`${t.statistics.moduleByLifecycleTitle} — ${t.gradeGroup[activeTab]}`}>
-            <div className="space-y-4">
+          <Card
+            title={`${t.statistics.moduleByLifecycleTitle} — ${t.gradeGroup[activeTab]}`}
+            action={
+              <DownloadPngButton targetRef={byLifecycleChartRef} filename={`moduli-po-stazhu-${activeTab}.png`} />
+            }
+          >
+            <div ref={byLifecycleChartRef} className="space-y-4 bg-white">
               <ModulePassRateChart rows={lifecycleRowsByTab[activeTab]} series={lifecycleSeries} />
               <ModuleBreakdownTable
                 rows={lifecycleRowsByTab[activeTab]}

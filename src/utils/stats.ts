@@ -33,10 +33,17 @@ export function getOverviewStats(teachers: Teacher[]): OverviewStats {
 }
 
 /** Средний результат учителя по всем модулям его программы (0 — за "не начал"), % */
+/**
+ * Средний балл СТРОГО по модулям, которые учитель реально проходил
+ * (есть попытка — балл passed/failed/old_teacher), а не по всем назначенным.
+ * "Не начал" исключаем из знаменателя: иначе их нулевые баллы искусственно
+ * тянут средний процент вниз для тех, кто просто ещё не дошёл до модуля.
+ */
 export function getTeacherAverageScore(teacher: Teacher): number | null {
-  if (teacher.moduleResults.length === 0) return null;
-  const sum = teacher.moduleResults.reduce((acc, r) => acc + r.score, 0);
-  return Math.round(sum / teacher.moduleResults.length);
+  const attempted = teacher.moduleResults.filter((r) => r.status !== 'not_started');
+  if (attempted.length === 0) return null;
+  const sum = attempted.reduce((acc, r) => acc + r.score, 0);
+  return Math.round(sum / attempted.length);
 }
 
 /**
