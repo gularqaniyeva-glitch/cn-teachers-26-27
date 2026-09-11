@@ -8,6 +8,7 @@ import { ModuleScoreCell } from './ModuleScoreCell';
 import { ModuleColumnHeader } from './ModuleColumnHeader';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { buildModuleDeadlineMap } from '../../utils/deadlines';
+import { filterOpenModuleColumns } from '../../services/scheduleMapping';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
 import { findModuleResultForColumn, getModuleColumnsForGroups } from '../../data/constants';
@@ -59,9 +60,13 @@ export function TeacherTable({
   // раздельные колонки "M3 (2–4)"/"M3 (5–9)" и т.д.; M1/M2 общие — одна
   // колонка без суффикса.
   const showModuleColumns = visibleKeys.has('moduleColumns');
+  // filterOpenModuleColumns полностью убирает колонку из шапки/DOM, если её
+  // дата открытия ещё не наступила — не просто оставляет пустые ячейки.
+  // teachers в зависимостях — пересчитываем при каждой загрузке/обновлении
+  // данных, когда обновляется график в scheduleMapping.ts.
   const moduleColumns = useMemo(
-    () => (showModuleColumns ? getModuleColumnsForGroups(gradeGroups) : []),
-    [showModuleColumns, gradeGroups],
+    () => (showModuleColumns ? filterOpenModuleColumns(getModuleColumnsForGroups(gradeGroups)) : []),
+    [showModuleColumns, gradeGroups, teachers],
   );
   // Дедлайны — из уже загруженных учителей (реальные даты из графика
   // "(АЗ) График 26/27" прикреплены к каждому ModuleResult), не отдельный запрос.

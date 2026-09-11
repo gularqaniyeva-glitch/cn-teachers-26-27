@@ -13,6 +13,7 @@
 
 import type { GradeGroup } from '../types/teacher';
 import { findValueFuzzy, type RawSheetRow } from './sheetMapping';
+import type { ModuleColumn } from '../data/constants';
 
 export interface ScheduleEntry {
   moduleId: string;
@@ -29,6 +30,15 @@ export interface ScheduleIndex {
 
 const EMPTY_SCHEDULE: ScheduleIndex = { byModuleId: new Map(), byModuleNumber: new Map() };
 
+// Последний построенный индекс графика — единственный на всё приложение
+// (одна Google-таблица, один активный график за раз). Нужен, чтобы
+// компоненты таблиц могли полностью УБИРАТЬ ещё не открытые колонки
+// модулей из DOM (см. filterOpenModuleColumns), а не только их данные —
+// сами колонки в data/constants.ts строятся без сведений о датах и не
+// должны об этом знать. Обновляется при каждом buildScheduleIndex (см.
+// teacherService.ts — вызывается один раз на загрузку/обновление данных).
+let currentScheduleIndex: ScheduleIndex = EMPTY_SCHEDULE;
+
 const SCHEDULE_FIELD_CANDIDATES = {
   // Столбец T — уже готовый ключ "модуль+параллель" (напр. "M3 2-4"), если
   // он есть в таблице — приоритетный источник, экономит нам подбор пары.
@@ -41,9 +51,14 @@ const SCHEDULE_FIELD_CANDIDATES = {
 
 const GRADE_GROUP_PATTERN = /10\s*-?\s*11|x\s*-?\s*xi|5\s*-?\s*9|v\s*-?\s*ix|2\s*-?\s*4|1\s*-?\s*4|ii\s*-?\s*iv|i\s*-?\s*iv/i;
 
-/** Понимает "2-4", "2–4" (эн-дефис), "2 - 4", "2-4 classes", "II-IV" — цифры/римские с любым одним разделителем между ними. */
+/** Пробел, подчёркивание, точка и дефис — один и тот же разделитель: "M9_2", "M9.2", "M9-2", "M9 2" должны разбираться одинаково. */
+function unifySeparators(raw: string): string {
+  return (raw ?? '').trim().replace(/[_\s.-]+/g, '-');
+}
+
+/** Понимает "2-4", "2–4" (эн-дефис), "2 - 4", "2-4 classes", "2_4", "II-IV" — цифры/римские с любым одним разделителем между ними. */
 function normalizeGradeGroupLabel(raw: string): GradeGroup | null {
-  const v = (raw ?? '').trim().toLowerCase().replace(/\s+/g, '');
+  const v = (raw ?? '').trim().toLowerCase().replace(/[_\s.]+/g, '');
   if (!v) return null;
   if (/10.?11|x.?xi/.test(v)) return '10-11';
   if (/5.?9|v.?ix/.test(v)) return '5-9';
@@ -51,9 +66,9 @@ function normalizeGradeGroupLabel(raw: string): GradeGroup | null {
   return null;
 }
 
-/** "M9-2"/"Modul 9-2"/"9-2" → "9-2"; "M3"/"3" → "3" — тот же формат номеров, что в data/constants.ts */
+/** "M9-2"/"M9_2"/"M9.2"/"Modul 9 2" → "9-2"; "M3"/"3" → "3" — тот же формат номеров, что в data/constants.ts */
 function extractModuleNumber(raw: string): string | null {
-  const cleaned = (raw ?? '').trim();
+  const cleaned = unifySeparators(raw);
   if (!cleaned) return null;
   const match = cleaned.match(/(\d+)(-2)?/);
   if (!match) return null;
@@ -136,7 +151,10 @@ function resolveModuleKey(row: RawSheetRow): { moduleNumber: string; gradeGroup:
 export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): ScheduleIndex {
   const byModuleId = new Map<string, ScheduleEntry>();
   const byModuleNumber = new Map<string, ScheduleEntry[]>();
-  if (!rows) return { byModuleId, byModuleNumber };
+  if (!rows) {
+    currentScheduleIndex = { byModuleId, byModuleNumber };
+    return currentScheduleIndex;
+  }
 
   try {
     for (const row of rows) {
@@ -150,10 +168,18 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
           deadline: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline])),
         };
 
-        const numberKey = `M${key.moduleNumber}`;
-        const list = byModuleNumber.get(numberKey) ?? [];
-        list.push(entry);
-        byModuleNumber.set(numberKey, list);
+        // В фолбэк-карту по одному лишь номеру попадают ТОЛЬКО записи БЕЗ
+        // явно указанной параллели (настоящие общие M1/M2). Запись с явно
+        // указанной параллелью (напр. "M4 5-9") не должна утекать в фолбэк
+        // для ДРУГОЙ параллели ("2-4-M4") просто потому, что для той
+        // параллели нет отдельной строки в графике — это была бы неверная
+        // дата, а не отсутствие данных.
+        if (!key.gradeGroup) {
+          const numberKey = `M${key.moduleNumber}`;
+          const list = byModuleNumber.get(numberKey) ?? [];
+          list.push(entry);
+          byModuleNumber.set(numberKey, list);
+        }
 
         if (key.gradeGroup) {
           const moduleId = `${key.gradeGroup}-M${key.moduleNumber}`;
@@ -166,14 +192,21 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
     }
   } catch (err) {
     console.warn('scheduleMapping: не удалось разобрать лист графика целиком — модули считаются открытыми:', err);
-    return { byModuleId: new Map(), byModuleNumber: new Map() };
+    currentScheduleIndex = { byModuleId: new Map(), byModuleNumber: new Map() };
+    return currentScheduleIndex;
   }
 
-  return { byModuleId, byModuleNumber };
+  currentScheduleIndex = { byModuleId, byModuleNumber };
+  return currentScheduleIndex;
 }
 
 export function getEmptySchedule(): ScheduleIndex {
   return EMPTY_SCHEDULE;
+}
+
+/** Последний построенный график — для мест, которым нужно фильтровать КОЛОНКИ (не данные конкретного учителя), см. filterOpenModuleColumns. */
+export function getCurrentScheduleIndex(): ScheduleIndex {
+  return currentScheduleIndex;
 }
 
 /**
@@ -221,4 +254,17 @@ export function getModuleDeadlineIso(index: ScheduleIndex, moduleId: string): st
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Убирает из списка КОЛОНКИ модулей, дата открытия которых ещё не
+ * наступила — колонка полностью пропадает из шапки таблицы (не просто
+ * показывает пустые ячейки). Колонка "M1"/"M2" (общая на 2–4 и 5–9 сразу)
+ * остаётся видимой, если открыта хотя бы для одной из параллелей — иначе
+ * учителя той параллели, где модуль уже открыт, не увидели бы свой
+ * реальный результат.
+ */
+export function filterOpenModuleColumns(columns: ModuleColumn[], now: Date = new Date()): ModuleColumn[] {
+  const schedule = getCurrentScheduleIndex();
+  return columns.filter((col) => col.moduleIds.some((id) => isModuleOpen(schedule, id, now)));
 }

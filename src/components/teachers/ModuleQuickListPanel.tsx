@@ -6,6 +6,7 @@ import { exportTeachersToCsv } from '../../utils/csvExport';
 import { trackExport, trackFilterApplied } from '../../utils/analytics';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
 import { buildModuleDeadlineMap } from '../../utils/deadlines';
+import { filterOpenModuleColumns } from '../../services/scheduleMapping';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
@@ -141,7 +142,13 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
 
   // Полный список колонок модулей для активных параллелей — уже в верном
   // порядке и с разведёнными по параллели дубликатами номеров (M3-M6).
-  const moduleColumnOptions = useMemo(() => getModuleColumnsForGroups(activeGroups), [activeGroups]);
+  // filterOpenModuleColumns полностью убирает колонку (и пункт в дропдауне
+  // выбора модуля ниже), если её дата открытия ещё не наступила — teachers
+  // в зависимостях, чтобы пересчитать при каждой загрузке/обновлении данных.
+  const moduleColumnOptions = useMemo(
+    () => filterOpenModuleColumns(getModuleColumnsForGroups(activeGroups)),
+    [activeGroups, teachers],
+  );
   // Дедлайны — из уже загруженных учителей (реальные даты из графика
   // "(АЗ) График 26/27" прикреплены к каждому ModuleResult), не отдельный запрос.
   const moduleDeadlines = useMemo(() => buildModuleDeadlineMap(teachers), [teachers]);
