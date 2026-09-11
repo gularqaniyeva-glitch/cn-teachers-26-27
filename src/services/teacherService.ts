@@ -23,10 +23,13 @@
 import type { Teacher } from '../types/teacher';
 import { mapSeniorSheetRow, mapTeachersSheetRow } from './sheetMapping';
 import type { RawSheetRow } from './sheetMapping';
+import { buildScheduleIndex } from './scheduleMapping';
 
 interface SheetsApiResponse {
   teachers: RawSheetRow[];
   senior: RawSheetRow[];
+  /** Лист "(АЗ) График 26/27" — может отсутствовать в ответе старого деплоя API, поэтому необязательное поле */
+  schedule?: RawSheetRow[];
   fetchedAt: string;
 }
 
@@ -87,11 +90,15 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   // должна ронять всю загрузку данных.
   const teachersRaw = Array.isArray(data.teachers) ? data.teachers : [];
   const seniorRaw = Array.isArray(data.senior) ? data.senior : [];
+  // Лист графика необязателен: если его нет или он пуст, buildScheduleIndex
+  // отдаёт пустой индекс — все модули считаются открытыми, поведение сайта
+  // не меняется по сравнению с тем, что было до подключения этого листа.
+  const schedule = buildScheduleIndex(Array.isArray(data.schedule) ? data.schedule : []);
 
   const teachers2to9 = teachersRaw
     .map((row, i) => {
       try {
-        return mapTeachersSheetRow(row, i);
+        return mapTeachersSheetRow(row, i, schedule);
       } catch (err) {
         console.warn(`[teacherService] Пропущена строка ${i + 2} листа "Все учителя" — ошибка разбора:`, err);
         return null;
@@ -101,7 +108,7 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   const teachersSenior = seniorRaw
     .map((row, i) => {
       try {
-        return mapSeniorSheetRow(row, i);
+        return mapSeniorSheetRow(row, i, schedule);
       } catch (err) {
         console.warn(`[teacherService] Пропущена строка ${i + 2} листа "ИТ классы" — ошибка разбора:`, err);
         return null;

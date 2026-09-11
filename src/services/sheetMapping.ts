@@ -18,6 +18,7 @@ import type {
   TeachingLanguage,
   TrainingType,
 } from '../types/teacher';
+import { getEmptySchedule, getModuleDeadlineIso, isModuleOpen, type ScheduleIndex } from './scheduleMapping';
 
 export type RawSheetRow = Record<string, string>;
 
@@ -38,7 +39,7 @@ function normalizedEntries(row: RawSheetRow | null | undefined): Map<string, str
 }
 
 /** Точный поиск по названию заголовка (после trim+lowercase) — для модулей, где важна точность (иначе "M1" случайно поймает "M10"-"M13"). */
-function findValue(row: RawSheetRow | null | undefined, candidates: string[]): string {
+export function findValue(row: RawSheetRow | null | undefined, candidates: string[]): string {
   const normalizedRow = normalizedEntries(row);
   for (const candidate of candidates) {
     const value = normalizedRow.get(normalizeHeader(candidate));
@@ -55,7 +56,7 @@ function findValue(row: RawSheetRow | null | undefined, candidates: string[]): s
  * модулей — там короткие имена вроде "M1" случайно совпали бы с "M10".
  * Никогда не бросает исключение — при отсутствии данных просто "".
  */
-function findValueFuzzy(row: RawSheetRow | null | undefined, candidates: string[]): string {
+export function findValueFuzzy(row: RawSheetRow | null | undefined, candidates: string[]): string {
   const exact = findValue(row, candidates);
   if (exact) return exact;
 
@@ -190,27 +191,44 @@ const BAND_1TO4_MODULE_NUMBERS = ['3', '4', '5', '6'];
  * Это прямое следствие active1to4/active5to9 из detectActiveBands — сама
  * функция ничего не досчитывает и не убирает по отдельным ячейкам.
  */
-function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active1to4: boolean, active5to9: boolean): ModuleResult[] {
+function pushIfOpen(results: ModuleResult[], moduleId: string, cell: { status: ModuleStatus; score: number } | null, schedule: ScheduleIndex): void {
+  if (!cell) return;
+  // Модуль, у которого график "(АЗ) График 26/27" явно указывает ещё не
+  // наступившую дату открытия, — не показываем вообще, а не просто прячем
+  // за пустой ячейкой: он ещё не должен ни считаться назначенным, ни влиять
+  // на знаменатель KPI.
+  if (!isModuleOpen(schedule, moduleId)) return;
+  const deadline = getModuleDeadlineIso(schedule, moduleId);
+  results.push(deadline ? { moduleId, ...cell, deadline } : { moduleId, ...cell });
+}
+
+function buildTeacherModuleResults(
+  row: RawSheetRow,
+  primary: GradeGroup,
+  active1to4: boolean,
+  active5to9: boolean,
+  schedule: ScheduleIndex,
+): ModuleResult[] {
   const results: ModuleResult[] = [];
 
   // M1/M2 общие для обеих параллелей — заносим один раз, под основной
   // группой учителя, чтобы не показывать их дважды у "двухпараллельных".
   for (const n of [1, 2]) {
     const cell = parseModuleCell(findValue(row, [`М${n} Статус`]), findValue(row, [`M${n}`]));
-    if (cell) results.push({ moduleId: `${primary}-M${n}`, ...cell });
+    pushIfOpen(results, `${primary}-M${n}`, cell, schedule);
   }
 
   if (active1to4) {
     for (const n of BAND_1TO4_MODULE_NUMBERS) {
       const cell = parseModuleCell(findValue(row, [`M${n} 1-4 Статус`]), findValue(row, [`M${n} 1-4`]));
-      if (cell) results.push({ moduleId: `2-4-M${n}`, ...cell });
+      pushIfOpen(results, `2-4-M${n}`, cell, schedule);
     }
   }
 
   if (active5to9) {
     for (const n of BAND_5TO9_MODULE_NUMBERS) {
       const cell = parseModuleCell(findValue(row, [`M${n} 5-9 Статус`]), findValue(row, [`M${n} 5-9`]));
-      if (cell) results.push({ moduleId: `5-9-M${n}`, ...cell });
+      pushIfOpen(results, `5-9-M${n}`, cell, schedule);
     }
   }
 
@@ -222,7 +240,11 @@ function buildTeacherModuleResults(row: RawSheetRow, primary: GradeGroup, active
  * строка "пустая" (нет ФИО) — это мусорные/фантомные строки в исходной
  * таблице, их нужно полностью исключать, а не показывать заглушкой.
  */
-export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: number): Teacher | null {
+export function mapTeachersSheetRow(
+  row: RawSheetRow | null | undefined,
+  index: number,
+  schedule: ScheduleIndex = getEmptySchedule(),
+): Teacher | null {
   if (!row) return null;
   // Строго заголовок "S.A.A." / "ФИО" — без подстрочного fallback, чтобы
   // случайно не подхватить соседний столбец (Email, FIN и т.п.).
@@ -255,7 +277,7 @@ export function mapTeachersSheetRow(row: RawSheetRow | null | undefined, index: 
     platformStatus: mapPlatformStatus(findValueFuzzy(row, [...FIELD_CANDIDATES.platformStatus])),
     classesTaught: findValueFuzzy(row, [...FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: active1to4 || active5to9,
-    moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9),
+    moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9, schedule),
     note: '',
     updatedAt: new Date().toISOString(),
   };
@@ -286,7 +308,11 @@ const SENIOR_FIELD_CANDIDATES = {
  * одновременно — по отдельности любое из этих полей уже делает учителя
  * идентифицируемым и реальным.
  */
-export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: number): Teacher | null {
+export function mapSeniorSheetRow(
+  row: RawSheetRow | null | undefined,
+  index: number,
+  schedule: ScheduleIndex = getEmptySchedule(),
+): Teacher | null {
   if (!row) return null;
   const school = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.school]);
   const lmsId = findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.lmsId]);
@@ -328,7 +354,7 @@ export function mapSeniorSheetRow(row: RawSheetRow | null | undefined, index: nu
       isOldTeacher && cell.status !== 'old_teacher' && cell.score < 70
         ? { status: 'old_teacher' as ModuleStatus, score: cell.score }
         : cell;
-    moduleResults.push({ moduleId: `10-11-M${n}`, ...finalCell });
+    pushIfOpen(moduleResults, `10-11-M${n}`, finalCell, schedule);
   }
 
   return {

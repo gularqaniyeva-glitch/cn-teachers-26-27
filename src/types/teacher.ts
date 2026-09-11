@@ -25,6 +25,8 @@ export interface ModuleResult {
   status: ModuleStatus;
   /** Процент результата модуля, 0–100 (0 при статусе "не начал") */
   score: number;
+  /** Крайний срок сдачи из листа "(АЗ) График 26/27", ISO-дата. Нет данных — undefined */
+  deadline?: string;
 }
 
 export interface Teacher {

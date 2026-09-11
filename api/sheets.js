@@ -11,6 +11,7 @@
 // Необязательные (если названия листов отличаются от значений по умолчанию):
 //   GOOGLE_SHEET_TEACHERS_TAB     — по умолчанию "Все учителя 26/27"
 //   GOOGLE_SHEET_SENIOR_TAB       — по умолчанию "ИТ классы 25/26"
+//   GOOGLE_SHEET_SCHEDULE_TAB     — по умолчанию "(АЗ) График 26/27"
 //
 // Таблицу нужно расшарить сервисному аккаунту как минимум "Читатель" —
 // саму таблицу при этом НЕ нужно делать публичной.
@@ -60,9 +61,11 @@ export default async function handler(req, res) {
 
     const teachersTabName = process.env.GOOGLE_SHEET_TEACHERS_TAB || 'Все учителя 26/27';
     const seniorTabName = process.env.GOOGLE_SHEET_SENIOR_TAB || 'ИТ классы 25/26';
+    const scheduleTabName = process.env.GOOGLE_SHEET_SCHEDULE_TAB || '(АЗ) График 26/27';
 
     const teachersSheet = doc.sheetsByTitle[teachersTabName];
     const seniorSheet = doc.sheetsByTitle[seniorTabName];
+    const scheduleSheet = doc.sheetsByTitle[scheduleTabName];
 
     if (!teachersSheet) {
       throw new Error(`Лист "${teachersTabName}" не найден в таблице. Проверьте название вкладки.`);
@@ -70,12 +73,23 @@ export default async function handler(req, res) {
     if (!seniorSheet) {
       throw new Error(`Лист "${seniorTabName}" не найден в таблице. Проверьте название вкладки.`);
     }
+    // График дедлайнов — не критичный для работы сайта источник (без него
+    // модули просто не фильтруются по датам открытия): если лист отсутствует
+    // или переименован, не роняем весь запрос, а просто отдаём пустой список.
+    if (!scheduleSheet) {
+      console.warn(`api/sheets: лист "${scheduleTabName}" не найден — график дедлайнов будет пустым.`);
+    }
 
-    const [teacherRows, seniorRows] = await Promise.all([teachersSheet.getRows(), seniorSheet.getRows()]);
+    const [teacherRows, seniorRows, scheduleRows] = await Promise.all([
+      teachersSheet.getRows(),
+      seniorSheet.getRows(),
+      scheduleSheet ? scheduleSheet.getRows() : Promise.resolve([]),
+    ]);
 
     res.status(200).json({
       teachers: rowsToObjects(teacherRows),
       senior: rowsToObjects(seniorRows),
+      schedule: rowsToObjects(scheduleRows),
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {
