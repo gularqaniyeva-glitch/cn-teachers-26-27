@@ -168,8 +168,16 @@ export function getEmptySchedule(): ScheduleIndex {
  * общих M1/M2) и по номеру модуля есть РОВНО одна запись — используем её;
  * при нескольких неоднозначных записях лучше не гадать и считать модуль
  * открытым, чем случайно спрятать реальные данные учителя.
+ *
+ * 10–11 классы (ИТ) программно начинаются с M3 — модулей "10-11-M1"/
+ * "10-11-M2" в приложении не существует и не должно (см. SENIOR_MODULE_
+ * NUMBERS в sheetMapping.ts и sharedOwners в data/constants.ts). На всякий
+ * случай явно исключаем их и здесь — общая запись M1/M2 из графика (без
+ * указанной параллели) не должна по фолбэку "притянуться" к 10-11.
  */
 function findScheduleEntry(index: ScheduleIndex, moduleId: string): ScheduleEntry | null {
+  if (moduleId === '10-11-M1' || moduleId === '10-11-M2') return null;
+
   const exact = index.byModuleId.get(moduleId);
   if (exact) return exact;
 
