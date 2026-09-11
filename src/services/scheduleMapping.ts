@@ -74,26 +74,40 @@ function parseModuleTotalKey(raw: string): { moduleNumber: string; gradeGroup: G
   return { moduleNumber, gradeGroup };
 }
 
-/** Google Sheets отдаёт дату отформатированной строкой — формат зависит от локали таблицы, поэтому пробуем несколько популярных вариантов. Любая нераспознанная строка — просто null, без исключений. */
+/**
+ * Строгий ручной разбор даты — НИКОГДА не отдаём строку во встроенный
+ * `new Date(строка)`: он неоднозначен для нецифровых ISO-форматов и на
+ * практике путает день/месяц местами (напр. декабрьский дедлайн вида
+ * "05.12.2026" мог быть прочитан как май вместо декабря и "открыться"
+ * на несколько месяцев раньше срока). Основной формат таблицы —
+ * DD.MM.YYYY; регулярка не заякорена в конце строки, потому что Google
+ * Sheets иногда добавляет к дате время ("05.12.2026 0:00:00") — берём
+ * только дату, хвост игнорируем. Любая нераспознанная/невалидная строка
+ * (несуществующая дата вроде 31.02) — просто null, без исключений.
+ */
 function parseSheetDate(raw: string): Date | null {
   const v = (raw ?? '').trim();
   if (!v) return null;
 
+  function buildDate(day: number, month: number, year: number): Date | null {
+    const date = new Date(year, month - 1, day);
+    // new Date() "перетекает" некорректный день/месяц в соседний период
+    // (напр. new Date(2026, 12, 5) молча становится 5 января 2027) —
+    // явно проверяем, что дата не поменялась при сборке.
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return date;
+  }
+
   try {
-    let m = v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
-    if (m) {
-      const date = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
+    // DD.MM.YYYY (основной формат таблицы) — так же DD/MM/YYYY на случай другого разделителя.
+    let m = v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);
+    if (m) return buildDate(Number(m[1]), Number(m[2]), Number(m[3]));
 
+    // YYYY-MM-DD (ISO) — на случай, если лист когда-нибудь отдаст даты в этом формате.
     m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) {
-      const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
+    if (m) return buildDate(Number(m[3]), Number(m[2]), Number(m[1]));
 
-    const fallback = new Date(v);
-    return Number.isNaN(fallback.getTime()) ? null : fallback;
+    return null;
   } catch {
     return null;
   }
