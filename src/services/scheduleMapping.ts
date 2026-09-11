@@ -3,6 +3,13 @@
 // вообще, дедлайн (Deadline) — с какого момента он считается просроченным.
 // Как и везде в проекте, ищем колонки ПО НАЗВАНИЮ заголовка, не по букве —
 // см. комментарий в начале sheetMapping.ts.
+//
+// Сопоставление модуля — с fallback: сперва пробуем готовый комбинированный
+// ключ из столбца "Modul Total" (напр. "M3 2-4"), а если его нет — сами
+// собираем такой же ключ из "Modul" ("M3") + "Sinif" ("2-4"). Ни разбор
+// одной строки, ни отсутствие графика целиком НЕ должны ронять загрузку
+// учителей — при любой ошибке строка просто пропускается (isModuleOpen
+// затем трактует модуль без записи в графике как открытый).
 
 import type { GradeGroup } from '../types/teacher';
 import { findValueFuzzy, type RawSheetRow } from './sheetMapping';
@@ -23,14 +30,20 @@ export interface ScheduleIndex {
 const EMPTY_SCHEDULE: ScheduleIndex = { byModuleId: new Map(), byModuleNumber: new Map() };
 
 const SCHEDULE_FIELD_CANDIDATES = {
+  // Столбец T — уже готовый ключ "модуль+параллель" (напр. "M3 2-4"), если
+  // он есть в таблице — приоритетный источник, экономит нам подбор пары.
+  moduleTotal: ['Modul Total', 'Modul total', 'Total modul', 'Modul Cəmi'],
   moduleCode: ['Modul'],
   gradeGroup: ['Sinif'],
   deadline: ['Deadline'],
   openDate: ['Açılmasını yoxla', 'Açılma tarixi', 'Açılış tarixi'],
 } as const;
 
+const GRADE_GROUP_PATTERN = /10\s*-?\s*11|x\s*-?\s*xi|5\s*-?\s*9|v\s*-?\s*ix|2\s*-?\s*4|1\s*-?\s*4|ii\s*-?\s*iv|i\s*-?\s*iv/i;
+
+/** Понимает "2-4", "2–4" (эн-дефис), "2 - 4", "2-4 classes", "II-IV" — цифры/римские с любым одним разделителем между ними. */
 function normalizeGradeGroupLabel(raw: string): GradeGroup | null {
-  const v = raw.trim().toLowerCase().replace(/\s+/g, '');
+  const v = (raw ?? '').trim().toLowerCase().replace(/\s+/g, '');
   if (!v) return null;
   if (/10.?11|x.?xi/.test(v)) return '10-11';
   if (/5.?9|v.?ix/.test(v)) return '5-9';
@@ -40,61 +53,106 @@ function normalizeGradeGroupLabel(raw: string): GradeGroup | null {
 
 /** "M9-2"/"Modul 9-2"/"9-2" → "9-2"; "M3"/"3" → "3" — тот же формат номеров, что в data/constants.ts */
 function extractModuleNumber(raw: string): string | null {
-  const cleaned = raw.trim();
+  const cleaned = (raw ?? '').trim();
   if (!cleaned) return null;
   const match = cleaned.match(/(\d+)(-2)?/);
   if (!match) return null;
   return match[2] ? `${match[1]}-2` : match[1];
 }
 
-/** Google Sheets отдаёт дату отформатированной строкой — формат зависит от локали таблицы, поэтому пробуем несколько популярных вариантов. */
-function parseSheetDate(raw: string): Date | null {
-  const v = raw.trim();
-  if (!v) return null;
-
-  let m = v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
-  if (m) {
-    const date = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) {
-    const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  const fallback = new Date(v);
-  return Number.isNaN(fallback.getTime()) ? null : fallback;
+/**
+ * Разбирает готовый комбинированный ключ из столбца "Modul Total" (напр.
+ * "M3 2-4", "M1"). Сначала находим и вырезаем часть с параллелью — так
+ * номер модуля не спутается с цифрами класса независимо от порядка слов
+ * ("M3 2-4" или "2-4 M3").
+ */
+function parseModuleTotalKey(raw: string): { moduleNumber: string; gradeGroup: GradeGroup | null } | null {
+  const gradeGroup = normalizeGradeGroupLabel(raw);
+  const withoutGrade = gradeGroup ? raw.replace(GRADE_GROUP_PATTERN, ' ') : raw;
+  const moduleNumber = extractModuleNumber(withoutGrade);
+  if (!moduleNumber) return null;
+  return { moduleNumber, gradeGroup };
 }
 
-/** Строит индекс графика из сырых строк листа. Пустой/отсутствующий лист — пустой индекс (все модули считаются открытыми, см. isModuleOpen). */
+/** Google Sheets отдаёт дату отформатированной строкой — формат зависит от локали таблицы, поэтому пробуем несколько популярных вариантов. Любая нераспознанная строка — просто null, без исключений. */
+function parseSheetDate(raw: string): Date | null {
+  const v = (raw ?? '').trim();
+  if (!v) return null;
+
+  try {
+    let m = v.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/);
+    if (m) {
+      const date = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+      const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    const fallback = new Date(v);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  } catch {
+    return null;
+  }
+}
+
+/** Определяет номер модуля и параллель для одной строки графика: приоритет — "Modul Total", запасной вариант — "Modul"+"Sinif" по отдельности. */
+function resolveModuleKey(row: RawSheetRow): { moduleNumber: string; gradeGroup: GradeGroup | null } | null {
+  const moduleTotalRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleTotal]);
+  if (moduleTotalRaw.trim()) {
+    const parsed = parseModuleTotalKey(moduleTotalRaw);
+    if (parsed) return parsed;
+  }
+
+  const moduleNumber = extractModuleNumber(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleCode]));
+  if (!moduleNumber) return null;
+  const gradeGroup = normalizeGradeGroupLabel(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.gradeGroup]));
+  return { moduleNumber, gradeGroup };
+}
+
+/**
+ * Строит индекс графика из сырых строк листа. Пустой/отсутствующий лист, а
+ * также любая ошибка при разборе (неожиданный формат ячейки и т.п.) — не
+ * повод падать: одна плохая строка пропускается, а полный сбой возвращает
+ * пустой индекс (все модули считаются открытыми, см. isModuleOpen).
+ */
 export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): ScheduleIndex {
   const byModuleId = new Map<string, ScheduleEntry>();
   const byModuleNumber = new Map<string, ScheduleEntry[]>();
   if (!rows) return { byModuleId, byModuleNumber };
 
-  for (const row of rows) {
-    const moduleNumber = extractModuleNumber(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleCode]));
-    if (!moduleNumber) continue;
+  try {
+    for (const row of rows) {
+      try {
+        const key = resolveModuleKey(row);
+        if (!key) continue;
 
-    const entry: ScheduleEntry = {
-      moduleId: '',
-      openDate: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate])),
-      deadline: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline])),
-    };
+        const entry: ScheduleEntry = {
+          moduleId: '',
+          openDate: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate])),
+          deadline: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline])),
+        };
 
-    const numberKey = `M${moduleNumber}`;
-    const list = byModuleNumber.get(numberKey) ?? [];
-    list.push(entry);
-    byModuleNumber.set(numberKey, list);
+        const numberKey = `M${key.moduleNumber}`;
+        const list = byModuleNumber.get(numberKey) ?? [];
+        list.push(entry);
+        byModuleNumber.set(numberKey, list);
 
-    const gradeGroup = normalizeGradeGroupLabel(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.gradeGroup]));
-    if (gradeGroup) {
-      const moduleId = `${gradeGroup}-M${moduleNumber}`;
-      entry.moduleId = moduleId;
-      byModuleId.set(moduleId, entry);
+        if (key.gradeGroup) {
+          const moduleId = `${key.gradeGroup}-M${key.moduleNumber}`;
+          entry.moduleId = moduleId;
+          byModuleId.set(moduleId, entry);
+        }
+      } catch (err) {
+        console.warn('scheduleMapping: пропущена строка графика — ошибка разбора:', err);
+      }
     }
+  } catch (err) {
+    console.warn('scheduleMapping: не удалось разобрать лист графика целиком — модули считаются открытыми:', err);
+    return { byModuleId: new Map(), byModuleNumber: new Map() };
   }
 
   return { byModuleId, byModuleNumber };
@@ -122,15 +180,23 @@ function findScheduleEntry(index: ScheduleIndex, moduleId: string): ScheduleEntr
   return null;
 }
 
-/** Модуль без записи в графике или без даты открытия считается открытым — график не должен случайно прятать реальные данные учителей. */
+/** Модуль без записи в графике ИЛИ без даты открытия считается открытым — график не должен случайно прятать реальные данные учителей. Никогда не бросает исключение. */
 export function isModuleOpen(index: ScheduleIndex, moduleId: string, now: Date = new Date()): boolean {
-  const entry = findScheduleEntry(index, moduleId);
-  if (!entry || !entry.openDate) return true;
-  return entry.openDate.getTime() <= now.getTime();
+  try {
+    const entry = findScheduleEntry(index, moduleId);
+    if (!entry || !entry.openDate) return true;
+    return entry.openDate.getTime() <= now.getTime();
+  } catch {
+    return true;
+  }
 }
 
-/** ISO-дата дедлайна модуля, если график её знает */
+/** ISO-дата дедлайна модуля, если график её знает. Никогда не бросает исключение. */
 export function getModuleDeadlineIso(index: ScheduleIndex, moduleId: string): string | undefined {
-  const entry = findScheduleEntry(index, moduleId);
-  return entry?.deadline ? entry.deadline.toISOString() : undefined;
+  try {
+    const entry = findScheduleEntry(index, moduleId);
+    return entry?.deadline ? entry.deadline.toISOString() : undefined;
+  } catch {
+    return undefined;
+  }
 }

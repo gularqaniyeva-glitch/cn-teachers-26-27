@@ -90,10 +90,18 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   // должна ронять всю загрузку данных.
   const teachersRaw = Array.isArray(data.teachers) ? data.teachers : [];
   const seniorRaw = Array.isArray(data.senior) ? data.senior : [];
-  // Лист графика необязателен: если его нет или он пуст, buildScheduleIndex
-  // отдаёт пустой индекс — все модули считаются открытыми, поведение сайта
-  // не меняется по сравнению с тем, что было до подключения этого листа.
-  const schedule = buildScheduleIndex(Array.isArray(data.schedule) ? data.schedule : []);
+  // Лист графика необязателен: если его нет, пуст, или его разбор чем-то
+  // неожиданно подавился — используем пустой индекс, все модули считаются
+  // открытыми, поведение сайта не меняется по сравнению с тем, что было до
+  // подключения этого листа. buildScheduleIndex сама уже не бросает
+  // исключений, но лишняя страховка здесь ничего не стоит.
+  let schedule;
+  try {
+    schedule = buildScheduleIndex(Array.isArray(data.schedule) ? data.schedule : []);
+  } catch (err) {
+    console.warn('[teacherService] Не удалось разобрать лист графика — модули считаются открытыми:', err);
+    schedule = buildScheduleIndex([]);
+  }
 
   const teachers2to9 = teachersRaw
     .map((row, i) => {
