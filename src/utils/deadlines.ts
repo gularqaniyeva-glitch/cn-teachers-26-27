@@ -50,3 +50,37 @@ export function getTeacherDeadlineStats(teacher: Teacher, now: Date = new Date()
     percent: dueModules.length > 0 ? Math.round((passedDue / dueModules.length) * 100) : null,
   };
 }
+
+/**
+ * id модуля → ISO-дата дедлайна, собранная из уже загруженного списка
+ * учителей (реальные дедлайны из графика "(АЗ) График 26/27", см.
+ * services/scheduleMapping.ts — там же дедлайн прикрепляется к каждому
+ * ModuleResult). Только для подписи под заголовком колонки модуля в
+ * таблицах — не участвует в расчёте KPI.
+ */
+export function buildModuleDeadlineMap(teachers: Teacher[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const teacher of teachers) {
+    for (const result of teacher.moduleResults) {
+      if (result.deadline && !map.has(result.moduleId)) {
+        map.set(result.moduleId, result.deadline);
+      }
+    }
+  }
+  return map;
+}
+
+/** "11.09" без года — компактная подпись под заголовком модуля в шапке таблицы */
+export function formatDeadlineShort(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}`;
+}
+
+export function isDeadlinePassed(iso: string, now: Date = new Date()): boolean {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  return date.getTime() < now.getTime();
+}

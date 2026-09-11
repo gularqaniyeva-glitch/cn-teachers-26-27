@@ -5,6 +5,7 @@ import { findModuleResultForColumn, getModuleColumnsForGroups, type ModuleColumn
 import { exportTeachersToCsv } from '../../utils/csvExport';
 import { trackExport, trackFilterApplied } from '../../utils/analytics';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
+import { buildModuleDeadlineMap } from '../../utils/deadlines';
 import { getEffectiveModuleStatus, isGroupAnomalyRow } from '../../utils/anomalies';
 import type { DisplayModuleStatus } from '../../utils/anomalies';
 import { useGroupAnomalySet } from '../../hooks/useGroupAnomalySet';
@@ -14,6 +15,7 @@ import { LmsLink } from '../ui/LmsLink';
 import { Pagination } from './Pagination';
 import { ExportMenu } from './ExportMenu';
 import { ModuleScoreCell } from './ModuleScoreCell';
+import { ModuleColumnHeader } from './ModuleColumnHeader';
 import { useT } from '../../i18n/useLocaleStore';
 import type { Dict } from '../../i18n/translations';
 
@@ -140,6 +142,9 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
   // Полный список колонок модулей для активных параллелей — уже в верном
   // порядке и с разведёнными по параллели дубликатами номеров (M3-M6).
   const moduleColumnOptions = useMemo(() => getModuleColumnsForGroups(activeGroups), [activeGroups]);
+  // Дедлайны — из уже загруженных учителей (реальные даты из графика
+  // "(АЗ) График 26/27" прикреплены к каждому ModuleResult), не отдельный запрос.
+  const moduleDeadlines = useMemo(() => buildModuleDeadlineMap(teachers), [teachers]);
 
   // Для выбора в дропдауне — один пункт на номер модуля (без дублей вроде
   // "M6 (2–4)"/"M6 (5–9)"), в том же порядке, что и moduleColumnOptions.
@@ -419,7 +424,10 @@ export function ModuleQuickListPanel({ teachers, gradeGroupOptions, onRowClick }
                     ))}
                   {displayedModuleColumns.map((col) => (
                     <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-1.5 text-center normal-case">
-                      {col.label}
+                      <ModuleColumnHeader
+                        column={col}
+                        deadlineIso={col.moduleIds.map((id) => moduleDeadlines.get(id)).find(Boolean)}
+                      />
                     </th>
                   ))}
                   {visibleKeys.has('averageScore') && (

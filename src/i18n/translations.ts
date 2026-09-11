@@ -140,6 +140,7 @@ export interface Dict {
     allGradeGroups: string;
     allModules: string;
     columnModule: string;
+    deadlinePrefix: string;
   };
   bulk: {
     changeModuleStatus: string;
@@ -396,6 +397,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Все параллели',
       allModules: 'Все модули',
       columnModule: 'Модуль',
+      deadlinePrefix: 'до',
       empty: 'Никого не найдено по этим условиям',
     },
     bulk: {
@@ -651,6 +653,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       allGradeGroups: 'Bütün paralellər',
       allModules: 'Bütün modullar',
       columnModule: 'Modul',
+      deadlinePrefix: 'son:',
       empty: 'Bu şərtlərə uyğun heç kim tapılmadı',
     },
     bulk: {

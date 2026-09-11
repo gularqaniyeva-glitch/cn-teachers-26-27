@@ -5,7 +5,9 @@ import { Badge } from '../ui/Badge';
 import { NoTranslate } from '../ui/NoTranslate';
 import { LmsLink } from '../ui/LmsLink';
 import { ModuleScoreCell } from './ModuleScoreCell';
+import { ModuleColumnHeader } from './ModuleColumnHeader';
 import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
+import { buildModuleDeadlineMap } from '../../utils/deadlines';
 import { hasAnomaly } from '../../utils/anomalies';
 import type { SortKey, SortState } from '../../utils/teacherFilters';
 import { findModuleResultForColumn, getModuleColumnsForGroups } from '../../data/constants';
@@ -61,6 +63,9 @@ export function TeacherTable({
     () => (showModuleColumns ? getModuleColumnsForGroups(gradeGroups) : []),
     [showModuleColumns, gradeGroups],
   );
+  // Дедлайны — из уже загруженных учителей (реальные даты из графика
+  // "(АЗ) График 26/27" прикреплены к каждому ModuleResult), не отдельный запрос.
+  const moduleDeadlines = useMemo(() => buildModuleDeadlineMap(teachers), [teachers]);
 
   useEffect(() => {
     if (!columnMenuOpen) return;
@@ -225,7 +230,10 @@ export function TeacherTable({
               {showModuleColumns &&
                 moduleColumns.map((col) => (
                   <th key={col.key} className="w-9 min-w-[2.25rem] px-0.5 py-2 text-center normal-case">
-                    {col.label}
+                    <ModuleColumnHeader
+                      column={col}
+                      deadlineIso={col.moduleIds.map((id) => moduleDeadlines.get(id)).find(Boolean)}
+                    />
                   </th>
                 ))}
               {averageScoreColumn && (
