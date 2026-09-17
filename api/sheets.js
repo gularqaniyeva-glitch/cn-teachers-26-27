@@ -65,7 +65,6 @@ export default async function handler(req, res) {
 
     const teachersSheet = doc.sheetsByTitle[teachersTabName];
     const seniorSheet = doc.sheetsByTitle[seniorTabName];
-    const scheduleSheet = doc.sheetsByTitle[scheduleTabName];
 
     if (!teachersSheet) {
       throw new Error(`Лист "${teachersTabName}" не найден в таблице. Проверьте название вкладки.`);
@@ -73,11 +72,30 @@ export default async function handler(req, res) {
     if (!seniorSheet) {
       throw new Error(`Лист "${seniorTabName}" не найден в таблице. Проверьте название вкладки.`);
     }
-    // График дедлайнов — не критичный для работы сайта источник (без него
-    // модули просто не фильтруются по датам открытия): если лист отсутствует
-    // или переименован, не роняем весь запрос, а просто отдаём пустой список.
+
+    // График дедлайнов — не критичный источник (без него модули просто не
+    // фильтруются по датам): если точное имя вкладки не совпало — например,
+    // из-за лишнего пробела или другого вида дефиса/скобок в названии —
+    // пробуем найти вкладку по ключевым словам, а не сразу сдаёмся на
+    // пустом графике. availableTabs в диагностике ниже как раз для этого:
+    // чтобы при следующей проверке сразу увидеть точные реальные названия
+    // листов, а не гадать.
+    let scheduleSheet = doc.sheetsByTitle[scheduleTabName];
     if (!scheduleSheet) {
-      console.warn(`api/sheets: лист "${scheduleTabName}" не найден — график дедлайнов будет пустым.`);
+      const keywords = ['график', 'qrafik', 'cədvəl', 'schedule'];
+      scheduleSheet = doc.sheetsByIndex.find((sheet) => {
+        const title = sheet.title.toLowerCase();
+        return keywords.some((kw) => title.includes(kw));
+      });
+      if (scheduleSheet) {
+        console.warn(
+          `api/sheets: лист "${scheduleTabName}" не найден точным именем, использую похожий по названию: "${scheduleSheet.title}".`,
+        );
+      } else {
+        console.warn(
+          `api/sheets: лист "${scheduleTabName}" не найден — график дедлайнов будет пустым. Доступные вкладки: ${doc.sheetsByIndex.map((s) => `"${s.title}"`).join(', ')}`,
+        );
+      }
     }
 
     const [teacherRows, seniorRows, scheduleRows] = await Promise.all([
@@ -86,10 +104,25 @@ export default async function handler(req, res) {
       scheduleSheet ? scheduleSheet.getRows() : Promise.resolve([]),
     ]);
 
+    const scheduleObjects = rowsToObjects(scheduleRows);
+    // Диагностика графика — не влияет на работу сайта, но видна на вкладке
+    // Network в браузере (ответ /api/sheets) даже без доступа к логам
+    // Vercel: какая вкладка реально использовалась и какие у неё заголовки
+    // в первой строке — по ним сразу видно, совпадают ли они с тем, что
+    // ищет scheduleMapping.ts (Modul/Modul Total/Sinif/Deadline/
+    // Açılmasını yoxla), или лист называет их иначе.
+    const scheduleDebug = {
+      matchedTab: scheduleSheet ? scheduleSheet.title : null,
+      availableTabs: doc.sheetsByIndex.map((s) => s.title),
+      rowCount: scheduleObjects.length,
+      firstRowHeaders: scheduleObjects.length > 0 ? Object.keys(scheduleObjects[0]) : [],
+    };
+
     res.status(200).json({
       teachers: rowsToObjects(teacherRows),
       senior: rowsToObjects(seniorRows),
-      schedule: rowsToObjects(scheduleRows),
+      schedule: scheduleObjects,
+      scheduleDebug,
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {

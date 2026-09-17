@@ -42,11 +42,18 @@ let currentScheduleIndex: ScheduleIndex = EMPTY_SCHEDULE;
 const SCHEDULE_FIELD_CANDIDATES = {
   // Столбец T — уже готовый ключ "модуль+параллель" (напр. "M3 2-4"), если
   // он есть в таблице — приоритетный источник, экономит нам подбор пары.
-  moduleTotal: ['Modul Total', 'Modul total', 'Total modul', 'Modul Cəmi'],
-  moduleCode: ['Modul'],
-  gradeGroup: ['Sinif'],
-  deadline: ['Deadline'],
-  openDate: ['Açılmasını yoxla', 'Açılma tarixi', 'Açılış tarixi'],
+  moduleTotal: ['Modul Total', 'Modul total', 'Total modul', 'Modul Cəmi', 'Modul cəmi'],
+  moduleCode: ['Modul', 'Modul nömrəsi', 'Module', 'Модуль'],
+  gradeGroup: ['Sinif', 'Siniflər', 'Paralel', 'Sinif/Paralel', 'Класс'],
+  deadline: ['Deadline', 'Son tarix', 'Bitmə tarixi', 'Дедлайн'],
+  openDate: [
+    'Açılmasını yoxla',
+    'Açılma tarixi',
+    'Açılış tarixi',
+    'Başlama tarixi',
+    'Açıqdır',
+    'Дата открытия',
+  ],
 } as const;
 
 const GRADE_GROUP_PATTERN = /10\s*-?\s*11|x\s*-?\s*xi|5\s*-?\s*9|v\s*-?\s*ix|2\s*-?\s*4|1\s*-?\s*4|ii\s*-?\s*iv|i\s*-?\s*iv/i;
@@ -194,6 +201,17 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
     console.warn('scheduleMapping: не удалось разобрать лист графика целиком — модули считаются открытыми:', err);
     currentScheduleIndex = { byModuleId: new Map(), byModuleNumber: new Map() };
     return currentScheduleIndex;
+  }
+
+  // Строки были, но НИ ОДНА не дала распознаваемого номера модуля — почти
+  // наверняка заголовки в реальном листе называются не так, как в
+  // SCHEDULE_FIELD_CANDIDATES. Выводим реальные заголовки первой строки в
+  // консоль — иначе выяснить это можно только вручную открыв таблицу.
+  if (rows.length > 0 && byModuleId.size === 0 && byModuleNumber.size === 0) {
+    console.warn(
+      'scheduleMapping: в листе графика есть строки, но ни одна не дала номер модуля — проверьте названия заголовков. Заголовки первой строки:',
+      Object.keys(rows[0] ?? {}),
+    );
   }
 
   currentScheduleIndex = { byModuleId, byModuleNumber };

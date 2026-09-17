@@ -25,11 +25,19 @@ import { mapSeniorSheetRow, mapTeachersSheetRow } from './sheetMapping';
 import type { RawSheetRow } from './sheetMapping';
 import { buildScheduleIndex } from './scheduleMapping';
 
+interface ScheduleDebugInfo {
+  matchedTab: string | null;
+  availableTabs: string[];
+  rowCount: number;
+  firstRowHeaders: string[];
+}
+
 interface SheetsApiResponse {
   teachers: RawSheetRow[];
   senior: RawSheetRow[];
   /** Лист "(АЗ) График 26/27" — может отсутствовать в ответе старого деплоя API, поэтому необязательное поле */
   schedule?: RawSheetRow[];
+  scheduleDebug?: ScheduleDebugInfo;
   fetchedAt: string;
 }
 
@@ -101,6 +109,23 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   } catch (err) {
     console.warn('[teacherService] Не удалось разобрать лист графика — модули считаются открытыми:', err);
     schedule = buildScheduleIndex([]);
+  }
+
+  // Диагностика графика — видна в консоли браузера (F12) без доступа к
+  // логам Vercel: какая вкладка реально совпала и какие у неё заголовки
+  // в первой строке. Если названия колонок отличаются от того, что ищет
+  // scheduleMapping.ts (Modul / Modul Total / Sinif / Deadline /
+  // Açılmasını yoxla), это будет видно сразу здесь, а не через угадывание.
+  if (data.scheduleDebug) {
+    const { matchedTab, availableTabs, rowCount, firstRowHeaders } = data.scheduleDebug;
+    if (!matchedTab || rowCount === 0) {
+      console.warn(
+        '[teacherService] График "(АЗ) График 26/27" не найден или пуст.',
+        { matchedTab, availableTabs, rowCount },
+      );
+    } else {
+      console.info('[teacherService] График модулей загружен:', { matchedTab, rowCount, firstRowHeaders });
+    }
   }
 
   const teachers2to9 = teachersRaw
