@@ -73,27 +73,46 @@ function normalizeGradeGroupLabel(raw: string): GradeGroup | null {
   return null;
 }
 
-/** "M9-2"/"M9_2"/"M9.2"/"Modul 9 2" → "9-2"; "M3"/"3" → "3" — тот же формат номеров, что в data/constants.ts */
-function extractModuleNumber(raw: string): string | null {
+/**
+ * "M9-2"/"M9_2"/"M9.2"/"Modul 9 2" → ["9-2"]; "M3"/"3" → ["3"] — тот же
+ * формат номеров, что в data/constants.ts. Особый случай: "M1-2" (и
+ * "M1_2"/"M1.2") — это НЕ "модуль 1, часть 2" (в отличие от настоящего
+ * "9-2" в программе, единственного реального многочастевого модуля), а
+ * человеческое сокращение "модули 1 и 2 вместе" в одной строке графика —
+ * M1 и M2 в каталоге всегда отдельные модули, "1-2" как единый id не
+ * существует, поэтому такая строка разворачивается сразу в оба номера.
+ */
+function extractModuleNumbers(raw: string): string[] {
   const cleaned = unifySeparators(raw);
-  if (!cleaned) return null;
+  if (!cleaned) return [];
+  const bare = cleaned.replace(/^m/i, '');
+  if (bare === '1-2') return ['1', '2'];
   const match = cleaned.match(/(\d+)(-2)?/);
-  if (!match) return null;
-  return match[2] ? `${match[1]}-2` : match[1];
+  if (!match) return [];
+  return [match[2] ? `${match[1]}-2` : match[1]];
+}
+
+/** Строки-заметки в графике ("Q&A vebinar", пустая ячейка и т.п.) — не модуль, пропускаем независимо от того, есть ли в тексте цифры. */
+const NON_MODULE_MARKERS = ['vebinar', 'webinar', 'q&a', 'qeydiyyat', 'seminar'];
+function isNonModuleText(raw: string): boolean {
+  const v = raw.trim().toLowerCase();
+  if (!v) return true;
+  return NON_MODULE_MARKERS.some((marker) => v.includes(marker));
 }
 
 /**
  * Разбирает готовый комбинированный ключ из столбца "Modul Total" (напр.
- * "M3 2-4", "M1"). Сначала находим и вырезаем часть с параллелью — так
- * номер модуля не спутается с цифрами класса независимо от порядка слов
- * ("M3 2-4" или "2-4 M3").
+ * "M3 2-4", "M1", "M1-2"). Сначала находим и вырезаем часть с параллелью —
+ * так номер модуля не спутается с цифрами класса независимо от порядка
+ * слов ("M3 2-4" или "2-4 M3").
  */
-function parseModuleTotalKey(raw: string): { moduleNumber: string; gradeGroup: GradeGroup | null } | null {
+function parseModuleTotalKey(raw: string): { moduleNumbers: string[]; gradeGroup: GradeGroup | null } | null {
+  if (isNonModuleText(raw)) return null;
   const gradeGroup = normalizeGradeGroupLabel(raw);
   const withoutGrade = gradeGroup ? raw.replace(GRADE_GROUP_PATTERN, ' ') : raw;
-  const moduleNumber = extractModuleNumber(withoutGrade);
-  if (!moduleNumber) return null;
-  return { moduleNumber, gradeGroup };
+  const moduleNumbers = extractModuleNumbers(withoutGrade);
+  if (moduleNumbers.length === 0) return null;
+  return { moduleNumbers, gradeGroup };
 }
 
 /**
@@ -135,18 +154,23 @@ function parseSheetDate(raw: string): Date | null {
   }
 }
 
-/** Определяет номер модуля и параллель для одной строки графика: приоритет — "Modul Total", запасной вариант — "Modul"+"Sinif" по отдельности. */
-function resolveModuleKey(row: RawSheetRow): { moduleNumber: string; gradeGroup: GradeGroup | null } | null {
+/** Определяет номер(а) модуля и параллель для одной строки графика: приоритет — "Modul Total", запасной вариант — "Modul"+"Sinif" по отдельности. */
+function resolveModuleKey(row: RawSheetRow): { moduleNumbers: string[]; gradeGroup: GradeGroup | null } | null {
   const moduleTotalRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleTotal]);
   if (moduleTotalRaw.trim()) {
     const parsed = parseModuleTotalKey(moduleTotalRaw);
     if (parsed) return parsed;
+    // Явно нераспознанный/нечисловой "Modul Total" (напр. "Q&A vebinar")
+    // — не пытаемся угадывать по запасным столбцам, строка НЕ про модуль.
+    if (isNonModuleText(moduleTotalRaw)) return null;
   }
 
-  const moduleNumber = extractModuleNumber(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleCode]));
-  if (!moduleNumber) return null;
+  const moduleCodeRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleCode]);
+  if (isNonModuleText(moduleCodeRaw)) return null;
+  const moduleNumbers = extractModuleNumbers(moduleCodeRaw);
+  if (moduleNumbers.length === 0) return null;
   const gradeGroup = normalizeGradeGroupLabel(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.gradeGroup]));
-  return { moduleNumber, gradeGroup };
+  return { moduleNumbers, gradeGroup };
 }
 
 /**
@@ -169,29 +193,32 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
         const key = resolveModuleKey(row);
         if (!key) continue;
 
-        const entry: ScheduleEntry = {
-          moduleId: '',
-          openDate: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate])),
-          deadline: parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline])),
-        };
+        const openDate = parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate]));
+        const deadline = parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline]));
 
-        // В фолбэк-карту по одному лишь номеру попадают ТОЛЬКО записи БЕЗ
-        // явно указанной параллели (настоящие общие M1/M2). Запись с явно
-        // указанной параллелью (напр. "M4 5-9") не должна утекать в фолбэк
-        // для ДРУГОЙ параллели ("2-4-M4") просто потому, что для той
-        // параллели нет отдельной строки в графике — это была бы неверная
-        // дата, а не отсутствие данных.
-        if (!key.gradeGroup) {
-          const numberKey = `M${key.moduleNumber}`;
-          const list = byModuleNumber.get(numberKey) ?? [];
-          list.push(entry);
-          byModuleNumber.set(numberKey, list);
-        }
+        // Обычно одна строка = один номер модуля; "M1-2" — единственное
+        // исключение (означает "M1 и M2 вместе", см. extractModuleNumbers) —
+        // тогда одна строка графика разворачивается в две отдельные записи
+        // с одинаковыми датами.
+        for (const moduleNumber of key.moduleNumbers) {
+          const entry: ScheduleEntry = { moduleId: '', openDate, deadline };
 
-        if (key.gradeGroup) {
-          const moduleId = `${key.gradeGroup}-M${key.moduleNumber}`;
-          entry.moduleId = moduleId;
-          byModuleId.set(moduleId, entry);
+          // В фолбэк-карту по одному лишь номеру попадают ТОЛЬКО записи БЕЗ
+          // явно указанной параллели (настоящие общие M1/M2). Запись с явно
+          // указанной параллелью (напр. "M4 5-9") не должна утекать в
+          // фолбэк для ДРУГОЙ параллели ("2-4-M4") просто потому, что для
+          // неё нет отдельной строки в графике — это была бы неверная дата,
+          // а не отсутствие данных.
+          if (!key.gradeGroup) {
+            const numberKey = `M${moduleNumber}`;
+            const list = byModuleNumber.get(numberKey) ?? [];
+            list.push(entry);
+            byModuleNumber.set(numberKey, list);
+          } else {
+            const moduleId = `${key.gradeGroup}-M${moduleNumber}`;
+            entry.moduleId = moduleId;
+            byModuleId.set(moduleId, entry);
+          }
         }
       } catch (err) {
         console.warn('scheduleMapping: пропущена строка графика — ошибка разбора:', err);
