@@ -303,7 +303,7 @@ export function getOverallTeacherPassStat(teachers: Teacher[]): OverallTeacherPa
   };
 }
 
-/** "46,58%" — 2 знака после запятой, запятая вместо точки (для точной сводки "Вошли/Не вошли" с листа "Statistika") */
+/** "46,58%" — 2 знака после запятой, запятая вместо точки (для точной сводки "Вошли/Не вошли") */
 export function formatPercentComma(part: number, total: number): string {
   if (!total) return '0,00%';
   return `${((part / total) * 100).toFixed(2).replace('.', ',')}%`;

@@ -1,14 +1,11 @@
 import { create } from 'zustand';
 import type { Teacher } from '../types/teacher';
 import * as teacherService from '../services/teacherService';
-import type { StatsSummary } from '../services/teacherService';
 import { getScheduleAuditInfo } from '../services/scheduleMapping';
 import { runDataAudit, type AuditIssue } from '../utils/dataAudit';
 
 interface TeacherStoreState {
   teachers: Teacher[];
-  /** Сводка "Вошли/Не вошли/Всего" с листа "Statistika" — null, если лист недоступен (напр. тестовые данные в dev-режиме); тогда карточки считают по teachers сами. */
-  statsSummary: StatsSummary | null;
   /** Расхождения, найденные системой авто-аудита при последней загрузке — см. utils/dataAudit.ts. Пустой массив — данные согласованы. */
   auditIssues: AuditIssue[];
   loading: boolean;
@@ -24,16 +21,14 @@ interface TeacherStoreState {
   updateManyTeachers: (ids: string[], patchFn: (teacher: Teacher) => Partial<Teacher>) => Promise<void>;
 }
 
-/** Собирает сводку/график/аудит из текущих сайд-каналов сервисного слоя — вызывается сразу после каждой успешной загрузки teachers. */
+/** Пересчитывает систему авто-аудита по сырым данным — вызывается сразу после каждой успешной загрузки teachers. */
 function snapshotAuxState(teachers: Teacher[]) {
-  const statsSummary = teacherService.getStatsSummary();
-  const auditIssues = runDataAudit(teachers, statsSummary, getScheduleAuditInfo());
-  return { statsSummary, auditIssues };
+  const auditIssues = runDataAudit(teachers, getScheduleAuditInfo());
+  return { auditIssues };
 }
 
 export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
   teachers: [],
-  statsSummary: null,
   auditIssues: [],
   loading: false,
   refreshing: false,

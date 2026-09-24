@@ -32,21 +32,12 @@ interface ScheduleDebugInfo {
   firstRowHeaders: string[];
 }
 
-export interface StatsSummary {
-  matchedTab: string | null;
-  entered: number | null;
-  notEntered: number | null;
-  total: number | null;
-}
-
 interface SheetsApiResponse {
   teachers: RawSheetRow[];
   senior: RawSheetRow[];
   /** Лист "(АЗ) График 26/27" — может отсутствовать в ответе старого деплоя API, поэтому необязательное поле */
   schedule?: RawSheetRow[];
   scheduleDebug?: ScheduleDebugInfo;
-  /** Сводка "Вошли/Не вошли/Всего" с листа "Statistika" — тоже необязательна, старый деплой API мог её не отдавать */
-  statsSummary?: StatsSummary;
   fetchedAt: string;
 }
 
@@ -59,14 +50,6 @@ const LOCAL_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cache: Teacher[] | null = null;
 let inFlight: Promise<Teacher[]> | null = null;
-// Сводка с листа "Statistika" — как и график, сайд-канал, а не часть
-// Teacher[] (это агрегат по всей таблице, а не поле конкретного учителя).
-let currentStatsSummary: StatsSummary | null = null;
-
-/** Последняя загруженная сводка "Вошли/Не вошли/Всего" с листа "Statistika" — null, если лист не найден/недоступен (напр. тестовые данные в dev-режиме). */
-export function getStatsSummary(): StatsSummary | null {
-  return currentStatsSummary;
-}
 
 function loadFromLocalCacheRaw(): { teachers: Teacher[]; savedAt: number } | null {
   try {
@@ -126,14 +109,6 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   } catch (err) {
     console.warn('[teacherService] Не удалось разобрать лист графика — модули считаются открытыми:', err);
     schedule = buildScheduleIndex([]);
-  }
-
-  currentStatsSummary = data.statsSummary ?? null;
-  if (currentStatsSummary && (currentStatsSummary.entered === null || currentStatsSummary.notEntered === null || currentStatsSummary.total === null)) {
-    console.warn(
-      '[teacherService] Лист "Statistika" найден, но не все значения (Вошли/Не вошли/Всего) распознаны — карточки "Главной" досчитаются по учителям.',
-      currentStatsSummary,
-    );
   }
 
   // Диагностика графика — видна в консоли браузера (F12) без доступа к

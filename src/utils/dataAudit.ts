@@ -1,10 +1,14 @@
-// Система авто-аудита целостности данных — запускается при каждой
+// Система авто-аудита целостности СЫРЫХ данных — запускается при каждой
 // загрузке/обновлении (см. store/useTeacherStore.ts) и НИКОГДА не
 // блокирует и не ломает работу сайта: это просто список найденных
 // расхождений для значка "⚠️ Аудит данных" в шапке (Layout.tsx).
+//
+// Лист "Statistika" больше не используется нигде в приложении — все KPI
+// считаются напрямую по сырым данным листа "Все учителя 26/27" (см.
+// utils/stats.ts), поэтому и проверки здесь идут по тем же сырым данным,
+// а не по стороннему агрегату.
 
 import type { Teacher } from '../types/teacher';
-import type { StatsSummary } from '../services/teacherService';
 import type { ScheduleAuditInfo } from '../services/scheduleMapping';
 
 export interface AuditIssue {
@@ -12,39 +16,75 @@ export interface AuditIssue {
   message: string;
 }
 
-export function runDataAudit(
+/** Находит поле с повторяющимся непустым значением у нескольких учителей (FIN, LMS ID и т.п.) — одно сводное сообщение на поле, а не по записи на каждый дубликат. */
+function findDuplicateIssue(
   teachers: Teacher[],
-  statsSummary: StatsSummary | null,
-  scheduleAudit: ScheduleAuditInfo,
-): AuditIssue[] {
+  keyFn: (t: Teacher) => string,
+  fieldLabel: string,
+  id: string,
+): AuditIssue | null {
+  const groups = new Map<string, Teacher[]>();
+  for (const teacher of teachers) {
+    const key = keyFn(teacher).trim();
+    if (!key) continue;
+    const list = groups.get(key) ?? [];
+    list.push(teacher);
+    groups.set(key, list);
+  }
+
+  const duplicates = [...groups.entries()].filter(([, list]) => list.length > 1);
+  if (duplicates.length === 0) return null;
+
+  const affectedTeachers = duplicates.reduce((sum, [, list]) => sum + list.length, 0);
+  const [exampleKey, exampleTeachers] = duplicates[0];
+  const exampleNames = exampleTeachers.map((t) => t.fullName).join(', ');
+
+  return {
+    id,
+    message: `Обнаружено ${duplicates.length} повторяющихся значений ${fieldLabel} (всего ${affectedTeachers} учителей). Например, "${exampleKey}": ${exampleNames}.`,
+  };
+}
+
+export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditInfo): AuditIssue[] {
   const issues: AuditIssue[] = [];
 
-  // Проверка 1: "Вошли" + "Не вошли" должно совпадать со "Всего" на листе Statistika.
-  if (statsSummary && statsSummary.entered != null && statsSummary.notEntered != null && statsSummary.total != null) {
-    const sum = statsSummary.entered + statsSummary.notEntered;
-    if (sum !== statsSummary.total) {
-      issues.push({
-        id: 'stats-sum-mismatch',
-        message: `Лист "Statistika": "Вошли" (${statsSummary.entered}) + "Не вошли" (${statsSummary.notEntered}) = ${sum}, а указано "Всего" = ${statsSummary.total}.`,
-      });
-    }
-  }
-
-  // Проверка 2: расхождение количества учителей между Statistika и реестром (листы "Все учителя" + "ИТ классы").
-  if (statsSummary?.total != null && teachers.length !== statsSummary.total) {
+  // Проверка 1: "Вошли" + "Не вошли" должно совпадать со "Всего учителей" —
+  // оба показателя считаются прямым подсчётом по одному и тому же массиву
+  // учителей (лист "Все учителя 26/27"), поэтому расхождение возможно
+  // только при реальном сбое подсчёта.
+  const total = teachers.length;
+  const entered = teachers.filter((t) => t.platformStatus === 'entered').length;
+  const notEntered = teachers.filter((t) => t.platformStatus === 'not_entered').length;
+  if (entered + notEntered !== total) {
     issues.push({
-      id: 'stats-registry-mismatch',
-      message: `На листе "Statistika" указано ${statsSummary.total} учителей, а в реестре загружено ${teachers.length}.`,
+      id: 'entered-sum-mismatch',
+      message: `Расхождение в подсчёте: "Вошли" (${entered}) + "Не вошли" (${notEntered}) = ${entered + notEntered}, а всего учителей — ${total}.`,
     });
   }
 
-  // Проверка 3: формат дат в графике "(АЗ) График 26/27" (ожидается DD.MM.YYYY).
-  if (scheduleAudit.invalidDateCount > 0) {
+  // Проверка 2: формат и наличие дат в графике "(АЗ) График 26/27" —
+  // столбцы S (Açılmasını yoxla) и T (Deadline), ожидается DD.MM.YYYY.
+  if (scheduleAudit.invalidDateCount > 0 || scheduleAudit.emptyDateCount > 0) {
+    const parts: string[] = [];
+    if (scheduleAudit.invalidDateCount > 0) {
+      parts.push(`${scheduleAudit.invalidDateCount} дат(ы) в нераспознанном формате`);
+    }
+    if (scheduleAudit.emptyDateCount > 0) {
+      parts.push(`${scheduleAudit.emptyDateCount} пустых ячеек даты`);
+    }
     issues.push({
       id: 'schedule-invalid-dates',
-      message: `В листе "(АЗ) График 26/27" ${scheduleAudit.invalidDateCount} дат(ы) в нераспознанном формате (ожидается DD.MM.YYYY) — эти модули по умолчанию считаются открытыми.`,
+      message: `В листе "(АЗ) График 26/27" найдены проблемы с датами (столбцы S/T): ${parts.join(', ')} (ожидается DD.MM.YYYY) — такие модули по умолчанию считаются открытыми.`,
     });
   }
+
+  // Проверка 3: дубликаты учителей по FIN.
+  const finDuplicate = findDuplicateIssue(teachers, (t) => t.fin, 'FIN', 'fin-duplicates');
+  if (finDuplicate) issues.push(finDuplicate);
+
+  // Проверка 4: дубликаты учителей по LMS ID.
+  const lmsIdDuplicate = findDuplicateIssue(teachers, (t) => t.lmsId, 'LMS ID', 'lmsid-duplicates');
+  if (lmsIdDuplicate) issues.push(lmsIdDuplicate);
 
   return issues;
 }

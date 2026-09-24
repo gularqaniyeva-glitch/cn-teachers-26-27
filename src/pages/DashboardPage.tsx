@@ -20,7 +20,7 @@ import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
 export function DashboardPage() {
-  const { teachers, statsSummary, loading, error, load, reload } = useTeacherStore();
+  const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeDetailGroup, setActiveDetailGroup] = useState<GradeGroup>('2-4');
   const passByGroupRef = useRef<HTMLDivElement>(null);
@@ -40,18 +40,14 @@ export function DashboardPage() {
 
   // Та же единая база, что и на странице "Статистика": учителя без
   // назначенного класса исключены из знаменателя КАЖДОЙ верхней карточки,
-  // иначе "Всего учителей" и "Прошли курс" считают по-разному.
+  // иначе "Всего учителей" и "Прошли курс" считают по-разному. Все три
+  // верхние карточки считаются напрямую по сырым данным листа "Все
+  // учителя 26/27" — никаких промежуточных листов (Statistika и др.).
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
   const overview = getOverviewStats(eligibleTeachers);
-  // Лист "Statistika" — авторитетный источник для трёх верхних карточек,
-  // если он найден и все три значения (Вошли/Не вошли/Всего) распознаны;
-  // иначе считаем по загруженным учителям, как и раньше (dev-режим с
-  // тестовыми данными, лист переименован/недоступен и т.п.).
-  const hasStatsSummary =
-    statsSummary?.total != null && statsSummary?.entered != null && statsSummary?.notEntered != null;
-  const total = hasStatsSummary ? statsSummary!.total! : overview.total;
-  const entered = hasStatsSummary ? statsSummary!.entered! : overview.entered;
-  const notEntered = hasStatsSummary ? statsSummary!.notEntered! : overview.notEntered;
+  const total = overview.total;
+  const entered = overview.entered;
+  const notEntered = overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);

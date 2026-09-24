@@ -34,7 +34,7 @@ type StatTab = 'overview' | '2-4' | '5-9';
 const MODULE_TABS: StatTab[] = ['overview', '2-4', '5-9'];
 
 export function StatisticsPage() {
-  const { teachers, statsSummary, loading, error, load, reload } = useTeacherStore();
+  const { teachers, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeTab, setActiveTab] = useState<StatTab>('overview');
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
@@ -74,17 +74,14 @@ export function StatisticsPage() {
   // Единая база для ВСЕХ KPI-карточек этой страницы — учителя без
   // назначенного класса/параллели (hasAssignedClass=false) исключены из
   // знаменателя везде одинаково, иначе разные карточки считают "всего
-  // учителей" по-разному (напр. 5183 против 5054) и цифры расходятся.
+  // учителей" по-разному (напр. 5183 против 5054) и цифры расходятся. Все
+  // показатели считаются напрямую по сырым данным листа "Все учителя
+  // 26/27" — без зависимости от промежуточных листов (Statistika и др.).
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
   const overview = getOverviewStats(eligibleTeachers);
-  // Тот же авторитетный источник, что и на "Главной" — лист "Statistika",
-  // если он найден и все три значения распознаны; иначе считаем по
-  // загруженным учителям (dev-режим, лист переименован и т.п.).
-  const hasStatsSummary =
-    statsSummary?.total != null && statsSummary?.entered != null && statsSummary?.notEntered != null;
-  const total = hasStatsSummary ? statsSummary!.total! : eligibleTeachers.length || 1;
-  const platformEntered = hasStatsSummary ? statsSummary!.entered! : overview.entered;
-  const platformNotEntered = hasStatsSummary ? statsSummary!.notEntered! : overview.notEntered;
+  const total = eligibleTeachers.length || 1;
+  const platformEntered = overview.entered;
+  const platformNotEntered = overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
