@@ -154,6 +154,7 @@ export function StatisticsPage() {
               icon={Award}
               accent="violet"
               sublabel={`${overallTeacherPass.passedTeachers} ${t.common.of} ${overallTeacherPass.totalTeachers} · ${t.statistics.kpiAttestationHint}`}
+              tooltip={t.statistics.kpiAttestationTooltip}
             />
             <StatCard
               label={t.statistics.kpiPlatformActivityTitle}
@@ -161,6 +162,7 @@ export function StatisticsPage() {
               icon={Activity}
               accent="emerald"
               sublabel={`${t.platformStatus.entered}: ${platformEntered} · ${t.platformStatus.notEntered}: ${platformNotEntered}`}
+              tooltip={t.statistics.kpiPlatformActivityTooltip}
             />
           </div>
 

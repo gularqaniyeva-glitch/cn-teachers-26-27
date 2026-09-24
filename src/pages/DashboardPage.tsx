@@ -66,7 +66,13 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t.dashboard.totalTeachers} value={total} icon={Users} accent="blue" />
+        <StatCard
+          label={t.dashboard.totalTeachers}
+          value={total}
+          icon={Users}
+          accent="blue"
+          tooltip={t.dashboard.totalTeachersTooltip}
+        />
         <StatCard
           label={t.dashboard.entered}
           value={entered}
@@ -98,6 +104,7 @@ export function DashboardPage() {
           параллель. */}
       <Card
         title={t.dashboard.moduleStatsTitle}
+        titleTooltip={t.dashboard.moduleStatsTooltip}
         action={<DownloadPngButton targetRef={passByGroupRef} filename="proshli-kurs-po-parallelyam.png" />}
       >
         <div ref={passByGroupRef} className="space-y-4 bg-white">
@@ -120,6 +127,7 @@ export function DashboardPage() {
 
       <Card
         title={t.dashboard.moduleDetailTitle}
+        titleTooltip={t.dashboard.moduleDetailTooltip}
         action={
           <DownloadPngButton
             targetRef={moduleHeatmapRef}

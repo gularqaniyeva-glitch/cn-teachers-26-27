@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { AuditBadge } from './AuditBadge';
 import { useT } from '../../i18n/useLocaleStore';
 
 export function Layout() {
@@ -25,7 +26,8 @@ export function Layout() {
             </button>
             <span className="text-sm font-semibold text-slate-900">{t.nav.brandTitle}</span>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <AuditBadge />
             <LanguageSwitcher />
           </div>
         </header>

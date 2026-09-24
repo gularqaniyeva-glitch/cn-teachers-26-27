@@ -2,11 +2,15 @@ import { create } from 'zustand';
 import type { Teacher } from '../types/teacher';
 import * as teacherService from '../services/teacherService';
 import type { StatsSummary } from '../services/teacherService';
+import { getScheduleAuditInfo } from '../services/scheduleMapping';
+import { runDataAudit, type AuditIssue } from '../utils/dataAudit';
 
 interface TeacherStoreState {
   teachers: Teacher[];
   /** Сводка "Вошли/Не вошли/Всего" с листа "Statistika" — null, если лист недоступен (напр. тестовые данные в dev-режиме); тогда карточки считают по teachers сами. */
   statsSummary: StatsSummary | null;
+  /** Расхождения, найденные системой авто-аудита при последней загрузке — см. utils/dataAudit.ts. Пустой массив — данные согласованы. */
+  auditIssues: AuditIssue[];
   loading: boolean;
   /** Ручное обновление данных (кнопка "🔄 Обновить данные") — отдельно от начальной загрузки */
   refreshing: boolean;
@@ -20,9 +24,17 @@ interface TeacherStoreState {
   updateManyTeachers: (ids: string[], patchFn: (teacher: Teacher) => Partial<Teacher>) => Promise<void>;
 }
 
+/** Собирает сводку/график/аудит из текущих сайд-каналов сервисного слоя — вызывается сразу после каждой успешной загрузки teachers. */
+function snapshotAuxState(teachers: Teacher[]) {
+  const statsSummary = teacherService.getStatsSummary();
+  const auditIssues = runDataAudit(teachers, statsSummary, getScheduleAuditInfo());
+  return { statsSummary, auditIssues };
+}
+
 export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
   teachers: [],
   statsSummary: null,
+  auditIssues: [],
   loading: false,
   refreshing: false,
   error: null,
@@ -35,9 +47,9 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
       // Отдаём сохранённые локально данные мгновенно (если есть), а свежую
       // версию из Google Sheets подтягиваем в фоне без повторного "loading".
       const teachers = await teacherService.getTeachersStaleWhileRevalidate((fresh) => {
-        set({ teachers: fresh, statsSummary: teacherService.getStatsSummary() });
+        set({ teachers: fresh, ...snapshotAuxState(fresh) });
       });
-      set({ teachers, statsSummary: teacherService.getStatsSummary(), loading: false, loaded: true });
+      set({ teachers, ...snapshotAuxState(teachers), loading: false, loaded: true });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Не удалось загрузить список учителей', loading: false });
     }
@@ -47,7 +59,7 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
     set({ refreshing: true, error: null });
     try {
       const teachers = await teacherService.reloadTeachers();
-      set({ teachers, statsSummary: teacherService.getStatsSummary(), refreshing: false, loaded: true });
+      set({ teachers, ...snapshotAuxState(teachers), refreshing: false, loaded: true });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Не удалось обновить данные', refreshing: false });
     }

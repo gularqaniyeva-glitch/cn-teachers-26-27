@@ -12,6 +12,10 @@ export interface Dict {
     seniorGrades: string;
     statistics: string;
   };
+  audit: {
+    badgeLabel: string;
+    panelTitle: string;
+  };
   common: {
     search: string;
     reset: string;
@@ -88,6 +92,9 @@ export interface Dict {
     successRateTooltip: string;
     enteredTooltip: string;
     notEnteredTooltip: string;
+    totalTeachersTooltip: string;
+    moduleStatsTooltip: string;
+    moduleDetailTooltip: string;
     teachersPassedFormat: string;
     moduleGridEmpty: string;
   };
@@ -204,7 +211,9 @@ export interface Dict {
     tabOverview: string;
     kpiAttestationTitle: string;
     kpiAttestationHint: string;
+    kpiAttestationTooltip: string;
     kpiPlatformActivityTitle: string;
+    kpiPlatformActivityTooltip: string;
     trainingTypeSummaryTitle: string;
     columnTeacherCount: string;
     columnEnteredPercent: string;
@@ -258,6 +267,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       teachers: 'Учителя (2–9 классы)',
       seniorGrades: '10–11 классы (ИТ)',
       statistics: 'Статистика',
+    },
+    audit: {
+      badgeLabel: 'Аудит данных',
+      panelTitle: 'Найденные расхождения',
     },
     common: {
       search: 'Поиск по ФИО, школе, FIN или LMS ID…',
@@ -343,9 +356,12 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleStatsTitle: 'Прошли курс (по параллелям)',
       moduleDetailTitle: 'Детализация по каждому модулю',
       passedOf: 'сдали',
-      successRateTooltip: 'Учитель считается прошедшим курс, если у него сданы (≥70%) все назначенные модули, либо у него статус «Старый учитель».',
-      enteredTooltip: 'Учителя, которые хотя бы раз заходили на обучающую платформу.',
-      notEnteredTooltip: 'Учителя, которые ни разу не заходили на платформу — у них все модули со статусом «Не начал».',
+      successRateTooltip: 'Процент и количество учителей, успешно завершивших (≥70%) все модули, дедлайн по которым УЖЕ НАСТУПИЛ на текущий день, либо имеющих статус «Старый учитель». Модули с ещё не наступившим дедлайном не считаются провалом и не входят в знаменатель.',
+      enteredTooltip: 'Количество и процент учителей, совершивших хотя бы один вход в LMS.',
+      notEnteredTooltip: 'Количество и процент учителей, которые ещё ни разу не заходили на платформу.',
+      totalTeachersTooltip: 'Общее количество учителей, зарегистрированных в системе (данные из листа «Statistika»).',
+      moduleStatsTooltip: 'Доля учителей в разрезе параллелей 2–4, 5–9 и 10–11 классов, выполнивших уже актуальные (с наступившим дедлайном) задания.',
+      moduleDetailTooltip: 'Средняя успеваемость и процент сдавших отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели.',
       teachersPassedFormat: '{passed} из {total} учителей прошли курс ({percent}%)',
       moduleGridEmpty: 'Нет данных по этой параллели',
     },
@@ -462,7 +478,9 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       tabOverview: 'Общая статистика',
       kpiAttestationTitle: 'Сдали аттестацию',
       kpiAttestationHint: '% учителей, сдавших все свои модули (или статус OLD)',
+      kpiAttestationTooltip: 'Процент и количество учителей, успешно завершивших все модули, дедлайн по которым уже наступил на текущий день (либо имеющих статус «Старый учитель»). Модули с ещё не наступившим дедлайном не считаются провалом.',
       kpiPlatformActivityTitle: 'Активность на платформе',
+      kpiPlatformActivityTooltip: 'Доля учителей, совершивших хотя бы один вход в LMS, по данным листа «Statistika».',
       trainingTypeSummaryTitle: 'Сводка по типам обучения',
       columnTeacherCount: 'Учителей',
       columnEnteredPercent: '% заходивших',
@@ -514,6 +532,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       teachers: 'Müəllimlər (2–9-cu siniflər)',
       seniorGrades: '10–11-ci siniflər (İT)',
       statistics: 'Statistika',
+    },
+    audit: {
+      badgeLabel: 'Məlumat auditi',
+      panelTitle: 'Aşkar edilmiş uyğunsuzluqlar',
     },
     common: {
       search: 'Ad, soyad, məktəb, FİN və ya LMS ID üzrə axtarış…',
@@ -599,9 +621,12 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleStatsTitle: 'Kursu keçdi (paralellər üzrə)',
       moduleDetailTitle: 'Hər modul üzrə təfərrüat',
       passedOf: 'keçdi',
-      successRateTooltip: 'Müəllim, təyin edilmiş bütün modulları (≥70%) keçibsə, ya da «Köhnə müəllim» statusundadırsa, kursu keçmiş sayılır.',
-      enteredTooltip: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlər.',
-      notEnteredTooltip: 'Platformaya heç vaxt daxil olmayan müəllimlər — bütün modulları «Başlamayıb» statusundadır.',
+      successRateTooltip: 'Son tarixi ARTIQ ÇATMIŞ bütün modulları (≥70%) uğurla tamamlamış (ya da «Köhnə müəllim» statuslu) müəllimlərin faizi və sayı. Son tarixi hələ çatmamış modullar uğursuzluq sayılmır və məxrəcə daxil edilmir.',
+      enteredTooltip: 'Ən azı bir dəfə LMS-ə daxil olmuş müəllimlərin sayı və faizi.',
+      notEnteredTooltip: 'Platformaya hələ heç vaxt daxil olmayan müəllimlərin sayı və faizi.',
+      totalTeachersTooltip: 'Sistemdə qeydiyyatdan keçmiş ümumi müəllim sayı ("Statistika" vərəqindən).',
+      moduleStatsTooltip: '2–4, 5–9 və 10–11-ci siniflər üzrə aktual (son tarixi çatmış) tapşırıqları yerinə yetirmiş müəllimlərin payı.',
+      moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca orta göstərici və keçən faizi.',
       teachersPassedFormat: '{total} müəllimdən {passed}-i kursu keçib ({percent}%)',
       moduleGridEmpty: 'Bu paralel üzrə məlumat yoxdur',
     },
@@ -718,7 +743,9 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       tabOverview: 'Ümumi statistika',
       kpiAttestationTitle: 'Attestasiyanı keçdi',
       kpiAttestationHint: 'bütün modulları keçmiş (və ya OLD statuslu) müəllimlərin %-i',
+      kpiAttestationTooltip: 'Son tarixi artıq çatmış bütün modulları uğurla tamamlamış (ya da «Köhnə müəllim» statuslu) müəllimlərin faizi və sayı. Son tarixi hələ çatmamış modullar uğursuzluq sayılmır.',
       kpiPlatformActivityTitle: 'Platformada aktivlik',
+      kpiPlatformActivityTooltip: '"Statistika" vərəqinə əsasən LMS-ə ən azı bir dəfə daxil olmuş müəllimlərin payı.',
       trainingTypeSummaryTitle: 'Təhsil növləri üzrə xülasə',
       columnTeacherCount: 'Müəllim',
       columnEnteredPercent: '% daxil olub',

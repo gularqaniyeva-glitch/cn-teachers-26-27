@@ -39,6 +39,23 @@ const EMPTY_SCHEDULE: ScheduleIndex = { byModuleId: new Map(), byModuleNumber: n
 // teacherService.ts — вызывается один раз на загрузку/обновление данных).
 let currentScheduleIndex: ScheduleIndex = EMPTY_SCHEDULE;
 
+export interface ScheduleAuditInfo {
+  /** Всего строк в листе графика */
+  totalRows: number;
+  /** Из них — строк, где удалось распознать хотя бы один номер модуля */
+  matchedModuleRows: number;
+  /** Ячеек даты (Açılmasını yoxla/Deadline), которые были НЕ пустыми, но не распознались как DD.MM.YYYY */
+  invalidDateCount: number;
+}
+
+const EMPTY_AUDIT: ScheduleAuditInfo = { totalRows: 0, matchedModuleRows: 0, invalidDateCount: 0 };
+let currentScheduleAudit: ScheduleAuditInfo = EMPTY_AUDIT;
+
+/** Диагностика последнего разбора графика — для системы авто-аудита (см. utils/dataAudit.ts) */
+export function getScheduleAuditInfo(): ScheduleAuditInfo {
+  return currentScheduleAudit;
+}
+
 const SCHEDULE_FIELD_CANDIDATES = {
   // Столбец T — уже готовый ключ "модуль+параллель" (напр. "M3 2-4"), если
   // он есть в таблице — приоритетный источник, экономит нам подбор пары.
@@ -182,8 +199,12 @@ function resolveModuleKey(row: RawSheetRow): { moduleNumbers: string[]; gradeGro
 export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): ScheduleIndex {
   const byModuleId = new Map<string, ScheduleEntry>();
   const byModuleNumber = new Map<string, ScheduleEntry[]>();
+  let matchedModuleRows = 0;
+  let invalidDateCount = 0;
+
   if (!rows) {
     currentScheduleIndex = { byModuleId, byModuleNumber };
+    currentScheduleAudit = EMPTY_AUDIT;
     return currentScheduleIndex;
   }
 
@@ -192,9 +213,17 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
       try {
         const key = resolveModuleKey(row);
         if (!key) continue;
+        matchedModuleRows += 1;
 
-        const openDate = parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate]));
-        const deadline = parseSheetDate(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline]));
+        const openDateRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openDate]);
+        const deadlineRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline]);
+        const openDate = parseSheetDate(openDateRaw);
+        const deadline = parseSheetDate(deadlineRaw);
+        // Ячейка была непустой, но дату распознать не удалось (не формат
+        // DD.MM.YYYY/YYYY-MM-DD, либо несуществующая дата) — это реальная
+        // проблема формата, а не "нет данных", считаем для аудита.
+        if (openDateRaw.trim() && !openDate) invalidDateCount += 1;
+        if (deadlineRaw.trim() && !deadline) invalidDateCount += 1;
 
         // Обычно одна строка = один номер модуля; "M1-2" — единственное
         // исключение (означает "M1 и M2 вместе", см. extractModuleNumbers) —
@@ -227,6 +256,7 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
   } catch (err) {
     console.warn('scheduleMapping: не удалось разобрать лист графика целиком — модули считаются открытыми:', err);
     currentScheduleIndex = { byModuleId: new Map(), byModuleNumber: new Map() };
+    currentScheduleAudit = { totalRows: rows.length, matchedModuleRows, invalidDateCount };
     return currentScheduleIndex;
   }
 
@@ -242,6 +272,7 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
   }
 
   currentScheduleIndex = { byModuleId, byModuleNumber };
+  currentScheduleAudit = { totalRows: rows.length, matchedModuleRows, invalidDateCount };
   return currentScheduleIndex;
 }
 
