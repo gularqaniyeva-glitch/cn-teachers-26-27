@@ -8,6 +8,7 @@ import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
 import {
+  formatPercentComma,
   formatTeachersPassed,
   getModuleStatsForGroup,
   getOverallTeacherPassStat,
@@ -19,7 +20,7 @@ import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
 
 export function DashboardPage() {
-  const { teachers, loading, error, load, reload } = useTeacherStore();
+  const { teachers, statsSummary, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeDetailGroup, setActiveDetailGroup] = useState<GradeGroup>('2-4');
   const passByGroupRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,15 @@ export function DashboardPage() {
   // иначе "Всего учителей" и "Прошли курс" считают по-разному.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
   const overview = getOverviewStats(eligibleTeachers);
+  // Лист "Statistika" — авторитетный источник для трёх верхних карточек,
+  // если он найден и все три значения (Вошли/Не вошли/Всего) распознаны;
+  // иначе считаем по загруженным учителям, как и раньше (dev-режим с
+  // тестовыми данными, лист переименован/недоступен и т.п.).
+  const hasStatsSummary =
+    statsSummary?.total != null && statsSummary?.entered != null && statsSummary?.notEntered != null;
+  const total = hasStatsSummary ? statsSummary!.total! : overview.total;
+  const entered = hasStatsSummary ? statsSummary!.entered! : overview.entered;
+  const notEntered = hasStatsSummary ? statsSummary!.notEntered! : overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);
@@ -56,21 +66,21 @@ export function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label={t.dashboard.totalTeachers} value={overview.total} icon={Users} accent="blue" />
+        <StatCard label={t.dashboard.totalTeachers} value={total} icon={Users} accent="blue" />
         <StatCard
           label={t.dashboard.entered}
-          value={overview.entered}
+          value={entered}
           icon={LogIn}
           accent="emerald"
-          sublabel={`${Math.round((overview.entered / (overview.total || 1)) * 100)}% ${t.dashboard.ofTotal}`}
+          sublabel={`${formatPercentComma(entered, total)} ${t.dashboard.ofTotal}`}
           tooltip={t.dashboard.enteredTooltip}
         />
         <StatCard
           label={t.dashboard.notEntered}
-          value={overview.notEntered}
+          value={notEntered}
           icon={LogOut}
           accent="rose"
-          sublabel={`${Math.round((overview.notEntered / (overview.total || 1)) * 100)}% ${t.dashboard.ofTotal}`}
+          sublabel={`${formatPercentComma(notEntered, total)} ${t.dashboard.ofTotal}`}
           tooltip={t.dashboard.notEnteredTooltip}
         />
         <StatCard

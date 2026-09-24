@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import type { Teacher } from '../types/teacher';
 import * as teacherService from '../services/teacherService';
+import type { StatsSummary } from '../services/teacherService';
 
 interface TeacherStoreState {
   teachers: Teacher[];
+  /** Сводка "Вошли/Не вошли/Всего" с листа "Statistika" — null, если лист недоступен (напр. тестовые данные в dev-режиме); тогда карточки считают по teachers сами. */
+  statsSummary: StatsSummary | null;
   loading: boolean;
   /** Ручное обновление данных (кнопка "🔄 Обновить данные") — отдельно от начальной загрузки */
   refreshing: boolean;
@@ -19,6 +22,7 @@ interface TeacherStoreState {
 
 export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
   teachers: [],
+  statsSummary: null,
   loading: false,
   refreshing: false,
   error: null,
@@ -31,9 +35,9 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
       // Отдаём сохранённые локально данные мгновенно (если есть), а свежую
       // версию из Google Sheets подтягиваем в фоне без повторного "loading".
       const teachers = await teacherService.getTeachersStaleWhileRevalidate((fresh) => {
-        set({ teachers: fresh });
+        set({ teachers: fresh, statsSummary: teacherService.getStatsSummary() });
       });
-      set({ teachers, loading: false, loaded: true });
+      set({ teachers, statsSummary: teacherService.getStatsSummary(), loading: false, loaded: true });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Не удалось загрузить список учителей', loading: false });
     }
@@ -43,7 +47,7 @@ export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
     set({ refreshing: true, error: null });
     try {
       const teachers = await teacherService.reloadTeachers();
-      set({ teachers, refreshing: false, loaded: true });
+      set({ teachers, statsSummary: teacherService.getStatsSummary(), refreshing: false, loaded: true });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Не удалось обновить данные', refreshing: false });
     }

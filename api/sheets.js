@@ -12,6 +12,7 @@
 //   GOOGLE_SHEET_TEACHERS_TAB     — по умолчанию "Все учителя 26/27"
 //   GOOGLE_SHEET_SENIOR_TAB       — по умолчанию "ИТ классы 25/26"
 //   GOOGLE_SHEET_SCHEDULE_TAB     — по умолчанию "(АЗ) График 26/27"
+//   GOOGLE_SHEET_STATS_TAB        — по умолчанию "Statistika"
 //
 // Таблицу нужно расшарить сервисному аккаунту как минимум "Читатель" —
 // саму таблицу при этом НЕ нужно делать публичной.
@@ -45,6 +46,70 @@ function rowsToObjects(rows) {
     }
   }
   return result;
+}
+
+// Лист "Statistika" — не таблица с заголовком в первой строке, а
+// небольшой блок "метка | значение" (напр. строки "Вошли на платформу" /
+// "Не вошли" / "Всего" в столбце A и числа рядом). row.toObject() тут не
+// подходит (нет единого заголовка на всю таблицу), поэтому читаем ячейки
+// напрямую через loadCells() и ищем строки ПО ТЕКСТУ метки, а не по
+// фиксированной букве столбца — если строки в блоке переставят местами,
+// сайт не сломается. "startsWith" (не includes) — иначе "Не вошли"
+// случайно совпал бы с поиском "вошли" (это подстрока "не вошли").
+const ENTERED_LABELS = ['вошли', 'daxil oldu', 'daxil olub', 'entered'];
+const NOT_ENTERED_LABELS = ['не вошли', 'daxil olmayıb', 'daxil olmadı', 'not entered'];
+const TOTAL_LABELS = ['всего', 'cəmi', 'ümumi', 'total'];
+
+function matchesLabel(text, patterns) {
+  const v = String(text ?? '').trim().toLowerCase();
+  if (!v) return false;
+  return patterns.some((p) => v.startsWith(p));
+}
+
+async function readStatsSummary(doc) {
+  const empty = { matchedTab: null, entered: null, notEntered: null, total: null };
+  const tabName = process.env.GOOGLE_SHEET_STATS_TAB || 'Statistika';
+
+  let sheet = doc.sheetsByTitle[tabName];
+  if (!sheet) {
+    const keywords = ['statistika', 'статистика', 'stats'];
+    sheet = doc.sheetsByIndex.find((s) => keywords.some((kw) => s.title.toLowerCase().includes(kw)));
+  }
+  if (!sheet) {
+    console.warn(`api/sheets: лист "${tabName}" не найден — карточки "Главной" посчитаются по учителям, как раньше.`);
+    return empty;
+  }
+
+  try {
+    const rowCount = Math.min(sheet.rowCount || 20, 30);
+    const colCount = Math.min(sheet.columnCount || 6, 6);
+    await sheet.loadCells({ startRowIndex: 0, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: colCount });
+
+    function findValue(patterns) {
+      for (let r = 0; r < rowCount; r++) {
+        let hasLabel = false;
+        let numericValue = null;
+        for (let c = 0; c < colCount; c++) {
+          const cell = sheet.getCell(r, c);
+          const value = cell.value;
+          if (typeof value === 'string' && matchesLabel(value, patterns)) hasLabel = true;
+          else if (typeof value === 'number' && numericValue === null) numericValue = value;
+        }
+        if (hasLabel && numericValue !== null) return numericValue;
+      }
+      return null;
+    }
+
+    return {
+      matchedTab: sheet.title,
+      entered: findValue(ENTERED_LABELS),
+      notEntered: findValue(NOT_ENTERED_LABELS),
+      total: findValue(TOTAL_LABELS),
+    };
+  } catch (err) {
+    console.warn(`api/sheets: не удалось прочитать сводку с листа "${sheet.title}":`, err);
+    return { ...empty, matchedTab: sheet.title };
+  }
 }
 
 export default async function handler(req, res) {
@@ -98,10 +163,11 @@ export default async function handler(req, res) {
       }
     }
 
-    const [teacherRows, seniorRows, scheduleRows] = await Promise.all([
+    const [teacherRows, seniorRows, scheduleRows, statsSummary] = await Promise.all([
       teachersSheet.getRows(),
       seniorSheet.getRows(),
       scheduleSheet ? scheduleSheet.getRows() : Promise.resolve([]),
+      readStatsSummary(doc),
     ]);
 
     const scheduleObjects = rowsToObjects(scheduleRows);
@@ -123,6 +189,7 @@ export default async function handler(req, res) {
       senior: rowsToObjects(seniorRows),
       schedule: scheduleObjects,
       scheduleDebug,
+      statsSummary,
       fetchedAt: new Date().toISOString(),
     });
   } catch (err) {

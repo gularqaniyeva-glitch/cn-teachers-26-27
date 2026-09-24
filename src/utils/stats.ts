@@ -1,4 +1,4 @@
-import type { GradeGroup, ModuleDefinition, Teacher, TrainingType } from '../types/teacher';
+import type { GradeGroup, ModuleDefinition, ModuleResult, Teacher, TrainingType } from '../types/teacher';
 import { LIFECYCLE_STATUSES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
@@ -47,18 +47,33 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
 }
 
 /**
- * Процент выполнения здесь считается по ВСЕМ модулям, УЖЕ открытым по
- * графику "(АЗ) График 26/27" (см. services/scheduleMapping.ts) — модуль
- * с датой открытия в будущем сюда вообще не попадает, teacher.moduleResults
- * его не содержит. Отдельная метрика "сколько из уже просроченных по
- * дедлайну сдано" — getTeacherDeadlineStats (см. utils/deadlines.ts),
- * используется только в карточке учителя (DeadlineStatsBar), а не в общих
- * KPI на Главной/Статистике.
+ * Модуль с датой открытия в будущем по графику "(АЗ) График 26/27" вообще
+ * не попадает в teacher.moduleResults (см. services/scheduleMapping.ts) —
+ * это решает, ПОКАЗЫВАЕТСЯ ли модуль вообще. Отдельный, более строгий
+ * вопрос — должен ли уже ОТКРЫТЫЙ, но ещё не сданный модуль (статус "не
+ * начал") засчитываться в знаменатель "Прошли курс": да, если по нему уже
+ * наступил дедлайн (время сдать было), и нет — если срок ещё не истёк
+ * (рано считать это провалом/0%). Учителя, сдавшие ДОСРОЧНО (любой статус
+ * кроме "не начал"), учитываются сразу независимо от дедлайна — досрочная
+ * сдача не наказывается. Нет данных о дедлайне у модуля (график не
+ * покрывает его) — прежнее permissive-поведение, модуль считается как
+ * раньше (не прячем реальные данные из-за пробела в графике).
  */
-export const useDeadlines = false;
+function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
+  if (result.status !== 'not_started') return true;
+  if (!result.deadline) return true;
+  const deadline = new Date(result.deadline);
+  if (Number.isNaN(deadline.getTime())) return true;
+  return deadline.getTime() <= now.getTime();
+}
+
+/** Модули учителя, которые прямо сейчас входят в знаменатель "Прошли курс" — см. isModuleDueForPassRate. */
+function moduleResultsDueForPassRate(teacher: Teacher, now: Date): ModuleResult[] {
+  return teacher.moduleResults.filter((r) => isModuleDueForPassRate(r, now));
+}
 
 export interface TeacherOverallStats {
-  /** Всего модулей, реально назначенных этому учителю */
+  /** Всего модулей, реально назначенных этому учителю И уже входящих в знаменатель (см. isModuleDueForPassRate) */
   assigned: number;
   /** Сколько из них сдано успешно */
   passed: number;
@@ -67,14 +82,16 @@ export interface TeacherOverallStats {
 }
 
 /**
- * Успеваемость учителя от ВСЕХ назначенных ему модулей — без учёта
- * дедлайнов (вкладки с дедлайнами в источнике данных пока нет). Когда
- * дедлайны появятся, здесь и в местах её использования подключится
- * utils/deadlines.ts вместо этой функции.
+ * Успеваемость учителя по модулям, которые уже входят в знаменатель
+ * "Прошли курс" — открытые модули, у которых либо есть реальная попытка
+ * (в т.ч. досрочная), либо уже наступил дедлайн (см. isModuleDueForPassRate).
+ * Ещё не сданный модуль с не наступившим дедлайном просто не учитывается,
+ * а не считается провалом с 0%.
  */
-export function getTeacherOverallStats(teacher: Teacher): TeacherOverallStats {
-  const assigned = teacher.moduleResults.length;
-  const passed = teacher.moduleResults.filter((r) => r.status === 'passed').length;
+export function getTeacherOverallStats(teacher: Teacher, now: Date = new Date()): TeacherOverallStats {
+  const counted = moduleResultsDueForPassRate(teacher, now);
+  const assigned = counted.length;
+  const passed = counted.filter((r) => r.status === 'passed').length;
   return { assigned, passed, percent: assigned > 0 ? Math.round((passed / assigned) * 100) : 0 };
 }
 
@@ -226,14 +243,19 @@ export function getOverallPassPercent(teachers: Teacher[]): number {
 
 /**
  * "Прошёл курс" — считаем по УЧИТЕЛЮ (человеку), а не по сумме отдельных
- * модулей: все его назначенные модули набрали >=70%. Модули со статусом
- * old_teacher по бизнес-правилу исключаются из проверки (таких учителей
- * не считаем должниками) — если после исключения ничего не остаётся,
- * учитель всё равно засчитывается прошедшим.
+ * модулей: все его модули, уже входящие в знаменатель "Прошли курс" (см.
+ * isModuleDueForPassRate — сдан досрочно, либо уже наступил дедлайн),
+ * набрали >=70%. Модули со статусом old_teacher по бизнес-правилу
+ * исключаются из проверки (таких учителей не считаем должниками) — если
+ * после исключения ничего не остаётся, учитель всё равно засчитывается
+ * прошедшим. Если у учителя ВООБЩЕ нет ни одного модуля, входящего в
+ * знаменатель прямо сейчас (ничего не сдано и ничего ещё не просрочено),
+ * его рано засчитывать прошедшим — courses just started.
  */
-export function hasTeacherPassedCourse(teacher: Teacher): boolean {
-  const relevant = teacher.moduleResults.filter((r) => r.status !== 'old_teacher');
-  if (relevant.length === 0) return teacher.moduleResults.length > 0;
+export function hasTeacherPassedCourse(teacher: Teacher, now: Date = new Date()): boolean {
+  const counted = moduleResultsDueForPassRate(teacher, now);
+  const relevant = counted.filter((r) => r.status !== 'old_teacher');
+  if (relevant.length === 0) return counted.length > 0;
   return relevant.every((r) => r.score >= PASS_THRESHOLD);
 }
 
@@ -254,7 +276,7 @@ export interface GradeGroupTeacherPassStat {
 export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
   return groups.map((group) => {
     const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-    const passedTeachers = groupTeachers.filter(hasTeacherPassedCourse).length;
+    const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedCourse(te)).length;
     return {
       group,
       totalTeachers: groupTeachers.length,
@@ -273,12 +295,18 @@ export interface OverallTeacherPassStat {
 /** То же самое, но по всем учителям сразу (для верхней KPI-карточки) */
 export function getOverallTeacherPassStat(teachers: Teacher[]): OverallTeacherPassStat {
   const eligible = teachers.filter((te) => te.hasAssignedClass);
-  const passedTeachers = eligible.filter(hasTeacherPassedCourse).length;
+  const passedTeachers = eligible.filter((te) => hasTeacherPassedCourse(te)).length;
   return {
     totalTeachers: eligible.length,
     passedTeachers,
     percent: eligible.length > 0 ? Math.round((passedTeachers / eligible.length) * 100) : 0,
   };
+}
+
+/** "46,58%" — 2 знака после запятой, запятая вместо точки (для точной сводки "Вошли/Не вошли" с листа "Statistika") */
+export function formatPercentComma(part: number, total: number): string {
+  if (!total) return '0,00%';
+  return `${((part / total) * 100).toFixed(2).replace('.', ',')}%`;
 }
 
 /** Подставляет {passed}/{total}/{percent} в шаблон вида "{passed} из {total} учителей..." */

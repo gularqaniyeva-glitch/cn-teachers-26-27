@@ -11,6 +11,7 @@ import { ModuleBreakdownTable } from '../components/statistics/ModuleBreakdownTa
 import { ModulePassRateChart } from '../components/statistics/ModulePassRateChart';
 import {
   countByKey,
+  formatPercentComma,
   formatTeachersPassed,
   getModulePassRateByLifecycle,
   getModulePassRateByTrainingType,
@@ -33,7 +34,7 @@ type StatTab = 'overview' | '2-4' | '5-9';
 const MODULE_TABS: StatTab[] = ['overview', '2-4', '5-9'];
 
 export function StatisticsPage() {
-  const { teachers, loading, error, load, reload } = useTeacherStore();
+  const { teachers, statsSummary, loading, error, load, reload } = useTeacherStore();
   const t = useT();
   const [activeTab, setActiveTab] = useState<StatTab>('overview');
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
@@ -75,8 +76,15 @@ export function StatisticsPage() {
   // знаменателя везде одинаково, иначе разные карточки считают "всего
   // учителей" по-разному (напр. 5183 против 5054) и цифры расходятся.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
-  const total = eligibleTeachers.length || 1;
   const overview = getOverviewStats(eligibleTeachers);
+  // Тот же авторитетный источник, что и на "Главной" — лист "Statistika",
+  // если он найден и все три значения распознаны; иначе считаем по
+  // загруженным учителям (dev-режим, лист переименован и т.п.).
+  const hasStatsSummary =
+    statsSummary?.total != null && statsSummary?.entered != null && statsSummary?.notEntered != null;
+  const total = hasStatsSummary ? statsSummary!.total! : eligibleTeachers.length || 1;
+  const platformEntered = hasStatsSummary ? statsSummary!.entered! : overview.entered;
+  const platformNotEntered = hasStatsSummary ? statsSummary!.notEntered! : overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
@@ -149,10 +157,10 @@ export function StatisticsPage() {
             />
             <StatCard
               label={t.statistics.kpiPlatformActivityTitle}
-              value={`${Math.round((overview.entered / total) * 100)}%`}
+              value={formatPercentComma(platformEntered, total)}
               icon={Activity}
               accent="emerald"
-              sublabel={`${t.platformStatus.entered}: ${overview.entered} · ${t.platformStatus.notEntered}: ${overview.notEntered}`}
+              sublabel={`${t.platformStatus.entered}: ${platformEntered} · ${t.platformStatus.notEntered}: ${platformNotEntered}`}
             />
           </div>
 
