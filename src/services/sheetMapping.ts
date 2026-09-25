@@ -94,10 +94,44 @@ function mapLifecycleFromStartYear(raw: string): TeacherLifecycleStatus {
   return latestYear >= 2025 ? 'NEW' : 'OLD';
 }
 
+// ВАЖНО: отрицание проверяем ПЕРВЫМ и через startsWith — "не заходил"/
+// "не вошёл"/"daxil olmayıb" содержат "заходил"/"вошёл"/"daxil" как
+// подстроку, поэтому простой positive.includes() на полной строке ложно
+// засчитывал "не заходил" как "заходил" (тот же класс бага, что раньше
+// был на листе "Statistika" — там его чинили через startsWith).
+const PLATFORM_STATUS_NEGATIVE = [
+  'не заходил',
+  'не вошёл',
+  'не вошел',
+  'нет',
+  'daxil olmayıb',
+  'daxil olmadı',
+  'no',
+  'false',
+  '0',
+  '-',
+  '—',
+];
+const PLATFORM_STATUS_POSITIVE = [
+  'заходил',
+  'вошёл',
+  'вошел',
+  'да',
+  'yes',
+  'bəli',
+  'entered',
+  'daxil olub',
+  'daxil oldu',
+  '+',
+  'true',
+  '1',
+];
+
 function mapPlatformStatus(raw: string): PlatformStatus {
   const v = raw.trim().toLowerCase();
-  const positive = ['да', 'заходил', 'вошёл', 'вошел', 'yes', 'bəli', 'entered', '+', 'true', '1'];
-  return positive.some((p) => v === p || v.includes(p)) ? 'entered' : 'not_entered';
+  if (!v) return 'not_entered';
+  if (PLATFORM_STATUS_NEGATIVE.some((p) => v === p || v.startsWith(p))) return 'not_entered';
+  return PLATFORM_STATUS_POSITIVE.some((p) => v === p || v.includes(p)) ? 'entered' : 'not_entered';
 }
 
 const ERROR_VALUE_MARKERS = ['none', 'null', 'undefined', '#n/a'];
@@ -163,7 +197,7 @@ const FIELD_CANDIDATES = {
   sector: ['Bölmə AZ/RU/AZ-RU'],
   format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi', 'Tədris növü', 'Тип обучения'],
   startYear: ['Başlama ili - yeni məlumat lms', 'Başlama ili', 'Год начала'],
-  platformStatus: ['Статус входа на платформу', 'Статус входа', 'LMS daxil'],
+  platformStatus: ['Статус входа на платформу', 'Статус входа', 'Заходил', 'LMS daxil', 'Daxil olub'],
   classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)', 'Классы учителя', 'sinif'],
 } as const;
 

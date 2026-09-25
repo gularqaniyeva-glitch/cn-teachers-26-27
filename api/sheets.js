@@ -102,10 +102,18 @@ export default async function handler(req, res) {
       }
     }
 
+    // ВАЖНО: getRows() без явного limit по умолчанию берёт максимум
+    // (sheet.rowCount - 1) строк — а sheet.rowCount это НЕ количество строк
+    // с данными, а размер сетки листа в Google Sheets (может быть меньше
+    // реального числа заполненных строк, если сетка не была расширена).
+    // Из-за этого часть реальных учителей в конце листа молча обрезалась.
+    // Передаём заведомо большой limit, чтобы всегда забирать ВСЕ строки
+    // листа независимо от размера его сетки.
+    const MAX_ROWS = 20000;
     const [teacherRows, seniorRows, scheduleRows] = await Promise.all([
-      teachersSheet.getRows(),
-      seniorSheet.getRows(),
-      scheduleSheet ? scheduleSheet.getRows() : Promise.resolve([]),
+      teachersSheet.getRows({ limit: MAX_ROWS }),
+      seniorSheet.getRows({ limit: MAX_ROWS }),
+      scheduleSheet ? scheduleSheet.getRows({ limit: MAX_ROWS }) : Promise.resolve([]),
     ]);
 
     const scheduleObjects = rowsToObjects(scheduleRows);

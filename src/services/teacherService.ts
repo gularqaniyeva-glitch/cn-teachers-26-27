@@ -149,6 +149,29 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
     })
     .filter((teacher): teacher is Teacher => teacher !== null);
 
+  // Отладочный лог для прозрачности (F12 → Console): реальные посчитанные
+  // цифры после парсинга — можно сразу сверить с Google-таблицей, не
+  // гадая, что там сосчиталось внутри. Числа считаются здесь заново, а не
+  // берутся откуда-то ещё — то, что видно в консоли, это ровно то, что
+  // попадёт на "Главную".
+  const entered2to9 = teachers2to9.filter((t) => t.platformStatus === 'entered').length;
+  const enteredSenior = teachersSenior.filter((t) => t.platformStatus === 'entered').length;
+  const allTeachersCount = teachers2to9.length + teachersSenior.length;
+  const allEnteredCount = entered2to9 + enteredSenior;
+  const platformStatusHeaderGuess = teachersRaw.length > 0
+    ? Object.keys(teachersRaw[0]).find((h) => /заход|вход|daxil/i.test(h)) ?? null
+    : null;
+  console.log('[RAW_CHECK]', {
+    teachersSheetRawRows: teachersRaw.length,
+    teachersSheetParsedRows: teachers2to9.length,
+    seniorSheetRawRows: seniorRaw.length,
+    seniorSheetParsedRows: teachersSenior.length,
+    totalRows: allTeachersCount,
+    columnX_Name: platformStatusHeaderGuess,
+    enteredCount: allEnteredCount,
+    notEnteredCount: allTeachersCount - allEnteredCount,
+  });
+
   return [...teachers2to9, ...teachersSenior];
 }
 
