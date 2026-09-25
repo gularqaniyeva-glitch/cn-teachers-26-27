@@ -101,7 +101,7 @@ function moduleResultsDueForPassRate(teacher: Teacher, now: Date): ModuleResult[
 }
 
 export interface TeacherOverallStats {
-  /** Всего модулей, реально назначенных этому учителю И уже входящих в знаменатель (см. isModuleDueForPassRate) */
+  /** Всего модулей, реально назначенных этому учителю прямо сейчас (M1/M2 + M3 каждой активной параллели и т.д.) — все открытые модули из его программы, вне зависимости от дедлайна */
   assigned: number;
   /** Сколько из них сдано успешно */
   passed: number;
@@ -110,16 +110,18 @@ export interface TeacherOverallStats {
 }
 
 /**
- * Успеваемость учителя по модулям, которые уже входят в знаменатель
- * "Прошли курс" — открытые модули, у которых либо есть реальная попытка
- * (в т.ч. досрочная), либо уже наступил дедлайн (см. isModuleDueForPassRate).
- * Ещё не сданный модуль с не наступившим дедлайном просто не учитывается,
- * а не считается провалом с 0%.
+ * "Сдано X из Y назначенных модулей" для отображения в таблице/карточке
+ * учителя — Y это ВСЕ модули, реально открытые и относящиеся к программе
+ * учителя (teacher.moduleResults уже отфильтрован по isModuleOpen при
+ * разборе листа, см. sheetMapping.ts), а не только те, что уже входят в
+ * дедлайн-знаменатель "Прошли курс" (это отдельная, более строгая метрика —
+ * см. isModuleDueForPassRate/hasTeacherPassedCourse). Иначе учитель, у
+ * которого назначено 3 модуля, но ни по одному ещё не наступил дедлайн,
+ * ошибочно показывался бы как "нет данных" вместо "Сдано 0 из 3".
  */
-export function getTeacherOverallStats(teacher: Teacher, now: Date = new Date()): TeacherOverallStats {
-  const counted = moduleResultsDueForPassRate(teacher, now);
-  const assigned = counted.length;
-  const passed = counted.filter((r) => r.status === 'passed').length;
+export function getTeacherOverallStats(teacher: Teacher): TeacherOverallStats {
+  const assigned = teacher.moduleResults.length;
+  const passed = teacher.moduleResults.filter((r) => r.status === 'passed').length;
   return { assigned, passed, percent: assigned > 0 ? Math.round((passed / assigned) * 100) : 0 };
 }
 
