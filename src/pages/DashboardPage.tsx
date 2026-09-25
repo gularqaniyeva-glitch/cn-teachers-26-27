@@ -12,7 +12,6 @@ import {
   formatTeachersPassed,
   getModuleStatsForGroup,
   getOverallTeacherPassStat,
-  getOverviewStats,
   getTeacherPassStatsByGradeGroup,
 } from '../utils/stats';
 import { GRADE_GROUPS } from '../data/constants';
@@ -38,16 +37,21 @@ export function DashboardPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  // Та же единая база, что и на странице "Статистика": учителя без
-  // назначенного класса исключены из знаменателя КАЖДОЙ верхней карточки,
-  // иначе "Всего учителей" и "Прошли курс" считают по-разному. Все три
-  // верхние карточки считаются напрямую по сырым данным листа "Все
-  // учителя 26/27" — никаких промежуточных листов (Statistika и др.).
+  // "Всего учителей"/"Вошли"/"Не вошли" — строго сырой подсчёт по листу
+  // "Все учителя 26/27" (2–9 классы): ВСЕ валидные строки этого листа, без
+  // исключения учителей без назначенного класса и без учителей 10–11
+  // классов (отдельный лист "ИТ классы") — именно так эти три цифры
+  // напрямую сверяются с Google-таблицей. gradeGroup у учителей с этого
+  // листа никогда не '10-11' (см. mapTeachersSheetRow/mapSeniorSheetRow).
+  const teachersMainSheet = teachers.filter((te) => te.gradeGroup !== '10-11');
+  const total = teachersMainSheet.length;
+  const entered = teachersMainSheet.filter((te) => te.platformStatus === 'entered').length;
+  const notEntered = total - entered;
+  // "Прошли курс" — отдельная метрика по ФИЗИЧЕСКИМ учителям С НАЗНАЧЕННЫМ
+  // классом, сразу по всем параллелям, включая 10–11 (см. карточку ниже) —
+  // учителя без класса структурно не могут "пройти курс", у них нет
+  // назначенных модулей.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
-  const overview = getOverviewStats(eligibleTeachers);
-  const total = overview.total;
-  const entered = overview.entered;
-  const notEntered = overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);
