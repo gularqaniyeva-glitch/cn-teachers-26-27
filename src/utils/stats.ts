@@ -129,7 +129,7 @@ export interface ModuleStat {
   moduleId: string;
   shortTitle: string;
   group: GradeGroup;
-  /** Всего учителей, которым модуль назначен по программе — для M1/M2 это ВСЯ система (обе параллели), а не только текущая вкладка */
+  /** Всего учителей ЭТОЙ параллели (вкладки), которым назначен модуль */
   assigned: number;
   /** Сколько из них сдали: балл >=70% либо статус "Старый учитель" */
   passed: number;
@@ -139,13 +139,14 @@ export interface ModuleStat {
 const SHARED_MODULE_SHORT_TITLES = new Set(['M1', 'M2']);
 
 /**
- * Статистика по каждому модулю ОДНОЙ параллели, с "умным" знаменателем:
- * - M1/M2 общие для 2–4 и 5–9 и назначены НЕЗАВИСИМО от параллели —
- *   поэтому их база (знаменатель) это ВСЕ учителя основных 2–9 классов
- *   сразу (обе параллели вместе), а не только те, кто относится к
- *   текущей вкладке.
- * - M3 и далее — база строго по учителям, которым назначена именно эта
- *   параллель (включая тех, кто ведёт сразу обе — getAssignedGradeGroups).
+ * Статистика по каждому модулю ОДНОЙ параллели (вкладки) — единый
+ * знаменатель для ВСЕХ карточек этой вкладки, включая M1/M2: население —
+ * учителя, которым назначена именно эта параллель (включая тех, кто
+ * ведёт сразу обе — getAssignedGradeGroups), а НЕ вся система 2–9 разом.
+ * M1/M2 общие (единственный результат на учителя, под его "основной"
+ * параллелью — 2-4-M1 либо 5-9-M1), поэтому для них по-прежнему
+ * проверяются ОБА возможных id — иначе результат "двухпараллельного"
+ * учителя, сохранённый под другой параллелью, не найдётся.
  * В числитель ("сдали") попадают только те, у кого балл >=70%, либо
  * статус "Старый учитель" (по бизнес-правилу их не считаем должниками).
  * Учителя без назначенного класса (hasAssignedClass=false) исключены из
@@ -153,13 +154,10 @@ const SHARED_MODULE_SHORT_TITLES = new Set(['M1', 'M2']);
  */
 export function getModuleStatsForGroup(teachers: Teacher[], group: GradeGroup): ModuleStat[] {
   const eligible = teachers.filter((te) => te.hasAssignedClass);
-  const sharedPopulation = eligible.filter((te) => te.gradeGroup !== '10-11');
+  const population = eligible.filter((te) => getAssignedGradeGroups(te).includes(group));
 
   return modulesForGrade(group).map((m) => {
     const shared = SHARED_MODULE_SHORT_TITLES.has(m.shortTitle);
-    const population = shared
-      ? sharedPopulation
-      : eligible.filter((te) => getAssignedGradeGroups(te).includes(group));
     const moduleIdsToCheck = shared ? [`2-4-${m.shortTitle}`, `5-9-${m.shortTitle}`] : [m.id];
 
     let assigned = 0;
@@ -303,19 +301,20 @@ export interface GradeGroupTeacherPassStat {
  * входят ни в одну параллель — их результаты видны в таблицах, но в этот
  * KPI они не в знаменателе ни одной группы.
  *
- * ВАЖНО: считаем строго по teacher.gradeGroup (одна, "основная" параллель
- * на учителя), а НЕ по getAssignedGradeGroups (может вернуть сразу
- * несколько параллелей — на реальных данных поле "Классы учителя" прямо
- * говорит "Начальная, Средняя" примерно у трети учителей, это не ошибка
- * парсинга, а настоящее двойное назначение). При суммировании по
- * getAssignedGradeGroups сумма totalTeachers по всем параллелям превышала
- * общее число учителей с классом (напр. 7850 вместо 5867) — с
- * gradeGroup сумма по построению равна total ровно, каждый учитель
- * попадает РОВНО в одну параллель для этого KPI.
+ * ВАЖНО: считаем по getAssignedGradeGroups (может вернуть сразу
+ * несколько параллелей) — ТА ЖЕ база, что и в "Детализации по каждому
+ * модулю" (getModuleStatsForGroup), чтобы знаменатель для "2–4 классы"
+ * был ОДИНАКОВЫМ и в верхнем блоке KPI, и в карточках модулей внизу той
+ * же страницы. Учитель с записью "Начальная, Средняя" в сырых данных
+ * (настоящее двойное назначение, не ошибка парсинга) поэтому попадает
+ * И в "2–4", И в "5–9" — сумма totalTeachers по трём параллелям поэтому
+ * может ПРЕВЫШАТЬ общее число учителей с классом, это ожидаемо и
+ * отражает реальность, а не баг двойного счёта одного и того же
+ * учителя в одной и той же категории.
  */
 export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
   return groups.map((group) => {
-    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && te.gradeGroup === group);
+    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
     const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedCourse(te)).length;
     return {
       group,
