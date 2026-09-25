@@ -19,6 +19,8 @@ export interface ScheduleEntry {
   moduleId: string;
   openDate: Date | null;
   deadline: Date | null;
+  /** Явный флаг из столбца "Открыть курс" (TRUE/FALSE) — если задан, это авторитетный сигнал (человек/формула в таблице), приоритетнее сравнения дат. null — колонка пустая/отсутствует, тогда используется сравнение по openDate. */
+  openOverride: boolean | null;
 }
 
 export interface ScheduleIndex {
@@ -73,6 +75,12 @@ const SCHEDULE_FIELD_CANDIDATES = {
     'Açıqdır',
     'Дата открытия',
   ],
+  // Явный TRUE/FALSE-флаг "открыт ли курс сейчас" — если в таблице есть
+  // такая колонка, это прямое решение людей/формулы, ведущих график, и
+  // оно надёжнее, чем наше собственное сравнение дат (разные форматы,
+  // часовые пояса и т.п.). Используется как приоритетный сигнал в
+  // isModuleOpen/isModuleConfirmedOpen, см. ниже.
+  openFlag: ['Открыть курс', 'Açıq', 'Open', 'Kursu aç'],
 } as const;
 
 const GRADE_GROUP_PATTERN = /10\s*-?\s*11|x\s*-?\s*xi|5\s*-?\s*9|v\s*-?\s*ix|2\s*-?\s*4|1\s*-?\s*4|ii\s*-?\s*iv|i\s*-?\s*iv/i;
@@ -173,6 +181,15 @@ function parseSheetDate(raw: string): Date | null {
   }
 }
 
+/** "TRUE"/"да"/"+"/"1" → true; "FALSE"/"нет"/"-"/"0" → false; пусто/нераспознано → null (нет явного решения, используем даты). */
+function parseOpenFlag(raw: string): boolean | null {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (!v) return null;
+  if (['true', 'да', 'bəli', '+', '1', 'yes'].includes(v)) return true;
+  if (['false', 'нет', 'xeyr', 'yox', '-', '0', 'no'].includes(v)) return false;
+  return null;
+}
+
 /** Определяет номер(а) модуля и параллель для одной строки графика: приоритет — "Modul Total", запасной вариант — "Modul"+"Sinif" по отдельности. */
 function resolveModuleKey(row: RawSheetRow): { moduleNumbers: string[]; gradeGroup: GradeGroup | null } | null {
   const moduleTotalRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleTotal]);
@@ -222,6 +239,7 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
         const deadlineRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.deadline]);
         const openDate = parseSheetDate(openDateRaw);
         const deadline = parseSheetDate(deadlineRaw);
+        const openOverride = parseOpenFlag(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.openFlag]));
         // Ячейка была непустой, но дату распознать не удалось (не формат
         // DD.MM.YYYY/YYYY-MM-DD, либо несуществующая дата) — это реальная
         // проблема формата, а не "нет данных", считаем для аудита.
@@ -238,7 +256,7 @@ export function buildScheduleIndex(rows: RawSheetRow[] | null | undefined): Sche
         // тогда одна строка графика разворачивается в две отдельные записи
         // с одинаковыми датами.
         for (const moduleNumber of key.moduleNumbers) {
-          const entry: ScheduleEntry = { moduleId: '', openDate, deadline };
+          const entry: ScheduleEntry = { moduleId: '', openDate, deadline, openOverride };
 
           // В фолбэк-карту по одному лишь номеру попадают ТОЛЬКО записи БЕЗ
           // явно указанной параллели (настоящие общие M1/M2). Запись с явно
@@ -319,11 +337,22 @@ function findScheduleEntry(index: ScheduleIndex, moduleId: string): ScheduleEntr
   return null;
 }
 
-/** Модуль без записи в графике ИЛИ без даты открытия считается открытым — график не должен случайно прятать реальные данные учителей. Никогда не бросает исключение. */
+/**
+ * Модуль без записи в графике ИЛИ без даты открытия считается открытым —
+ * график не должен случайно прятать реальные данные учителей. Никогда не
+ * бросает исключение.
+ *
+ * Если в строке графика задан явный флаг "Открыть курс" (TRUE/FALSE) —
+ * это решение людей/формулы, ведущих таблицу, и оно приоритетнее
+ * сравнения дат (может отличаться от даты, если открытие сознательно
+ * отложили/ускорили вручную).
+ */
 export function isModuleOpen(index: ScheduleIndex, moduleId: string, now: Date = new Date()): boolean {
   try {
     const entry = findScheduleEntry(index, moduleId);
-    if (!entry || !entry.openDate) return true;
+    if (!entry) return true;
+    if (entry.openOverride !== null) return entry.openOverride;
+    if (!entry.openDate) return true;
     return entry.openDate.getTime() <= now.getTime();
   } catch {
     return true;
@@ -342,7 +371,9 @@ export function isModuleOpen(index: ScheduleIndex, moduleId: string, now: Date =
 export function isModuleConfirmedOpen(index: ScheduleIndex, moduleId: string, now: Date = new Date()): boolean {
   try {
     const entry = findScheduleEntry(index, moduleId);
-    if (!entry || !entry.openDate) return false;
+    if (!entry) return false;
+    if (entry.openOverride !== null) return entry.openOverride;
+    if (!entry.openDate) return false;
     return entry.openDate.getTime() <= now.getTime();
   } catch {
     return false;
