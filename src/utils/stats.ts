@@ -86,9 +86,21 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
  * засчитывались как просроченный провал. Правило теперь строгое и
  * симметричное: НЕ начатый модуль входит в знаменатель ТОЛЬКО если у него
  * есть распознанный дедлайн И этот дедлайн уже наступил.
+ *
+ * ИСКЛЮЧЕНИЕ — M1 и M2: это вводные модули, назначенные СРАЗУ всем
+ * учителям с классами (в отличие от M3+, которые открываются постепенно
+ * по параллели). Для них дедлайн-отсрочка не действует — они входят в
+ * знаменатель "Прошли курс" всегда, как только назначены, вне
+ * зависимости от того, наступил ли официальный дедлайн сдачи. Учитель,
+ * не приступивший к M1/M2, не должен засчитываться "прошедшим курс"
+ * только потому, что формальный срок сдачи этих двух модулей ещё не
+ * наступил — в отличие от M3+, где такая отсрочка обоснована (решение
+ * пользователя, 2026-09).
  */
 function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
   if (result.status !== 'not_started') return true;
+  const isFoundationalModule = result.moduleId.endsWith('-M1') || result.moduleId.endsWith('-M2');
+  if (isFoundationalModule) return true;
   if (!result.deadline) return false;
   const deadline = new Date(result.deadline);
   if (Number.isNaN(deadline.getTime())) return false;
