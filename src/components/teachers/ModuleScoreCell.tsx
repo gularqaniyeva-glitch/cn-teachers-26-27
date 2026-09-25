@@ -11,15 +11,22 @@ interface ModuleScoreCellProps {
   colorOverride?: string;
 }
 
+const BADGE_CLASS = 'inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold';
+
 /**
  * Единая логика отображения ячейки модуля везде в таблицах, по бизнес-
  * правилу из исходной таблицы:
  * - результата нет вовсе (модуль не относится к параллели учителя) →
  *   ячейка ПОЛНОСТЬЮ ПУСТАЯ — никаких "N/A", прочерков или плашек;
- * - статус "Старый учитель" (низкий/нулевой балл, но это не провал по
- *   бизнес-правилу) → серая плашка "OLD", а не красный провал;
- * - результат есть, но балл 0 (не начал) → обычный прочерк "—";
- * - есть балл > 0 → цветной бейдж (зелёный ≥70%, красный <70%).
+ * - статус "Старый учитель": если по факту РЕШИЛ модуль (балл ≥70%) —
+ *   показываем сам процент, но ГОЛУБЫМ (не зелёным как у обычных
+ *   учителей) — так видно, что это старый учитель, но не прячем его
+ *   реальный результат под общей плашкой "OLD"; если НЕ решил — серо-
+ *   голубая плашка "OLD" (низкий/нулевой балл не считается провалом по
+ *   бизнес-правилу, поэтому НЕ красная);
+ * - обычный учитель, балл 0 (не начал) → розовая плашка "Не начал";
+ * - обычный учитель, 0% < балл < 70% → красный бейдж "Не прошёл";
+ * - обычный учитель, балл ≥70% → зелёный бейдж "Прошёл".
  */
 export function ModuleScoreCell({ result, label, tooltipOverride, colorOverride }: ModuleScoreCellProps) {
   const t = useT();
@@ -30,7 +37,7 @@ export function ModuleScoreCell({ result, label, tooltipOverride, colorOverride 
     return (
       <span
         title={tooltipOverride ?? `${label}: ${result.score}%`}
-        className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
+        className={`${BADGE_CLASS} text-white`}
         style={{ backgroundColor: colorOverride }}
       >
         {result.score}
@@ -39,10 +46,20 @@ export function ModuleScoreCell({ result, label, tooltipOverride, colorOverride 
   }
 
   if (result.status === 'old_teacher') {
+    if (result.score >= 70) {
+      return (
+        <span
+          title={tooltipOverride ?? `${label}: ${t.moduleStatus.oldTeacher} (${result.score}%)`}
+          className={`${BADGE_CLASS} bg-sky-500 text-white`}
+        >
+          {result.score}
+        </span>
+      );
+    }
     return (
       <span
         title={tooltipOverride ?? `${label}: ${t.moduleStatus.oldTeacher} (${result.score}%)`}
-        className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded bg-slate-200 px-1 text-[9px] font-semibold text-slate-500"
+        className={`${BADGE_CLASS} bg-sky-100 text-sky-700`}
       >
         {t.moduleStatus.oldTeacherShort}
       </span>
@@ -51,7 +68,10 @@ export function ModuleScoreCell({ result, label, tooltipOverride, colorOverride 
 
   if (result.score <= 0) {
     return (
-      <span title={`${label}: ${t.moduleStatus.notStarted}`} className="text-slate-300">
+      <span
+        title={tooltipOverride ?? `${label}: ${t.moduleStatus.notStarted}`}
+        className={`${BADGE_CLASS} bg-pink-100 text-pink-600`}
+      >
         —
       </span>
     );
@@ -60,7 +80,7 @@ export function ModuleScoreCell({ result, label, tooltipOverride, colorOverride 
   return (
     <span
       title={tooltipOverride ?? `${label}: ${result.score}%`}
-      className="inline-flex h-5 min-w-[1.75rem] items-center justify-center rounded px-1 text-[10px] font-semibold text-white"
+      className={`${BADGE_CLASS} text-white`}
       style={{ backgroundColor: result.score >= 70 ? '#059669' : '#e11d48' }}
     >
       {result.score}

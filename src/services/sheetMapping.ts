@@ -196,9 +196,9 @@ const FIELD_CANDIDATES = {
   lmsId: ['ID LMS', 'LMS ID'],
   sector: ['Bölmə AZ/RU/AZ-RU'],
   format: ['Təlim tipi Təlim şöbəsi', 'Təlim tipi', 'Tədris növü', 'Тип обучения'],
-  startYear: ['Başlama ili - yeni məlumat lms', 'Başlama ili', 'Год начала'],
-  platformStatus: ['Статус входа на платформу', 'Статус входа', 'Заходил', 'LMS daxil', 'Daxil olub'],
-  classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)', 'Классы учителя', 'sinif'],
+  startYear: ['Başlama ili - yeni məlumat lms', 'Başlama ili', 'Год начала', 'Стаж', 'Работал до'],
+  platformStatus: ['Статус входа на платформу', 'Статус входа', 'Заходил', 'LMS daxil', 'Daxil olub', 'Daxil olma'],
+  classesTaught: ['Классы учителя (BOŞ OLAN HELE SİNİF TƏYİN OLUNMAYIB)', 'Классы учителя', 'sinif', 'Классы', 'Параллель'],
 } as const;
 
 /**
