@@ -300,10 +300,20 @@ export interface GradeGroupTeacherPassStat {
  * параллели. Учителя без назначенного класса (hasAssignedClass=false) не
  * входят ни в одну параллель — их результаты видны в таблицах, но в этот
  * KPI они не в знаменателе ни одной группы.
+ *
+ * ВАЖНО: считаем строго по teacher.gradeGroup (одна, "основная" параллель
+ * на учителя), а НЕ по getAssignedGradeGroups (может вернуть сразу
+ * несколько параллелей — на реальных данных поле "Классы учителя" прямо
+ * говорит "Начальная, Средняя" примерно у трети учителей, это не ошибка
+ * парсинга, а настоящее двойное назначение). При суммировании по
+ * getAssignedGradeGroups сумма totalTeachers по всем параллелям превышала
+ * общее число учителей с классом (напр. 7850 вместо 5867) — с
+ * gradeGroup сумма по построению равна total ровно, каждый учитель
+ * попадает РОВНО в одну параллель для этого KPI.
  */
 export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
   return groups.map((group) => {
-    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
+    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && te.gradeGroup === group);
     const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedCourse(te)).length;
     return {
       group,
