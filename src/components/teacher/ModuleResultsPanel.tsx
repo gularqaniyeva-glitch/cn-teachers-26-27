@@ -30,6 +30,14 @@ export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
   const modules = getApplicableModules(teacher);
   const groupAnomalySet = useGroupAnomalySet();
 
+  // У "двухпараллельных" учителей (2–4 И 5–9 одновременно) одинаковый номер
+  // модуля (M3–M6) встречается ДВАЖДЫ — это разные назначения с разными
+  // баллами (2-4-M3 и 5-9-M3), а не дубликат одной и той же строки. Если
+  // не уточнить параллель в подписи, обе строки выглядят как "M3"/"M3" и
+  // неотличимы друг от друга.
+  const shortTitleCounts = new Map<string, number>();
+  for (const m of modules) shortTitleCounts.set(m.shortTitle, (shortTitleCounts.get(m.shortTitle) ?? 0) + 1);
+
   return (
     <div className="divide-y divide-slate-100">
       {modules.map((module) => {
@@ -44,10 +52,12 @@ export function ModuleResultsPanel({ teacher }: ModuleResultsPanelProps) {
               : status === 'old_teacher'
                 ? t.moduleStatus.oldTeacher
                 : t.moduleStatus[status];
+        const isAmbiguous = (shortTitleCounts.get(module.shortTitle) ?? 0) > 1;
+        const moduleTitle = isAmbiguous ? `${module.shortTitle} (${t.gradeGroup[module.group]})` : module.shortTitle;
         return (
           <div key={module.id} className="flex items-center justify-between gap-4 py-3">
             <div>
-              <p className="text-sm font-medium text-slate-800">{module.shortTitle}</p>
+              <p className="text-sm font-medium text-slate-800">{moduleTitle}</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">

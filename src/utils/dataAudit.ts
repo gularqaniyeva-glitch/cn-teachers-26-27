@@ -9,7 +9,8 @@
 // а не по стороннему агрегату.
 
 import type { Teacher } from '../types/teacher';
-import type { ScheduleAuditInfo } from '../services/scheduleMapping';
+import { getCurrentScheduleIndex, isModuleConfirmedOpen, type ScheduleAuditInfo } from '../services/scheduleMapping';
+import { findGroupAnomalies } from './anomalies';
 
 export interface AuditIssue {
   id: string;
@@ -85,6 +86,37 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
   // Проверка 4: дубликаты учителей по LMS ID.
   const lmsIdDuplicate = findDuplicateIssue(teachers, (t) => t.lmsId, 'LMS ID', 'lmsid-duplicates');
   if (lmsIdDuplicate) issues.push(lmsIdDuplicate);
+
+  // Проверка 5: сумма учителей по параллелям (2–4 + 5–9 + 10–11) не должна
+  // превышать число учителей с назначенным классом — каждый учитель для
+  // этого разреза считается строго по своей ОСНОВНОЙ параллели
+  // (teacher.gradeGroup), см. getTeacherPassStatsByGradeGroup в utils/stats.ts.
+  const eligible = teachers.filter((t) => t.hasAssignedClass);
+  const byGroupSum = (['2-4', '5-9', '10-11'] as const).reduce(
+    (sum, group) => sum + eligible.filter((t) => t.gradeGroup === group).length,
+    0,
+  );
+  if (byGroupSum > eligible.length) {
+    issues.push({
+      id: 'gradegroup-sum-exceeds-total',
+      message: `Сумма учителей по параллелям (${byGroupSum}) превышает число учителей с назначенным классом (${eligible.length}).`,
+    });
+  }
+
+  // Проверка 6: самопроверка — ни один алерт "Ошибка выгрузки LMS" не
+  // должен ссылаться на модуль без подтверждённой наступившей даты
+  // открытия по графику (см. isModuleConfirmedOpen в scheduleMapping.ts и
+  // findGroupAnomalies в utils/anomalies.ts). Ловит регрессию этого
+  // правила, а не полагается только на то, что фильтр где-то применён.
+  const schedule = getCurrentScheduleIndex();
+  const leakedAnomalies = findGroupAnomalies(teachers).filter((a) => !isModuleConfirmedOpen(schedule, a.module.id));
+  if (leakedAnomalies.length > 0) {
+    const shortTitles = [...new Set(leakedAnomalies.map((a) => a.module.shortTitle))].join(', ');
+    issues.push({
+      id: 'anomaly-unopened-module-leak',
+      message: `Аудит аномалий ссылается на ещё не открытые по графику модули: ${shortTitles}. Это регрессия фильтрации — такие алерты нужно скрыть.`,
+    });
+  }
 
   return issues;
 }
