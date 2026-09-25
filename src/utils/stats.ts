@@ -294,6 +294,31 @@ export function hasTeacherPassedCourse(teacher: Teacher, now: Date = new Date())
   return relevant.every((r) => r.score >= PASS_THRESHOLD);
 }
 
+/**
+ * То же самое, что hasTeacherPassedCourse, но ОГРАНИЧЕНО модулями ОДНОЙ
+ * параллели — иначе "двухпараллельный" учитель, отлично сдавший всё в
+ * 5–9, но ничего не сделавший по 2–4 (модуль ещё не наступил дедлайном),
+ * засчитывался бы "прошедшим" сразу в ОБЕИХ параллелях: hasTeacherPassedCourse
+ * смотрит на ВСЕ moduleResults учителя разом, без разбора параллели.
+ * Проверено на реальных данных: именно это раздувало "2–4 классы: X
+ * прошли курс" числами людей, чей реальный прогресс относится к 5–9.
+ *
+ * M1/M2 общие и хранятся ПОД ОДНИМ id (основной параллели учителя), но
+ * относятся к программе ОБЕИХ параллелей — поэтому при проверке любой
+ * параллели их результат учитывается, где бы он ни был сохранён (по
+ * суффиксу "-M1"/"-M2", а не по префиксу параллели). Модули M3 и далее
+ * учитываются только с префиксом именно этой параллели.
+ */
+export function hasTeacherPassedGroup(teacher: Teacher, group: GradeGroup, now: Date = new Date()): boolean {
+  const relevantResults = teacher.moduleResults.filter(
+    (r) => r.moduleId.endsWith('-M1') || r.moduleId.endsWith('-M2') || r.moduleId.startsWith(`${group}-`),
+  );
+  const counted = relevantResults.filter((r) => isModuleDueForPassRate(r, now));
+  const relevant = counted.filter((r) => r.status !== 'old_teacher');
+  if (relevant.length === 0) return counted.length > 0;
+  return relevant.every((r) => r.score >= PASS_THRESHOLD);
+}
+
 export interface GradeGroupTeacherPassStat {
   group: GradeGroup;
   totalTeachers: number;
@@ -318,11 +343,20 @@ export interface GradeGroupTeacherPassStat {
  * может ПРЕВЫШАТЬ общее число учителей с классом, это ожидаемо и
  * отражает реальность, а не баг двойного счёта одного и того же
  * учителя в одной и той же категории.
+ *
+ * "Прошёл" считаем через hasTeacherPassedGroup (НЕ hasTeacherPassedCourse) —
+ * строго по модулям ЭТОЙ параллели. hasTeacherPassedCourse смотрит на ВСЕ
+ * модули учителя разом: на реальных данных это приводило к тому, что
+ * "двухпараллельный" учитель, отлично сдавший всё в 5–9, но не начавший
+ * 2–4 (дедлайн ещё не наступил), засчитывался "прошедшим" и в "2–4"
+ * тоже — верхний блок "Прошли курс" показывал БОЛЬШЕ учителей, чем
+ * сдало любой отдельный модуль этой параллели, хотя логически "прошёл
+ * курс 2–4" не может быть больше, чем "сдал M1" или "сдал M2".
  */
 export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
   return groups.map((group) => {
     const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-    const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedCourse(te)).length;
+    const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedGroup(te, group)).length;
     return {
       group,
       totalTeachers: groupTeachers.length,
