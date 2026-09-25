@@ -2,6 +2,7 @@ import type { GradeGroup, ModuleStatus, Teacher, TeachingLanguage, TrainingType 
 import type { ModuleDefinition } from '../types/teacher';
 import { GRADE_GROUPS, modulesForGrade } from '../data/constants';
 import { getApplicableModules } from './stats';
+import { getCurrentScheduleIndex, isModuleConfirmedOpen } from '../services/scheduleMapping';
 
 /** Статус модуля, дополненный производным диагностическим значением "на проверку" */
 export type DisplayModuleStatus = ModuleStatus | 'on_review';
@@ -14,7 +15,10 @@ const GROUP_MIN_TEACHERS = 3;
 /**
  * Индивидуальная аномалия: учитель сдал больше 70% всех модулей своей
  * программы, но конкретный модуль всё ещё "не начат" — скорее всего
- * сбой выгрузки LMS, а не реальный пропуск.
+ * сбой выгрузки LMS, а не реальный пропуск. Модуль, чья дата открытия
+ * ("Açılmasını yoxla") ещё не подтверждённо наступила по графику,
+ * исключается — это не аномалия, а модуль, до которого учитель
+ * законно ещё не дошёл (см. isModuleConfirmedOpen).
  */
 export function getAnomalousModuleIds(teacher: Teacher): string[] {
   const applicable = getApplicableModules(teacher);
@@ -24,7 +28,10 @@ export function getAnomalousModuleIds(teacher: Teacher): string[] {
   const passedRatio = passedCount / applicable.length;
   if (passedRatio <= INDIVIDUAL_PASS_THRESHOLD) return [];
 
-  const notStartedIds = teacher.moduleResults.filter((r) => r.status === 'not_started').map((r) => r.moduleId);
+  const schedule = getCurrentScheduleIndex();
+  const notStartedIds = teacher.moduleResults
+    .filter((r) => r.status === 'not_started' && isModuleConfirmedOpen(schedule, r.moduleId))
+    .map((r) => r.moduleId);
   if (notStartedIds.length === 0 || notStartedIds.length === applicable.length) return [];
   return notStartedIds;
 }
@@ -77,6 +84,10 @@ export interface GroupAnomaly {
  * обучения) почти все "не начали" один и тот же модуль, хотя по
  * остальным модулям эта же группа показывает хороший прогресс —
  * похоже на сбой выгрузки именно этого модуля для этого сегмента.
+ * Модуль, чья дата открытия ещё не подтверждённо наступила по графику
+ * "(АЗ) График 26/27", в проверку не попадает вообще (см.
+ * isModuleConfirmedOpen) — иначе ещё не открытый модуль с массовым
+ * "не начал" ложно диагностируется как сбой выгрузки.
  */
 export function findGroupAnomalies(teachers: Teacher[]): GroupAnomaly[] {
   const buckets = new Map<string, Teacher[]>();
@@ -88,6 +99,7 @@ export function findGroupAnomalies(teachers: Teacher[]): GroupAnomaly[] {
   }
 
   const results: GroupAnomaly[] = [];
+  const schedule = getCurrentScheduleIndex();
 
   for (const [key, group] of buckets) {
     if (group.length < GROUP_MIN_TEACHERS) continue;
@@ -95,6 +107,7 @@ export function findGroupAnomalies(teachers: Teacher[]): GroupAnomaly[] {
     if (!GRADE_GROUPS.includes(gradeGroup)) continue;
 
     for (const module of modulesForGrade(gradeGroup)) {
+      if (!isModuleConfirmedOpen(schedule, module.id)) continue;
       const resultsForModule = group
         .map((teacher) => teacher.moduleResults.find((r) => r.moduleId === module.id))
         .filter((r): r is NonNullable<typeof r> => Boolean(r));

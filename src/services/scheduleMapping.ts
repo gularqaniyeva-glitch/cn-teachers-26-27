@@ -330,6 +330,25 @@ export function isModuleOpen(index: ScheduleIndex, moduleId: string, now: Date =
   }
 }
 
+/**
+ * Строгая версия isModuleOpen — БЕЗ permissive-дефолта "нет записи в
+ * графике = открыт". Используется только системой авто-аудита аномалий
+ * (utils/anomalies.ts): там неверно посчитанный "сбой выгрузки" по
+ * модулю, дата открытия которого графику попросту неизвестна (а не
+ * подтверждённо наступила), — это ложное предупреждение, а не диагностика.
+ * Основной isModuleOpen НЕ трогаем — его permissive-поведение защищает
+ * реальные данные учителей от исчезновения из-за пробелов в графике.
+ */
+export function isModuleConfirmedOpen(index: ScheduleIndex, moduleId: string, now: Date = new Date()): boolean {
+  try {
+    const entry = findScheduleEntry(index, moduleId);
+    if (!entry || !entry.openDate) return false;
+    return entry.openDate.getTime() <= now.getTime();
+  } catch {
+    return false;
+  }
+}
+
 /** ISO-дата дедлайна модуля, если график её знает. Никогда не бросает исключение. */
 export function getModuleDeadlineIso(index: ScheduleIndex, moduleId: string): string | undefined {
   try {
