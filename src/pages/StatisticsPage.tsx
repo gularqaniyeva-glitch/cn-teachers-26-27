@@ -16,7 +16,7 @@ import {
   getModulePassRateByLifecycle,
   getModulePassRateByTrainingType,
   getOverallTeacherPassStat,
-  getOverviewStats,
+  getRawPlatformStats,
   getTeacherPassStatsByGradeGroup,
   getTrainingTypeSummary,
 } from '../utils/stats';
@@ -71,17 +71,19 @@ export function StatisticsPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  // Единая база для ВСЕХ KPI-карточек этой страницы — учителя без
-  // назначенного класса/параллели (hasAssignedClass=false) исключены из
-  // знаменателя везде одинаково, иначе разные карточки считают "всего
-  // учителей" по-разному (напр. 5183 против 5054) и цифры расходятся. Все
-  // показатели считаются напрямую по сырым данным листа "Все учителя
-  // 26/27" — без зависимости от промежуточных листов (Statistika и др.).
+  // "Активность на платформе" (Вошли/Не вошли/Всего) — та же функция, что
+  // и на "Главной" (getRawPlatformStats), чтобы цифры совпадали
+  // автоматически на обеих страницах: прямой подсчёт по листу "Все
+  // учителя 26/27", без фильтра по назначенному классу.
+  const platformStats = getRawPlatformStats(teachers);
+  const total = platformStats.total || 1;
+  const platformEntered = platformStats.entered;
+  const platformNotEntered = platformStats.notEntered;
+  // "Сдали аттестацию" и остальные разбивки ниже (по классам/по стажу/по
+  // типу обучения) — отдельная база: учителя С НАЗНАЧЕННЫМ классом, сразу
+  // по всем параллелям (включая 10–11) — без класса у учителя структурно
+  // нет назначенных модулей.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
-  const overview = getOverviewStats(eligibleTeachers);
-  const total = eligibleTeachers.length || 1;
-  const platformEntered = overview.entered;
-  const platformNotEntered = overview.notEntered;
   const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
   const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
   const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
@@ -92,8 +94,11 @@ export function StatisticsPage() {
     { OLD: 'OLD', NEW: 'NEW' },
     LIFECYCLE_STATUSES,
   );
+  // Та же сырая база, что и карточка "Активность на платформе" выше —
+  // иначе итоговая сумма столбиков разойдётся с цифрами в карточке.
+  const platformStatusTeachers = teachers.filter((te) => te.gradeGroup !== '10-11');
   const byPlatformStatus = countByKey(
-    eligibleTeachers,
+    platformStatusTeachers,
     (te) => te.platformStatus,
     { entered: t.platformStatus.entered, not_entered: t.platformStatus.notEntered },
     ['entered', 'not_entered'],

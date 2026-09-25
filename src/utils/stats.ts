@@ -32,6 +32,27 @@ export function getOverviewStats(teachers: Teacher[]): OverviewStats {
   return { total, entered, notEntered: total - entered, successRate: passRateOf(passed, started) };
 }
 
+export interface RawPlatformStats {
+  total: number;
+  entered: number;
+  notEntered: number;
+}
+
+/**
+ * "Всего учителей"/"Вошли"/"Не вошли" — единая функция для "Главной" и
+ * "Статистики", чтобы эти цифры автоматически совпадали на обеих
+ * страницах. Прямой подсчёт по ВСЕМ валидным строкам листа "Все учителя
+ * 26/27" (2–9 классы): без фильтра по назначенному классу (hasAssignedClass)
+ * и без учителей 10–11 классов (отдельный лист "ИТ классы") — gradeGroup
+ * у учителей листа "Все учителя 26/27" никогда не '10-11'.
+ */
+export function getRawPlatformStats(teachers: Teacher[]): RawPlatformStats {
+  const mainSheetTeachers = teachers.filter((t) => t.gradeGroup !== '10-11');
+  const total = mainSheetTeachers.length;
+  const entered = mainSheetTeachers.filter((t) => t.platformStatus === 'entered').length;
+  return { total, entered, notEntered: total - entered };
+}
+
 /** Средний результат учителя по всем модулям его программы (0 — за "не начал"), % */
 /**
  * Средний балл СТРОГО по модулям, которые учитель реально проходил
@@ -52,18 +73,25 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
  * это решает, ПОКАЗЫВАЕТСЯ ли модуль вообще. Отдельный, более строгий
  * вопрос — должен ли уже ОТКРЫТЫЙ, но ещё не сданный модуль (статус "не
  * начал") засчитываться в знаменатель "Прошли курс": да, если по нему уже
- * наступил дедлайн (время сдать было), и нет — если срок ещё не истёк
- * (рано считать это провалом/0%). Учителя, сдавшие ДОСРОЧНО (любой статус
- * кроме "не начал"), учитываются сразу независимо от дедлайна — досрочная
- * сдача не наказывается. Нет данных о дедлайне у модуля (график не
- * покрывает его) — прежнее permissive-поведение, модуль считается как
- * раньше (не прячем реальные данные из-за пробела в графике).
+ * наступил дедлайн (время сдать было), и нет — если срок ещё не истёк ИЛИ
+ * дедлайн вообще неизвестен графику. Учителя, сдавшие ДОСРОЧНО (любой
+ * статус кроме "не начал"), учитываются сразу независимо от дедлайна —
+ * досрочная сдача не наказывается.
+ *
+ * ВАЖНО: раньше отсутствие даты в графике для НЕ начатого модуля
+ * трактовалось как "модуль уже входит в знаменатель" (permissive true) —
+ * это оказалось строго противоположно бизнес-правилу и на реальных данных
+ * (где график покрывает лишь часть модулей) обрушивало "Прошли курс" до
+ * единиц процентов: тысячи ещё не начатых модулей без даты в графике
+ * засчитывались как просроченный провал. Правило теперь строгое и
+ * симметричное: НЕ начатый модуль входит в знаменатель ТОЛЬКО если у него
+ * есть распознанный дедлайн И этот дедлайн уже наступил.
  */
 function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
   if (result.status !== 'not_started') return true;
-  if (!result.deadline) return true;
+  if (!result.deadline) return false;
   const deadline = new Date(result.deadline);
-  if (Number.isNaN(deadline.getTime())) return true;
+  if (Number.isNaN(deadline.getTime())) return false;
   return deadline.getTime() <= now.getTime();
 }
 

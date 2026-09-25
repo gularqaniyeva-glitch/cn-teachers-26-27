@@ -12,6 +12,7 @@ import {
   formatTeachersPassed,
   getModuleStatsForGroup,
   getOverallTeacherPassStat,
+  getRawPlatformStats,
   getTeacherPassStatsByGradeGroup,
 } from '../utils/stats';
 import { GRADE_GROUPS } from '../data/constants';
@@ -37,16 +38,9 @@ export function DashboardPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  // "Всего учителей"/"Вошли"/"Не вошли" — строго сырой подсчёт по листу
-  // "Все учителя 26/27" (2–9 классы): ВСЕ валидные строки этого листа, без
-  // исключения учителей без назначенного класса и без учителей 10–11
-  // классов (отдельный лист "ИТ классы") — именно так эти три цифры
-  // напрямую сверяются с Google-таблицей. gradeGroup у учителей с этого
-  // листа никогда не '10-11' (см. mapTeachersSheetRow/mapSeniorSheetRow).
-  const teachersMainSheet = teachers.filter((te) => te.gradeGroup !== '10-11');
-  const total = teachersMainSheet.length;
-  const entered = teachersMainSheet.filter((te) => te.platformStatus === 'entered').length;
-  const notEntered = total - entered;
+  // "Всего учителей"/"Вошли"/"Не вошли" — та же функция, что и на
+  // "Статистике" (getRawPlatformStats), чтобы цифры совпадали автоматически.
+  const { total, entered, notEntered } = getRawPlatformStats(teachers);
   // "Прошли курс" — отдельная метрика по ФИЗИЧЕСКИМ учителям С НАЗНАЧЕННЫМ
   // классом, сразу по всем параллелям, включая 10–11 (см. карточку ниже) —
   // учителя без класса структурно не могут "пройти курс", у них нет
