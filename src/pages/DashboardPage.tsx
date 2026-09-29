@@ -5,6 +5,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
+import { RefreshDataControl } from '../components/ui/RefreshDataControl';
 import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
 import {
@@ -54,9 +55,12 @@ export function DashboardPage() {
     <div className="space-y-6">
       {error && <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{t.dashboard.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t.dashboard.subtitle}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">{t.dashboard.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t.dashboard.subtitle}</p>
+        </div>
+        <RefreshDataControl />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

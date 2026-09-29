@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Bar } from '../components/ui/Bar';
 import { StatCard } from '../components/ui/StatCard';
 import { ErrorBanner } from '../components/ui/ErrorBanner';
+import { RefreshDataControl } from '../components/ui/RefreshDataControl';
 import { NoTranslate } from '../components/ui/NoTranslate';
 import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleBreakdownTable } from '../components/statistics/ModuleBreakdownTable';
@@ -128,9 +129,12 @@ export function StatisticsPage() {
     <div className="space-y-6">
       {error && <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />}
 
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{t.statistics.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t.statistics.subtitle}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">{t.statistics.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t.statistics.subtitle}</p>
+        </div>
+        <RefreshDataControl />
       </div>
 
       <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1">
