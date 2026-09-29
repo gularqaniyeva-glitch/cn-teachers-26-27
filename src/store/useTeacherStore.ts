@@ -8,6 +8,8 @@ interface TeacherStoreState {
   teachers: Teacher[];
   /** Расхождения, найденные системой авто-аудита при последней загрузке — см. utils/dataAudit.ts. Пустой массив — данные согласованы. */
   auditIssues: AuditIssue[];
+  /** Время последнего успешного ответа /api/sheets (ISO), null — данные ещё не загружались ни разу */
+  lastFetchedAt: string | null;
   loading: boolean;
   /** Ручное обновление данных (кнопка "🔄 Обновить данные") — отдельно от начальной загрузки */
   refreshing: boolean;
@@ -24,12 +26,13 @@ interface TeacherStoreState {
 /** Пересчитывает систему авто-аудита по сырым данным — вызывается сразу после каждой успешной загрузки teachers. */
 function snapshotAuxState(teachers: Teacher[]) {
   const auditIssues = runDataAudit(teachers, getScheduleAuditInfo());
-  return { auditIssues };
+  return { auditIssues, lastFetchedAt: teacherService.getLastFetchedAt() };
 }
 
 export const useTeacherStore = create<TeacherStoreState>((set, get) => ({
   teachers: [],
   auditIssues: [],
+  lastFetchedAt: null,
   loading: false,
   refreshing: false,
   error: null,

@@ -50,7 +50,7 @@ type PageTab = 'all' | 'moduleReport';
 
 export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPageProps) {
   const t = useT();
-  const { teachers: allTeachers, loading, refreshing, error, load, reload, updateManyTeachers } = useTeacherStore();
+  const { teachers: allTeachers, loading, refreshing, error, load, reload, updateManyTeachers, lastFetchedAt } = useTeacherStore();
   // Активная подвкладка живёт в URL (?tab=moduleReport), а не в локальном
   // состоянии — иначе F5 всегда сбрасывал бы пользователя на "Все учителя".
   const [searchParams, setSearchParams] = useSearchParams();
@@ -255,14 +255,24 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
           </button>
         </div>
 
-        <button
-          onClick={() => reload()}
-          disabled={refreshing}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 hover:bg-slate-50"
-        >
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-          {refreshing ? t.common.refreshing : t.common.refreshData}
-        </button>
+        <div className="flex items-center gap-2">
+          {lastFetchedAt && !refreshing && (
+            <span className="text-xs text-slate-400">
+              {t.common.lastUpdatedAt.replace(
+                '{time}',
+                new Date(lastFetchedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+              )}
+            </span>
+          )}
+          <button
+            onClick={() => reload()}
+            disabled={refreshing}
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-60 hover:bg-slate-50"
+          >
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? t.common.refreshing : t.common.refreshData}
+          </button>
+        </div>
       </div>
 
       {/* Поиск и панель фильтров — сквозные, общие для "Все учителя" и

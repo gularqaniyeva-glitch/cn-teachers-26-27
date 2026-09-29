@@ -42,6 +42,8 @@ export interface Dict {
     close: string;
     refreshData: string;
     refreshing: string;
+    /** "{time}" заменяется на HH:MM реального времени последнего успешного ответа /api/sheets */
+    lastUpdatedAt: string;
     retry: string;
     columnsToggle: string;
     classNotAssigned: string;
@@ -298,6 +300,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       close: 'Закрыть',
       refreshData: 'Обновить данные',
       refreshing: 'Обновление…',
+      lastUpdatedAt: 'Данные обновлены в {time}',
       retry: 'Повторить',
       columnsToggle: 'Столбцы',
       classNotAssigned: 'Класс не назначен',
@@ -563,6 +566,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       close: 'Bağla',
       refreshData: 'Məlumatları yenilə',
       refreshing: 'Yenilənir…',
+      lastUpdatedAt: 'Məlumat {time} saatında yenilənib',
       retry: 'Yenidən cəhd et',
       columnsToggle: 'Sütunlar',
       classNotAssigned: 'Sinif təyin edilməyib',

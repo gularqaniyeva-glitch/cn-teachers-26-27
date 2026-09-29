@@ -50,6 +50,15 @@ const LOCAL_CACHE_TTL_MS = 5 * 60 * 1000;
 
 let cache: Teacher[] | null = null;
 let inFlight: Promise<Teacher[]> | null = null;
+// Время последнего УСПЕШНОГО ответа /api/sheets (из data.fetchedAt, сервер
+// проставляет его сам в момент запроса к Google Sheets) — показывается
+// рядом с кнопкой "Обновить данные", чтобы было видно, что данные
+// действительно свежие, а не просто "кнопка нажалась".
+let lastFetchedAt: string | null = null;
+
+export function getLastFetchedAt(): string | null {
+  return lastFetchedAt;
+}
 
 function loadFromLocalCacheRaw(): { teachers: Teacher[]; savedAt: number } | null {
   try {
@@ -78,7 +87,12 @@ function saveToLocalCache(teachers: Teacher[]): void {
 }
 
 async function fetchFromSheetsApi(): Promise<Teacher[]> {
-  const res = await fetch('/api/sheets');
+  // Двойная защита от кэширования (сервер и так шлёт Cache-Control:
+  // no-store, см. api/sheets.js): явный `cache: 'no-store'` на самом
+  // fetch() плюс уникальный query-параметр — чтобы ни браузер, ни
+  // промежуточный прокси/CDN не отдали старый сохранённый ответ ни при
+  // каких обстоятельствах.
+  const res = await fetch(`/api/sheets?_t=${Date.now()}`, { cache: 'no-store' });
   const contentType = res.headers.get('content-type') ?? '';
 
   if (!contentType.includes('application/json')) {
@@ -90,6 +104,8 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
   if (!res.ok || 'error' in data) {
     throw new Error('error' in data ? data.error : `Ошибка запроса к /api/sheets (HTTP ${res.status})`);
   }
+
+  lastFetchedAt = data.fetchedAt ?? new Date().toISOString();
 
   // Пустые/фантомные строки (без ФИО на листе 2-9 классов, либо полностью
   // пустые на листе 10-11) отбрасываем здесь же — на сайте их быть не должно.
@@ -193,6 +209,7 @@ async function loadTeachers(): Promise<Teacher[]> {
         );
         const { createMockTeachers } = await import('../data/mockTeachers');
         cache = createMockTeachers(50);
+        lastFetchedAt = new Date().toISOString();
         return cache;
       }
       const cached = loadFromLocalCache();
