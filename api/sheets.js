@@ -10,7 +10,7 @@
 //                                   -----BEGIN PRIVATE KEY----- … -----END PRIVATE KEY-----)
 // Необязательные (если названия листов отличаются от значений по умолчанию):
 //   GOOGLE_SHEET_TEACHERS_TAB     — по умолчанию "Все учителя 26/27"
-//   GOOGLE_SHEET_SENIOR_TAB       — по умолчанию "ИТ классы 25/26"
+//   GOOGLE_SHEET_SENIOR_TAB       — по умолчанию "IT-классы 26/27" (было "ИТ классы 25/26" — лист переименовали под новый учебный год; оба варианта, и ещё пара похожих, распознаются автоматически, см. findSheet)
 //   GOOGLE_SHEET_SCHEDULE_TAB     — по умолчанию "(АЗ) График 26/27"
 //
 // Лист "Statistika" здесь намеренно НЕ читается: все KPI считаются
@@ -34,6 +34,30 @@ function getAuth() {
     );
   }
   return new JWT({ email, key, scopes: SCOPES });
+}
+
+// Google Sheets API (через getRows/values.get) всегда отдаёт ВСЕ строки и
+// столбцы листа, независимо от того, что скрыто в интерфейсе (скрытые
+// строки/столбцы, обычные фильтры) — это состояние отображения, а не
+// данных, оно не проксируется в ответ API. Единственное, что реально может
+// "потерять" данные — неверное имя вкладки (переименовали лист) или
+// обрезка по числу строк (см. MAX_ROWS ниже) — поэтому именно от них и
+// защищаемся ниже, а не от скрытых ячеек, которые API и так не фильтрует.
+//
+// Поиск листа по имени — с запасным вариантом по ключевым словам: точное
+// имя может слегка отличаться (переименовали вкладку под новый учебный
+// год, лишний пробел, другой дефис) — тогда ищем среди всех вкладок
+// таблицы по подстроке. Один хардкод названия не должен ронять весь сайт.
+function findSheet(doc, exactCandidates, keywords) {
+  for (const name of exactCandidates) {
+    const sheet = doc.sheetsByTitle[name];
+    if (sheet) return sheet;
+  }
+  const found = doc.sheetsByIndex.find((sheet) => {
+    const title = sheet.title.toLowerCase();
+    return keywords.some((kw) => title.includes(kw));
+  });
+  return found ?? null;
 }
 
 // row.toObject() уже возвращает объект {заголовок: значение} — не позиции
@@ -64,42 +88,51 @@ export default async function handler(req, res) {
     await doc.loadInfo();
 
     const teachersTabName = process.env.GOOGLE_SHEET_TEACHERS_TAB || 'Все учителя 26/27';
-    const seniorTabName = process.env.GOOGLE_SHEET_SENIOR_TAB || 'ИТ классы 25/26';
+    // Вкладка ИТ/IT-классов уже переименовывалась под новый учебный год
+    // (25/26 → 26/27) — держим оба варианта названия как точные кандидаты,
+    // плюс общий поиск по ключевым словам ниже, чтобы следующее
+    // переименование не роняло сайт снова.
+    const seniorTabName = process.env.GOOGLE_SHEET_SENIOR_TAB || 'IT-классы 26/27';
     const scheduleTabName = process.env.GOOGLE_SHEET_SCHEDULE_TAB || '(АЗ) График 26/27';
 
-    const teachersSheet = doc.sheetsByTitle[teachersTabName];
-    const seniorSheet = doc.sheetsByTitle[seniorTabName];
+    const teachersSheet = findSheet(doc, [teachersTabName, 'Все учителя 26/27'], ['все учителя']);
+    const seniorSheet = findSheet(
+      doc,
+      [seniorTabName, 'IT-классы 26/27', 'ИТ классы 26/27', 'IT классы 26/27', 'ИТ классы 25/26'],
+      ['ит-класс', 'ит класс', 'it-класс', 'it класс', 'ит классы'],
+    );
 
     if (!teachersSheet) {
-      throw new Error(`Лист "${teachersTabName}" не найден в таблице. Проверьте название вкладки.`);
+      throw new Error(
+        `Лист "${teachersTabName}" не найден в таблице. Доступные вкладки: ${doc.sheetsByIndex.map((s) => `"${s.title}"`).join(', ')}`,
+      );
     }
     if (!seniorSheet) {
-      throw new Error(`Лист "${seniorTabName}" не найден в таблице. Проверьте название вкладки.`);
+      throw new Error(
+        `Лист "${seniorTabName}" не найден в таблице. Доступные вкладки: ${doc.sheetsByIndex.map((s) => `"${s.title}"`).join(', ')}`,
+      );
+    }
+    if (teachersSheet.title !== teachersTabName) {
+      console.warn(`api/sheets: лист учителей найден по похожему названию: "${teachersSheet.title}" (искали "${teachersTabName}").`);
+    }
+    if (seniorSheet.title !== seniorTabName) {
+      console.warn(`api/sheets: лист ИТ/IT-классов найден по похожему названию: "${seniorSheet.title}" (искали "${seniorTabName}").`);
     }
 
     // График дедлайнов — не критичный источник (без него модули просто не
-    // фильтруются по датам): если точное имя вкладки не совпало — например,
-    // из-за лишнего пробела или другого вида дефиса/скобок в названии —
-    // пробуем найти вкладку по ключевым словам, а не сразу сдаёмся на
-    // пустом графике. availableTabs в диагностике ниже как раз для этого:
-    // чтобы при следующей проверке сразу увидеть точные реальные названия
-    // листов, а не гадать.
-    let scheduleSheet = doc.sheetsByTitle[scheduleTabName];
-    if (!scheduleSheet) {
-      const keywords = ['график', 'qrafik', 'cədvəl', 'schedule'];
-      scheduleSheet = doc.sheetsByIndex.find((sheet) => {
-        const title = sheet.title.toLowerCase();
-        return keywords.some((kw) => title.includes(kw));
-      });
-      if (scheduleSheet) {
-        console.warn(
-          `api/sheets: лист "${scheduleTabName}" не найден точным именем, использую похожий по названию: "${scheduleSheet.title}".`,
-        );
-      } else {
-        console.warn(
-          `api/sheets: лист "${scheduleTabName}" не найден — график дедлайнов будет пустым. Доступные вкладки: ${doc.sheetsByIndex.map((s) => `"${s.title}"`).join(', ')}`,
-        );
-      }
+    // фильтруются по датам): при отсутствии точного совпадения ищем по
+    // ключевым словам, а не сразу сдаёмся на пустом графике. availableTabs
+    // в диагностике ниже — чтобы при следующей проверке сразу увидеть
+    // точные реальные названия листов, а не гадать.
+    const scheduleSheet = findSheet(doc, [scheduleTabName], ['график', 'qrafik', 'cədvəl', 'schedule']);
+    if (scheduleSheet && scheduleSheet.title !== scheduleTabName) {
+      console.warn(
+        `api/sheets: лист "${scheduleTabName}" не найден точным именем, использую похожий по названию: "${scheduleSheet.title}".`,
+      );
+    } else if (!scheduleSheet) {
+      console.warn(
+        `api/sheets: лист "${scheduleTabName}" не найден — график дедлайнов будет пустым. Доступные вкладки: ${doc.sheetsByIndex.map((s) => `"${s.title}"`).join(', ')}`,
+      );
     }
 
     // ВАЖНО: getRows() без явного limit по умолчанию берёт максимум
