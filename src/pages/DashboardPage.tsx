@@ -8,14 +8,7 @@ import { ErrorBanner } from '../components/ui/ErrorBanner';
 import { RefreshDataControl } from '../components/ui/RefreshDataControl';
 import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleHeatmapGrid } from '../components/statistics/ModuleHeatmapGrid';
-import {
-  formatPercentComma,
-  formatTeachersPassed,
-  getModuleStatsForGroup,
-  getOverallTeacherPassStat,
-  getRawPlatformStats,
-  getTeacherPassStatsByGradeGroup,
-} from '../utils/stats';
+import { formatPercentComma, formatTeachersPassed, recalculateAllMetrics } from '../utils/stats';
 import { GRADE_GROUPS } from '../data/constants';
 import type { GradeGroup } from '../types/teacher';
 import { useT } from '../i18n/useLocaleStore';
@@ -39,17 +32,15 @@ export function DashboardPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  // "Всего учителей"/"Вошли"/"Не вошли" — та же функция, что и на
-  // "Статистике" (getRawPlatformStats), чтобы цифры совпадали автоматически.
-  const { total, entered, notEntered } = getRawPlatformStats(teachers);
-  // "Прошли курс" — отдельная метрика по ФИЗИЧЕСКИМ учителям С НАЗНАЧЕННЫМ
-  // классом, сразу по всем параллелям, включая 10–11 (см. карточку ниже) —
-  // учителя без класса структурно не могут "пройти курс", у них нет
-  // назначенных модулей.
-  const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
-  const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
-  const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
-  const activeGroupModules = getModuleStatsForGroup(teachers, activeDetailGroup);
+  // Один пересчёт "с нуля" из свежего teachers на каждый рендер (см.
+  // recalculateAllMetrics в utils/stats.ts) — единственный источник всех
+  // цифр на этой странице, чтобы "Главная" и "Статистика" не могли
+  // разойтись между собой на похожих, но отдельно посчитанных числах.
+  const metrics = recalculateAllMetrics(teachers);
+  const { total, entered, notEntered } = metrics.platform;
+  const overallTeacherPass = metrics.overallPass;
+  const teacherPassByGroup = metrics.passByGroup;
+  const activeGroupModules = metrics.moduleStatsByGroup[activeDetailGroup];
 
   return (
     <div className="space-y-6">

@@ -16,15 +16,13 @@ import {
   formatTeachersPassed,
   getModulePassRateByLifecycle,
   getModulePassRateByTrainingType,
-  getOverallTeacherPassStat,
-  getRawPlatformStats,
-  getTeacherPassStatsByGradeGroup,
   getTrainingTypeSummary,
+  recalculateAllMetrics,
 } from '../utils/stats';
 import { findGroupAnomalies, findIndividualAnomalies } from '../utils/anomalies';
 import { exportAnomaliesToCsv } from '../utils/csvExport';
 import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
-import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES, getModule } from '../data/constants';
+import { LIFECYCLE_STATUSES, TRAINING_TYPES, getModule } from '../data/constants';
 import { useT } from '../i18n/useLocaleStore';
 
 const PALETTE = ['#5d00e9', '#059669', '#d97706', '#e11d48', '#0891b2', '#7c3aed'];
@@ -72,21 +70,20 @@ export function StatisticsPage() {
     return <ErrorBanner message={error} onRetry={reload} retryLabel={t.common.retry} />;
   }
 
-  // "Активность на платформе" (Вошли/Не вошли/Всего) — та же функция, что
-  // и на "Главной" (getRawPlatformStats), чтобы цифры совпадали
-  // автоматически на обеих страницах: прямой подсчёт по листу "Все
-  // учителя 26/27", без фильтра по назначенному классу.
-  const platformStats = getRawPlatformStats(teachers);
-  const total = platformStats.total || 1;
-  const platformEntered = platformStats.entered;
-  const platformNotEntered = platformStats.notEntered;
+  // Один пересчёт "с нуля" из свежего teachers на каждый рендер (см.
+  // recalculateAllMetrics в utils/stats.ts) — та же единая функция, что и
+  // на "Главной", чтобы цифры совпадали автоматически на обеих страницах.
+  const metrics = recalculateAllMetrics(teachers);
+  const total = metrics.platform.total || 1;
+  const platformEntered = metrics.platform.entered;
+  const platformNotEntered = metrics.platform.notEntered;
   // "Сдали аттестацию" и остальные разбивки ниже (по классам/по стажу/по
   // типу обучения) — отдельная база: учителя С НАЗНАЧЕННЫМ классом, сразу
   // по всем параллелям (включая 10–11) — без класса у учителя структурно
   // нет назначенных модулей.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
-  const overallTeacherPass = getOverallTeacherPassStat(eligibleTeachers);
-  const teacherPassByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
+  const overallTeacherPass = metrics.overallPass;
+  const teacherPassByGroup = metrics.passByGroup;
   const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
 
   const byLifecycle = countByKey(

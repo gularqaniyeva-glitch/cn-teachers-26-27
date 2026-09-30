@@ -1,5 +1,5 @@
 import type { GradeGroup, ModuleDefinition, ModuleResult, Teacher, TrainingType } from '../types/teacher';
-import { LIFECYCLE_STATUSES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
+import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
   total: number;
@@ -487,4 +487,48 @@ export function getModulePassRateByTrainingType(teachers: Teacher[], group: Grad
 /** % сдавших (>=70%) каждый модуль параллели `group`, отдельно по стажу (OLD/NEW) */
 export function getModulePassRateByLifecycle(teachers: Teacher[], group: GradeGroup): ModuleSegmentRow[] {
   return getModulePassRateBySegment(teachers, group, LIFECYCLE_STATUSES, (te) => te.lifecycleStatus);
+}
+
+export interface AllMetricsSnapshot {
+  /** "Всего учителей"/"Вошли"/"Не вошли" — прямой подсчёт по листу "Все учителя 26/27" */
+  platform: RawPlatformStats;
+  /** "Прошли курс" по каждой параллели (2–4/5–9/10–11), включая "IT-классы 26/27" */
+  passByGroup: GradeGroupTeacherPassStat[];
+  /** Общий "Прошли курс" по всем учителям с назначенным классом сразу */
+  overallPass: OverallTeacherPassStat;
+  /** "Детализация по каждому модулю" — знаменатель/числитель для КАЖДОГО модуля каждой параллели */
+  moduleStatsByGroup: Record<GradeGroup, ModuleStat[]>;
+}
+
+/**
+ * Единая точка пересчёта ВСЕХ показателей дашборда "с нуля" по свежему
+ * массиву учителей — вызывается заново при каждой загрузке/обновлении
+ * (см. store/useTeacherStore.ts), никогда не переиспользует старые
+ * значения. Сама по себе не содержит новой арифметики — оркестрирует уже
+ * проверенные чистые функции этого файла (getRawPlatformStats,
+ * getTeacherPassStatsByGradeGroup, getModuleStatsForGroup и т.д.), чтобы
+ * ВСЕ страницы читали результат ОДНОГО общего расчёта, а не считали
+ * похожие цифры параллельно в нескольких местах.
+ *
+ * Строгие правила, зашитые в эти функции (проверено сравнением с ручным
+ * пересчётом по сырым данным напрямую из Google Sheets):
+ * - Знаменатель модуля параллели `group` — учителя с hasAssignedClass=true
+ *   И реально назначенной этой параллелью (getAssignedGradeGroups);
+ *   "Нет класса"/пустые статусы исключены на этапе разбора листа
+ *   (sheetMapping.ts: parseModuleCell возвращает null для "нет класса").
+ * - Числитель — СТРОГО score >= 70 (см. getModuleStatsForGroup), без
+ *   исключений для "Старый учитель"/"Не начал"/пустых значений.
+ * - Статус входа — teacher.platformStatus, определяется в
+ *   sheetMapping.ts (mapPlatformStatus) строго по тексту столбца X.
+ */
+export function recalculateAllMetrics(teachers: Teacher[]): AllMetricsSnapshot {
+  const platform = getRawPlatformStats(teachers);
+  const passByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
+  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  const overallPass = getOverallTeacherPassStat(eligible);
+  const moduleStatsByGroup = Object.fromEntries(
+    GRADE_GROUPS.map((group) => [group, getModuleStatsForGroup(teachers, group)]),
+  ) as Record<GradeGroup, ModuleStat[]>;
+
+  return { platform, passByGroup, overallPass, moduleStatsByGroup };
 }
