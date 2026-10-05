@@ -39,7 +39,12 @@ export function DashboardPage() {
   const metrics = recalculateAllMetrics(teachers);
   const { total, entered, notEntered } = metrics.platform;
   const overallTeacherPass = metrics.overallPass;
-  const teacherPassByGroup = metrics.passByGroup;
+  const categoryLabels = {
+    only24: t.dashboard.categoryOnly24,
+    only59: t.dashboard.categoryOnly59,
+    both: t.dashboard.categoryBoth,
+    it: t.dashboard.categoryIt,
+  } as const;
   const activeGroupModules = metrics.moduleStatsByGroup[activeDetailGroup];
   const formatAverage = (average: number | null) => (average === null ? '—' : `${average.toFixed(1).replace('.', ',')}%`);
 
@@ -99,70 +104,70 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
-          сданных модулей — "X из Y учителей прошли курс (Z%)" на каждую
-          параллель. */}
+      {/* Непересекающиеся категории учителей: каждый учитель — ровно в одной
+          (двухпараллельный считается ОДНИМ человеком), суммы по категориям
+          равны общему числу учителей с классом. */}
       <Card
         title={t.dashboard.moduleStatsTitle}
         titleTooltip={t.dashboard.moduleStatsTooltip}
-        action={<DownloadPngButton targetRef={passByGroupRef} filename="proshli-kurs-po-parallelyam.png" />}
+        action={<DownloadPngButton targetRef={passByGroupRef} filename="proshli-kurs-po-kategoriyam.png" />}
       >
         <div ref={passByGroupRef} className="space-y-4 bg-white">
-          {teacherPassByGroup.map((g) => (
-            <div key={g.group} className="space-y-1.5">
+          {metrics.passByCategory.map((c) => (
+            <div key={c.category} className="space-y-1.5">
               <Bar
-                label={`${t.gradeGroup[g.group]} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
+                label={`${categoryLabels[c.category]} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
                   t.dashboard.teachersPassedFormat,
-                  g.passedTeachers,
-                  g.totalTeachers,
-                  g.percent,
+                  c.passedTeachers,
+                  c.totalTeachers,
+                  c.percent,
                 )}`}
-                count={g.passedTeachers}
-                percent={g.percent}
-                color={g.percent >= 90 ? '#059669' : g.percent >= 70 ? '#d97706' : '#e11d48'}
+                count={c.passedTeachers}
+                percent={c.percent}
+                color={c.percent >= 90 ? '#059669' : c.percent >= 70 ? '#d97706' : '#e11d48'}
               />
               <p className="text-sm text-slate-600">
                 {t.dashboard.attendanceFormat
-                  .replace('{active}', String(g.activeTeachers))
-                  .replace('{total}', String(g.totalTeachers))
-                  .replace('{percent}', String(g.activePercent))}
+                  .replace('{active}', String(c.activeTeachers))
+                  .replace('{total}', String(c.totalTeachers))
+                  .replace('{percent}', String(c.activePercent))}
               </p>
               <p className="text-sm text-slate-600">
                 {t.dashboard.averageScoreByGroupFormat
-                  .replace('{group}', t.gradeGroup[g.group])
-                  .replace('{value}', formatAverage(metrics.averageScoreByGroup[g.group].average))}
+                  .replace('{group}', categoryLabels[c.category])
+                  .replace('{value}', formatAverage(c.averageScore.average))}
               </p>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* Отдельный виджет IT-классов (10–11) — те же данные, что у линии
-          «10–11 классы» выше, но собранные в одном месте. */}
+      {/* Отдельный виджет IT-классов (10–11) — та же категория «IT-классы»
+          из блока выше, собранная в одном месте. */}
       <Card title={t.dashboard.itWidgetTitle} titleTooltip={t.dashboard.itWidgetTooltip}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard
             label={t.dashboard.itAttendance}
-            value={`${metrics.itClasses.pass.activePercent}%`}
+            value={`${metrics.itClasses.activePercent}%`}
             icon={Laptop}
             accent="emerald"
-            sublabel={`${metrics.itClasses.pass.activeTeachers} ${t.common.of} ${metrics.itClasses.pass.totalTeachers}`}
+            sublabel={`${metrics.itClasses.activeTeachers} ${t.common.of} ${metrics.itClasses.totalTeachers}`}
             tooltip={t.dashboard.itAttendanceTooltip}
           />
           <StatCard
             label={t.dashboard.itAverageScore}
-            value={formatAverage(metrics.itClasses.average.average)}
+            value={formatAverage(metrics.itClasses.averageScore.average)}
             icon={Gauge}
             accent="blue"
-            sublabel={t.dashboard.averageScoreSublabel.replace('{active}', String(metrics.itClasses.average.activeTeachers))}
+            sublabel={t.dashboard.averageScoreSublabel.replace('{active}', String(metrics.itClasses.averageScore.activeTeachers))}
             tooltip={t.dashboard.averageScoreTooltip}
           />
           <StatCard
             label={t.dashboard.itAttestation}
-            value={`${metrics.itClasses.pass.percent}%`}
+            value={`${metrics.itClasses.percent}%`}
             icon={Award}
             accent="violet"
-            sublabel={`${metrics.itClasses.pass.passedTeachers} ${t.common.of} ${metrics.itClasses.pass.totalTeachers}`}
+            sublabel={`${metrics.itClasses.passedTeachers} ${t.common.of} ${metrics.itClasses.totalTeachers}`}
             tooltip={t.dashboard.itAttestationTooltip}
           />
         </div>

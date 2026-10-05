@@ -91,7 +91,7 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
     }
     issues.push({
       id: 'schedule-invalid-dates',
-      message: `В листе "(АЗ) График 26/27" найдены проблемы с датами (столбцы S/T): ${parts.join(', ')} (ожидается DD.MM.YYYY) — такие модули по умолчанию считаются открытыми.`,
+      message: `В листе "(АЗ) График 26/27" найдены проблемы с датами (столбцы S/T): ${parts.join(', ')} (ожидается DD.MM.YYYY) — модули с пустой датой открытия считаются ЗАКРЫТЫМИ.`,
     });
   }
 
@@ -136,18 +136,15 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
       message: `«Среднее решение» посчитано по ${metrics.averageScore.activeTeachers} учителям, а «Вошли на платформу» = ${metrics.platform.entered} — база должна совпадать.`,
     });
   }
-  // Прошедших курс по параллели не может быть больше, чем сдавших любой из
-  // открытых модулей этой параллели (иначе нарушено логическое «И»).
-  for (const stat of metrics.passByGroup) {
-    const openModules = metrics.moduleStatsByGroup[stat.group].filter((m) => m.assigned > 0);
-    if (openModules.length === 0) continue;
-    const minPassed = Math.min(...openModules.map((m) => m.passed));
-    if (stat.passedTeachers > minPassed) {
-      issues.push({
-        id: `selfcheck-pass-vs-modules-${stat.group}`,
-        message: `Параллель ${stat.group}: прошли курс (${stat.passedTeachers}) больше, чем сдавших один из открытых модулей (${minPassed}) — нарушено логическое «И».`,
-      });
-    }
+  // Категории учителей непересекающиеся: каждый учитель — ровно в одной,
+  // поэтому суммы по категориям обязаны совпадать с общим числом.
+  const catTotal = metrics.passByCategory.reduce((sum, c) => sum + c.totalTeachers, 0);
+  const catPassed = metrics.passByCategory.reduce((sum, c) => sum + c.passedTeachers, 0);
+  if (catTotal !== eligible.length || catPassed !== metrics.overallPass.passedTeachers) {
+    issues.push({
+      id: 'selfcheck-categories-sum',
+      message: `Категории учителей пересекаются или теряют учителей: всего ${catTotal} из ${eligible.length}, прошли ${catPassed} из ${metrics.overallPass.passedTeachers}.`,
+    });
   }
 
   return issues;

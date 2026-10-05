@@ -80,17 +80,9 @@ export function getTeacherAverageScore(teacher: Teacher): number | null {
   return mean === null ? null : Math.round(mean);
 }
 
-/** Модули, относящиеся к программе одной параллели: общие M1/M2 (где бы ни были сохранены) + модули с префиксом именно этой параллели — та же выборка, что в hasTeacherPassedGroup. */
-function moduleResultsOfGroup(teacher: Teacher, group: GradeGroup): ModuleResult[] {
-  return teacher.moduleResults.filter(
-    (r) => r.moduleId.endsWith('-M1') || r.moduleId.endsWith('-M2') || r.moduleId.startsWith(`${group}-`),
-  );
-}
-
-/** Тот же "средний балл по решённым" (до округления) и, при указании group, только по модулям этой параллели. */
-function getTeacherMeanScore(teacher: Teacher, group?: GradeGroup): number | null {
-  const results = group ? moduleResultsOfGroup(teacher, group) : teacher.moduleResults;
-  const attempted = results.filter((r) => r.status !== 'not_started');
+/** "Средний балл по решённым" учителя до округления: среднее по модулям, где есть попытка (не «Не начал»). */
+function getTeacherMeanScore(teacher: Teacher): number | null {
+  const attempted = teacher.moduleResults.filter((r) => r.status !== 'not_started');
   if (attempted.length === 0) return null;
   return attempted.reduce((acc, r) => acc + r.score, 0) / attempted.length;
 }
@@ -110,10 +102,10 @@ export interface AverageScoreStat {
  * разойдётся с числом вошедших. Усредняются ОКРУГЛЁННЫЕ значения колонки
  * «Средний балл (по решённым)», чтобы итог перепроверялся по таблице.
  */
-function averageOfActiveTeachers(activeTeachers: Teacher[], group?: GradeGroup): AverageScoreStat {
+function averageOfActiveTeachers(activeTeachers: Teacher[]): AverageScoreStat {
   let sum = 0;
   for (const teacher of activeTeachers) {
-    const mean = getTeacherMeanScore(teacher, group);
+    const mean = getTeacherMeanScore(teacher);
     sum += mean === null ? 0 : Math.round(mean);
   }
   return {
@@ -129,12 +121,6 @@ function averageOfActiveTeachers(activeTeachers: Teacher[], group?: GradeGroup):
  */
 export function getOverallAverageScore(teachers: Teacher[]): AverageScoreStat {
   return averageOfActiveTeachers(teachers.filter((te) => te.gradeGroup !== '10-11').filter(isUserActive));
-}
-
-/** То же по одной параллели: вошедшие учителя этой параллели (getAssignedGradeGroups), балл каждого — по модулям этой параллели. */
-export function getAverageScoreForGroup(teachers: Teacher[], group: GradeGroup): AverageScoreStat {
-  const inGroup = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-  return averageOfActiveTeachers(inGroup.filter(isUserActive), group);
 }
 
 export interface TeacherOverallStats {
@@ -314,82 +300,95 @@ export function getOverallPassPercent(teachers: Teacher[]): number {
 }
 
 /**
- * «Прошёл курс» — по УЧИТЕЛЮ (человеку): ВСЕ его сейчас ОТКРЫТЫЕ модули
- * (teacher.moduleResults уже содержит только открытые по графику — флаг
- * «Открыть курс»/дата открытия) сданы на >=70% по логическому «И»
- * (M1 >= 70% AND M2 >= 70% AND ...). Закрытые/будущие модули в
- * moduleResults не попадают и в проверку не входят. Модуль без балла
- * («Не начал»), а также «Старый учитель» с баллом < 70% — НЕ сдан:
- * иначе число прошедших курс могло бы превысить число сдавших любой
- * из открытых модулей, что логически невозможно (учитель без модулей
- * не может «пройти» ничего).
+ * Входит ли модуль в проверку «Прошёл курс» ПРЯМО СЕЙЧАС (ОТСРОЧКА по
+ * дедлайну, столбец "Deadline"). teacher.moduleResults уже содержит
+ * только ОТКРЫТЫЕ по графику модули; среди них:
+ * - есть реальная попытка (любой статус кроме «Не начал») — входит
+ *   всегда: досрочная сдача и провал учитываются сразу;
+ * - M1 и M2 — вводные модули, назначены всем сразу: входят всегда, даже
+ *   пока их дедлайн не наступил (решение пользователя);
+ * - остальной «Не начал» входит ТОЛЬКО если у него есть распознанный
+ *   дедлайн И он уже наступил (CurrentDate > Deadline) — до этого
+ *   отсутствие сдачи не считается ни просрочкой, ни провалом.
  */
-export function hasTeacherPassedCourse(teacher: Teacher): boolean {
-  return teacher.moduleResults.length > 0 && teacher.moduleResults.every((r) => r.score >= PASS_THRESHOLD);
+function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
+  if (result.status !== 'not_started') return true;
+  if (result.moduleId.endsWith('-M1') || result.moduleId.endsWith('-M2')) return true;
+  if (!result.deadline) return false;
+  const deadline = new Date(result.deadline);
+  if (Number.isNaN(deadline.getTime())) return false;
+  return deadline.getTime() <= now.getTime();
 }
 
 /**
- * То же самое, но ОГРАНИЧЕНО модулями ОДНОЙ параллели (общие M1/M2 где бы
- * ни были сохранены + модули с префиксом этой параллели) — иначе
- * «двухпараллельный» учитель, отлично сдавший всё в 5–9, но не начавший
- * 2–4, засчитывался бы прошедшим сразу в обеих параллелях.
+ * «Прошёл курс» — по УЧИТЕЛЮ (человеку, 1 человек = 1 раз независимо от
+ * числа параллелей): все его модули, входящие в проверку сейчас
+ * (isModuleDueForPassRate), сданы на >=70% по логическому «И»
+ * (M1 >= 70% AND M2 >= 70% AND ...) — по ВСЕЙ его матрице модулей (и
+ * 2–4, и 5–9, если ведёт обе).
+ * Правило «СТАРЫЙ УЧИТЕЛЬ»: модуль со статусом «Старый учитель» и баллом
+ * < 70% НЕ считается провалом и не блокирует «Прошёл курс» (плашка
+ * «Old»); с баллом >= 70% — обычная успешная сдача. Если после этого в
+ * проверке нет ни одного обычного модуля, а «Old»-модули были — учитель
+ * засчитывается прошедшим. Если в проверку сейчас не входит НИ ОДНОГО
+ * модуля — рано засчитывать.
  */
-export function hasTeacherPassedGroup(teacher: Teacher, group: GradeGroup): boolean {
-  const results = moduleResultsOfGroup(teacher, group);
-  return results.length > 0 && results.every((r) => r.score >= PASS_THRESHOLD);
+export function hasTeacherPassedCourse(teacher: Teacher, now: Date = new Date()): boolean {
+  const counted = teacher.moduleResults.filter((r) => isModuleDueForPassRate(r, now));
+  const relevant = counted.filter((r) => !(r.status === 'old_teacher' && r.score < PASS_THRESHOLD));
+  if (relevant.length === 0) return counted.length > 0;
+  return relevant.every((r) => r.score >= PASS_THRESHOLD);
 }
 
-export interface GradeGroupTeacherPassStat {
-  group: GradeGroup;
+/**
+ * Категории учителей — НЕпересекающиеся: каждый учитель попадает ровно в
+ * одну, поэтому суммы по категориям равны общему числу, а двухпараллельный
+ * учитель считается ОДНИМ человеком (прошёл/не прошёл — 1 или 0), а не
+ * дважды в «2–4» и «5–9».
+ */
+export type TeacherCategory = 'only24' | 'only59' | 'both' | 'it';
+export const TEACHER_CATEGORIES: TeacherCategory[] = ['only24', 'only59', 'both', 'it'];
+
+export function getTeacherCategory(teacher: Teacher): TeacherCategory {
+  if (teacher.gradeGroup === '10-11') return 'it';
+  const groups = getAssignedGradeGroups(teacher);
+  const has24 = groups.includes('2-4');
+  const has59 = groups.includes('5-9');
+  if (has24 && has59) return 'both';
+  if (has24) return 'only24';
+  if (has59) return 'only59';
+  return teacher.gradeGroup === '5-9' ? 'only59' : 'only24';
+}
+
+export interface CategoryStat {
+  category: TeacherCategory;
+  /** Учителей в категории (с назначенным классом) */
   totalTeachers: number;
+  /** Из них прошли курс — каждый учитель считается один раз */
   passedTeachers: number;
   percent: number;
-  /** Посещаемость: сколько учителей этой параллели вошло на платформу (isUserActive) из totalTeachers */
+  /** Посещаемость: вошли на платформу (isUserActive) */
   activeTeachers: number;
-  /** Посещаемость, % от totalTeachers */
   activePercent: number;
+  /** Среднее решение по вошедшим учителям категории (с нулями) */
+  averageScore: AverageScoreStat;
 }
 
-/**
- * KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
- * сданных модулей — "X из Y учителей прошли курс (Z%)" по каждой
- * параллели. Учителя без назначенного класса (hasAssignedClass=false) не
- * входят ни в одну параллель — их результаты видны в таблицах, но в этот
- * KPI они не в знаменателе ни одной группы.
- *
- * ВАЖНО: считаем по getAssignedGradeGroups (может вернуть сразу
- * несколько параллелей) — ТА ЖЕ база, что и в "Детализации по каждому
- * модулю" (getModuleStatsForGroup), чтобы знаменатель для "2–4 классы"
- * был ОДИНАКОВЫМ и в верхнем блоке KPI, и в карточках модулей внизу той
- * же страницы. Учитель с записью "Начальная, Средняя" в сырых данных
- * (настоящее двойное назначение, не ошибка парсинга) поэтому попадает
- * И в "2–4", И в "5–9" — сумма totalTeachers по трём параллелям поэтому
- * может ПРЕВЫШАТЬ общее число учителей с классом, это ожидаемо и
- * отражает реальность, а не баг двойного счёта одного и того же
- * учителя в одной и той же категории.
- *
- * "Прошёл" считаем через hasTeacherPassedGroup (НЕ hasTeacherPassedCourse) —
- * строго по модулям ЭТОЙ параллели. hasTeacherPassedCourse смотрит на ВСЕ
- * модули учителя разом: на реальных данных это приводило к тому, что
- * "двухпараллельный" учитель, отлично сдавший всё в 5–9, но не начавший
- * 2–4 (дедлайн ещё не наступил), засчитывался "прошедшим" и в "2–4"
- * тоже — верхний блок "Прошли курс" показывал БОЛЬШЕ учителей, чем
- * сдало любой отдельный модуль этой параллели, хотя логически "прошёл
- * курс 2–4" не может быть больше, чем "сдал M1" или "сдал M2".
- */
-export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: GradeGroup[]): GradeGroupTeacherPassStat[] {
-  return groups.map((group) => {
-    const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-    const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedGroup(te, group)).length;
-    const activeTeachers = groupTeachers.filter(isUserActive).length;
-    const pct = (n: number) => (groupTeachers.length > 0 ? Math.round((n / groupTeachers.length) * 100) : 0);
+export function getTeacherCategoryStats(teachers: Teacher[], now: Date = new Date()): CategoryStat[] {
+  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  return TEACHER_CATEGORIES.map((category) => {
+    const members = eligible.filter((te) => getTeacherCategory(te) === category);
+    const passedTeachers = members.filter((te) => hasTeacherPassedCourse(te, now)).length;
+    const active = members.filter(isUserActive);
+    const pct = (n: number) => (members.length > 0 ? Math.round((n / members.length) * 100) : 0);
     return {
-      group,
-      totalTeachers: groupTeachers.length,
+      category,
+      totalTeachers: members.length,
       passedTeachers,
       percent: pct(passedTeachers),
-      activeTeachers,
-      activePercent: pct(activeTeachers),
+      activeTeachers: active.length,
+      activePercent: pct(active.length),
+      averageScore: averageOfActiveTeachers(active),
     };
   });
 }
@@ -508,63 +507,34 @@ export function getModulePassRateByLifecycle(teachers: Teacher[], group: GradeGr
 export interface AllMetricsSnapshot {
   /** "Всего учителей"/"Вошли"/"Не вошли" — прямой подсчёт по листу "Все учителя 26/27" */
   platform: RawPlatformStats;
-  /** "Прошли курс" по каждой параллели (2–4/5–9/10–11), включая "IT-классы 26/27" */
-  passByGroup: GradeGroupTeacherPassStat[];
-  /** Общий "Прошли курс" по всем учителям с назначенным классом сразу */
+  /** "Прошли курс" по непересекающимся категориям: только 2–4 / только 5–9 / обе параллели / IT-классы */
+  passByCategory: CategoryStat[];
+  /** Общий "Прошли курс": каждый учитель с назначенным классом — один раз */
   overallPass: OverallTeacherPassStat;
   /** "Детализация по каждому модулю" — знаменатель/числитель для КАЖДОГО модуля каждой параллели */
   moduleStatsByGroup: Record<GradeGroup, ModuleStat[]>;
-  /** Общий средний балл по решённым модулям — карточка "Среднее решение" на Главной */
+  /** Общий средний балл по всем вошедшим — карточка "Среднее решение" на Главной */
   averageScore: AverageScoreStat;
-  /** Средний балл отдельно по каждой параллели */
-  averageScoreByGroup: Record<GradeGroup, AverageScoreStat>;
-  /** Виджет «IT-классы (10–11)»: посещаемость, среднее решение, прошли аттестацию — по листу «IT-классы 26/27» */
-  itClasses: {
-    /** Посещаемость и «прошли аттестацию»: те же totalTeachers/activeTeachers/passedTeachers, что на линии 10–11 в «Прошли курс по параллелям» */
-    pass: GradeGroupTeacherPassStat;
-    average: AverageScoreStat;
-  };
+  /** Виджет «IT-классы (10–11)»: посещаемость, среднее решение, прошли аттестацию */
+  itClasses: CategoryStat;
 }
 
 /**
  * Единая точка пересчёта ВСЕХ показателей дашборда "с нуля" по свежему
- * массиву учителей — вызывается заново при каждой загрузке/обновлении
- * (см. store/useTeacherStore.ts), никогда не переиспользует старые
- * значения. Сама по себе не содержит новой арифметики — оркестрирует уже
- * проверенные чистые функции этого файла (getRawPlatformStats,
- * getTeacherPassStatsByGradeGroup, getModuleStatsForGroup и т.д.), чтобы
- * ВСЕ страницы читали результат ОДНОГО общего расчёта, а не считали
- * похожие цифры параллельно в нескольких местах.
- *
- * Строгие правила, зашитые в эти функции (проверено сравнением с ручным
- * пересчётом по сырым данным напрямую из Google Sheets):
- * - Знаменатель модуля параллели `group` — учителя с hasAssignedClass=true
- *   И реально назначенной этой параллелью (getAssignedGradeGroups);
- *   "Нет класса"/пустые статусы исключены на этапе разбора листа
- *   (sheetMapping.ts: parseModuleCell возвращает null для "нет класса").
- * - Числитель — СТРОГО score >= 70 (см. getModuleStatsForGroup), без
- *   исключений для "Старый учитель"/"Не начал"/пустых значений.
- * - Статус входа — teacher.platformStatus, определяется в
- *   sheetMapping.ts (mapPlatformStatus) строго по тексту столбца X.
+ * массиву учителей — вызывается заново при каждом рендере (т.е. после
+ * каждой загрузки/«Обновить данные»), никогда не переиспользует старые
+ * значения. Оркестрирует чистые функции этого файла, чтобы ВСЕ страницы
+ * читали результат ОДНОГО расчёта.
  */
 export function recalculateAllMetrics(teachers: Teacher[]): AllMetricsSnapshot {
   const platform = getRawPlatformStats(teachers);
-  const passByGroup = getTeacherPassStatsByGradeGroup(teachers, GRADE_GROUPS);
-  const eligible = teachers.filter((te) => te.hasAssignedClass);
-  const overallPass = getOverallTeacherPassStat(eligible);
+  const passByCategory = getTeacherCategoryStats(teachers);
+  const overallPass = getOverallTeacherPassStat(teachers);
   const moduleStatsByGroup = Object.fromEntries(
     GRADE_GROUPS.map((group) => [group, getModuleStatsForGroup(teachers, group)]),
   ) as Record<GradeGroup, ModuleStat[]>;
-
   const averageScore = getOverallAverageScore(teachers);
-  const averageScoreByGroup = Object.fromEntries(
-    GRADE_GROUPS.map((group) => [group, getAverageScoreForGroup(teachers, group)]),
-  ) as Record<GradeGroup, AverageScoreStat>;
+  const itClasses = passByCategory.find((c) => c.category === 'it')!;
 
-  const itClasses = {
-    pass: passByGroup.find((g) => g.group === '10-11')!,
-    average: averageScoreByGroup['10-11'],
-  };
-
-  return { platform, passByGroup, overallPass, moduleStatsByGroup, averageScore, averageScoreByGroup, itClasses };
+  return { platform, passByCategory, overallPass, moduleStatsByGroup, averageScore, itClasses };
 }

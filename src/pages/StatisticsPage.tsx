@@ -83,7 +83,12 @@ export function StatisticsPage() {
   // нет назначенных модулей.
   const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
   const overallTeacherPass = metrics.overallPass;
-  const teacherPassByGroup = metrics.passByGroup;
+  const categoryLabels = {
+    only24: t.dashboard.categoryOnly24,
+    only59: t.dashboard.categoryOnly59,
+    both: t.dashboard.categoryBoth,
+    it: t.dashboard.categoryIt,
+  } as const;
   const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
 
   const byLifecycle = countByKey(
@@ -201,17 +206,17 @@ export function StatisticsPage() {
               action={<DownloadPngButton targetRef={byGradeGroupRef} filename="po-klassam.png" />}
             >
               <div ref={byGradeGroupRef} className="space-y-4 bg-white">
-                {teacherPassByGroup.map((g, i) => (
+                {metrics.passByCategory.map((c, i) => (
                   <Bar
-                    key={g.group}
-                    label={`${t.gradeGroup[g.group]}: ${formatTeachersPassed(
+                    key={c.category}
+                    label={`${categoryLabels[c.category]}: ${formatTeachersPassed(
                       t.dashboard.teachersPassedFormat,
-                      g.passedTeachers,
-                      g.totalTeachers,
-                      g.percent,
+                      c.passedTeachers,
+                      c.totalTeachers,
+                      c.percent,
                     )}`}
-                    count={g.passedTeachers}
-                    percent={g.percent}
+                    count={c.passedTeachers}
+                    percent={c.percent}
                     color={PALETTE[i % PALETTE.length]}
                   />
                 ))}

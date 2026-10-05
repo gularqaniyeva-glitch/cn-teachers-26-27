@@ -130,7 +130,7 @@ function extractModuleNumbers(raw: string): string[] {
 }
 
 /** Строки-заметки в графике ("Q&A vebinar", пустая ячейка и т.п.) — не модуль, пропускаем независимо от того, есть ли в тексте цифры. */
-const NON_MODULE_MARKERS = ['vebinar', 'webinar', 'q&a', 'qeydiyyat', 'seminar'];
+const NON_MODULE_MARKERS = ['vebinar', 'webinar', 'q&a', 'qeydiyyat', 'seminar', 'hissə', 'hisse'];
 function isNonModuleText(raw: string): boolean {
   const v = raw.trim().toLowerCase();
   if (!v) return true;
@@ -374,7 +374,10 @@ export function isModuleOpen(index: ScheduleIndex, moduleId: string, now: Date =
     const entry = findScheduleEntry(index, moduleId);
     if (!entry) return true;
     if (entry.openOverride !== null) return entry.openOverride;
-    if (!entry.openDate) return true;
+    // Запись графика есть, явного флага нет, а дата открытия пуста —
+    // модуль считается ЗАКРЫТЫМ (решение пользователя). Модуль вообще без
+    // записи в графике по-прежнему считается открытым (см. выше).
+    if (!entry.openDate) return false;
     return entry.openDate.getTime() <= now.getTime();
   } catch {
     return true;
