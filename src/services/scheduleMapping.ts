@@ -205,7 +205,19 @@ function resolveModuleKey(row: RawSheetRow): { moduleNumbers: string[]; gradeGro
   const moduleTotalRaw = findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.moduleTotal]);
   if (moduleTotalRaw.trim()) {
     const parsed = parseModuleTotalKey(moduleTotalRaw);
-    if (parsed) return parsed;
+    if (parsed) {
+      // В "Modul Total" параллели может не быть вовсе ("М3 RB", "М4 IT" —
+      // вместо прежнего "М3 2-4"): без параллели запись улетает в общий
+      // фолбэк по номеру ("M3" у 2-4, 5-9 и 10-11 одновременно =
+      // неоднозначно) и ВСЕ такие модули ошибочно считаются открытыми.
+      // Берём параллель из отдельного столбца "Sinif" ("2-4"/"5-9"/"10-11";
+      // "All" у общих M1/M2 параллелью не является и остаётся null).
+      if (!parsed.gradeGroup) {
+        const fromSinif = normalizeGradeGroupLabel(findValueFuzzy(row, [...SCHEDULE_FIELD_CANDIDATES.gradeGroup]));
+        if (fromSinif) return { ...parsed, gradeGroup: fromSinif };
+      }
+      return parsed;
+    }
     // Явно нераспознанный/нечисловой "Modul Total" (напр. "Q&A vebinar")
     // — не пытаемся угадывать по запасным столбцам, строка НЕ про модуль.
     if (isNonModuleText(moduleTotalRaw)) return null;

@@ -96,104 +96,45 @@ function getTeacherMeanScore(teacher: Teacher, group?: GradeGroup): number | nul
 }
 
 export interface AverageScoreStat {
-  /** Среднее арифметическое "среднего балла по решённым" по учителям, % (1 знак после запятой); null — ни у кого ещё нет решённых модулей */
+  /** Среднее арифметическое среднего балла по ВСЕМ вошедшим учителям выборки, % (1 знак); null — вошедших нет */
   average: number | null;
-  /** Сколько учителей участвует в усреднении: реально решавшие (хотя бы один модуль с баллом > 0) — всегда подмножество «вошедших» */
-  teachersCount: number;
-  /** Сколько учителей вошло на платформу в той же выборке (isUserActive) — то же число, что на карточке/линии «Вошли», teachersCount <= activeTeachers */
+  /** Знаменатель: число вошедших (isUserActive) в той же выборке — ровно то число, что на карточке/линии «Вошли» */
   activeTeachers: number;
 }
 
-function averageOfTeacherMeans(
-  teachers: Teacher[],
-  activeTeachers: number,
-  group?: GradeGroup,
-): AverageScoreStat {
+/**
+ * Среднее по ВСЕМ вошедшим: сумма «среднего балла по решённым» каждого
+ * вошедшего учителя / число вошедших. Вошедший, у которого пока нет ни
+ * одного решённого модуля (или все решённые — 0%), участвует с 0% —
+ * исключать нули нельзя (решение пользователя): иначе знаменатель
+ * разойдётся с числом вошедших. Усредняются ОКРУГЛЁННЫЕ значения колонки
+ * «Средний балл (по решённым)», чтобы итог перепроверялся по таблице.
+ */
+function averageOfActiveTeachers(activeTeachers: Teacher[], group?: GradeGroup): AverageScoreStat {
   let sum = 0;
-  let count = 0;
-  for (const teacher of teachers) {
+  for (const teacher of activeTeachers) {
     const mean = getTeacherMeanScore(teacher, group);
-    // Не решал ничего (нет попыток ИЛИ все попытки с 0% — «Старый
-    // учитель»/«Не прошёл» без баллов): в «среднее по решённым» не входит.
-    if (mean === null || mean <= 0) continue;
-    // Усредняем именно ОКРУГЛЁННЫЕ значения — те, что видны в колонке
-    // "Средний балл (по решённым)" таблицы, чтобы итог можно было
-    // перепроверить вручную по этой колонке (без тихого расхождения на
-    // десятые из-за округления x.5 вверх).
-    sum += Math.round(mean);
-    count += 1;
+    sum += mean === null ? 0 : Math.round(mean);
   }
   return {
-    average: count > 0 ? Math.round((sum / count) * 10) / 10 : null,
-    teachersCount: count,
-    activeTeachers,
+    average: activeTeachers.length > 0 ? Math.round((sum / activeTeachers.length) * 10) / 10 : null,
+    activeTeachers: activeTeachers.length,
   };
 }
 
 /**
- * Общий средний балл по платформе: среднее значений колонки «Средний
- * балл (по решённым)» по учителям с назначенным классом, реально
- * решавшим модули. База та же, что у карточки «Вошли на платформу» —
- * лист «Все учителя 26/27» (IT-классы 10–11 считаются отдельным
- * виджетом): activeTeachers совпадает с числом на карточке «Вошли».
+ * Общий средний балл: по всем вошедшим учителям листа «Все учителя
+ * 26/27» — та же база, что у карточки «Вошли на платформу» (IT-классы
+ * 10–11 считаются отдельным виджетом).
  */
 export function getOverallAverageScore(teachers: Teacher[]): AverageScoreStat {
-  const mainSheet = teachers.filter((te) => te.gradeGroup !== '10-11');
-  return averageOfTeacherMeans(
-    mainSheet.filter((te) => te.hasAssignedClass),
-    mainSheet.filter(isUserActive).length,
-  );
+  return averageOfActiveTeachers(teachers.filter((te) => te.gradeGroup !== '10-11').filter(isUserActive));
 }
 
-/** То же по одной параллели: учителя этой параллели (getAssignedGradeGroups), балл каждого — только по модулям этой параллели. */
+/** То же по одной параллели: вошедшие учителя этой параллели (getAssignedGradeGroups), балл каждого — по модулям этой параллели. */
 export function getAverageScoreForGroup(teachers: Teacher[], group: GradeGroup): AverageScoreStat {
   const inGroup = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-  return averageOfTeacherMeans(inGroup, inGroup.filter(isUserActive).length, group);
-}
-
-/**
- * Модуль с датой открытия в будущем по графику "(АЗ) График 26/27" вообще
- * не попадает в teacher.moduleResults (см. services/scheduleMapping.ts) —
- * это решает, ПОКАЗЫВАЕТСЯ ли модуль вообще. Отдельный, более строгий
- * вопрос — должен ли уже ОТКРЫТЫЙ, но ещё не сданный модуль (статус "не
- * начал") засчитываться в знаменатель "Прошли курс": да, если по нему уже
- * наступил дедлайн (время сдать было), и нет — если срок ещё не истёк ИЛИ
- * дедлайн вообще неизвестен графику. Учителя, сдавшие ДОСРОЧНО (любой
- * статус кроме "не начал"), учитываются сразу независимо от дедлайна —
- * досрочная сдача не наказывается.
- *
- * ВАЖНО: раньше отсутствие даты в графике для НЕ начатого модуля
- * трактовалось как "модуль уже входит в знаменатель" (permissive true) —
- * это оказалось строго противоположно бизнес-правилу и на реальных данных
- * (где график покрывает лишь часть модулей) обрушивало "Прошли курс" до
- * единиц процентов: тысячи ещё не начатых модулей без даты в графике
- * засчитывались как просроченный провал. Правило теперь строгое и
- * симметричное: НЕ начатый модуль входит в знаменатель ТОЛЬКО если у него
- * есть распознанный дедлайн И этот дедлайн уже наступил.
- *
- * ИСКЛЮЧЕНИЕ — M1 и M2: это вводные модули, назначенные СРАЗУ всем
- * учителям с классами (в отличие от M3+, которые открываются постепенно
- * по параллели). Для них дедлайн-отсрочка не действует — они входят в
- * знаменатель "Прошли курс" всегда, как только назначены, вне
- * зависимости от того, наступил ли официальный дедлайн сдачи. Учитель,
- * не приступивший к M1/M2, не должен засчитываться "прошедшим курс"
- * только потому, что формальный срок сдачи этих двух модулей ещё не
- * наступил — в отличие от M3+, где такая отсрочка обоснована (решение
- * пользователя, 2026-09).
- */
-function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
-  if (result.status !== 'not_started') return true;
-  const isFoundationalModule = result.moduleId.endsWith('-M1') || result.moduleId.endsWith('-M2');
-  if (isFoundationalModule) return true;
-  if (!result.deadline) return false;
-  const deadline = new Date(result.deadline);
-  if (Number.isNaN(deadline.getTime())) return false;
-  return deadline.getTime() <= now.getTime();
-}
-
-/** Модули учителя, которые прямо сейчас входят в знаменатель "Прошли курс" — см. isModuleDueForPassRate. */
-function moduleResultsDueForPassRate(teacher: Teacher, now: Date): ModuleResult[] {
-  return teacher.moduleResults.filter((r) => isModuleDueForPassRate(r, now));
+  return averageOfActiveTeachers(inGroup.filter(isUserActive), group);
 }
 
 export interface TeacherOverallStats {
@@ -373,46 +314,29 @@ export function getOverallPassPercent(teachers: Teacher[]): number {
 }
 
 /**
- * "Прошёл курс" — считаем по УЧИТЕЛЮ (человеку), а не по сумме отдельных
- * модулей: все его модули, уже входящие в знаменатель "Прошли курс" (см.
- * isModuleDueForPassRate — сдан досрочно, либо уже наступил дедлайн),
- * набрали >=70%. Модули со статусом old_teacher по бизнес-правилу
- * исключаются из проверки (таких учителей не считаем должниками) — если
- * после исключения ничего не остаётся, учитель всё равно засчитывается
- * прошедшим. Если у учителя ВООБЩЕ нет ни одного модуля, входящего в
- * знаменатель прямо сейчас (ничего не сдано и ничего ещё не просрочено),
- * его рано засчитывать прошедшим — courses just started.
+ * «Прошёл курс» — по УЧИТЕЛЮ (человеку): ВСЕ его сейчас ОТКРЫТЫЕ модули
+ * (teacher.moduleResults уже содержит только открытые по графику — флаг
+ * «Открыть курс»/дата открытия) сданы на >=70% по логическому «И»
+ * (M1 >= 70% AND M2 >= 70% AND ...). Закрытые/будущие модули в
+ * moduleResults не попадают и в проверку не входят. Модуль без балла
+ * («Не начал»), а также «Старый учитель» с баллом < 70% — НЕ сдан:
+ * иначе число прошедших курс могло бы превысить число сдавших любой
+ * из открытых модулей, что логически невозможно (учитель без модулей
+ * не может «пройти» ничего).
  */
-export function hasTeacherPassedCourse(teacher: Teacher, now: Date = new Date()): boolean {
-  const counted = moduleResultsDueForPassRate(teacher, now);
-  const relevant = counted.filter((r) => r.status !== 'old_teacher');
-  if (relevant.length === 0) return counted.length > 0;
-  return relevant.every((r) => r.score >= PASS_THRESHOLD);
+export function hasTeacherPassedCourse(teacher: Teacher): boolean {
+  return teacher.moduleResults.length > 0 && teacher.moduleResults.every((r) => r.score >= PASS_THRESHOLD);
 }
 
 /**
- * То же самое, что hasTeacherPassedCourse, но ОГРАНИЧЕНО модулями ОДНОЙ
- * параллели — иначе "двухпараллельный" учитель, отлично сдавший всё в
- * 5–9, но ничего не сделавший по 2–4 (модуль ещё не наступил дедлайном),
- * засчитывался бы "прошедшим" сразу в ОБЕИХ параллелях: hasTeacherPassedCourse
- * смотрит на ВСЕ moduleResults учителя разом, без разбора параллели.
- * Проверено на реальных данных: именно это раздувало "2–4 классы: X
- * прошли курс" числами людей, чей реальный прогресс относится к 5–9.
- *
- * M1/M2 общие и хранятся ПОД ОДНИМ id (основной параллели учителя), но
- * относятся к программе ОБЕИХ параллелей — поэтому при проверке любой
- * параллели их результат учитывается, где бы он ни был сохранён (по
- * суффиксу "-M1"/"-M2", а не по префиксу параллели). Модули M3 и далее
- * учитываются только с префиксом именно этой параллели.
+ * То же самое, но ОГРАНИЧЕНО модулями ОДНОЙ параллели (общие M1/M2 где бы
+ * ни были сохранены + модули с префиксом этой параллели) — иначе
+ * «двухпараллельный» учитель, отлично сдавший всё в 5–9, но не начавший
+ * 2–4, засчитывался бы прошедшим сразу в обеих параллелях.
  */
-export function hasTeacherPassedGroup(teacher: Teacher, group: GradeGroup, now: Date = new Date()): boolean {
-  const relevantResults = teacher.moduleResults.filter(
-    (r) => r.moduleId.endsWith('-M1') || r.moduleId.endsWith('-M2') || r.moduleId.startsWith(`${group}-`),
-  );
-  const counted = relevantResults.filter((r) => isModuleDueForPassRate(r, now));
-  const relevant = counted.filter((r) => r.status !== 'old_teacher');
-  if (relevant.length === 0) return counted.length > 0;
-  return relevant.every((r) => r.score >= PASS_THRESHOLD);
+export function hasTeacherPassedGroup(teacher: Teacher, group: GradeGroup): boolean {
+  const results = moduleResultsOfGroup(teacher, group);
+  return results.length > 0 && results.every((r) => r.score >= PASS_THRESHOLD);
 }
 
 export interface GradeGroupTeacherPassStat {

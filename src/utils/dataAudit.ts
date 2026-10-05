@@ -11,6 +11,7 @@
 import type { Teacher } from '../types/teacher';
 import { getCurrentScheduleIndex, isModuleConfirmedOpen, type ScheduleAuditInfo } from '../services/scheduleMapping';
 import { findGroupAnomalies } from './anomalies';
+import { isUserActive, recalculateAllMetrics } from './stats';
 
 export interface AuditIssue {
   id: string;
@@ -115,6 +116,38 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
       id: 'anomaly-unopened-module-leak',
       message: `Аудит аномалий ссылается на ещё не открытые по графику модули: ${shortTitles}. Это регрессия фильтрации — такие алерты нужно скрыть.`,
     });
+  }
+
+  // Самопроверка (Self-Validation): цепочка «прошли курс <= вошли на
+  // платформу <= всего с назначенным классом» в одной и той же выборке
+  // (учителя с классом) и согласованность чисел между блоками дашборда.
+  const metrics = recalculateAllMetrics(teachers);
+  const eligible = teachers.filter((t) => t.hasAssignedClass);
+  const eligibleActive = eligible.filter(isUserActive).length;
+  if (metrics.overallPass.passedTeachers > eligibleActive || eligibleActive > eligible.length) {
+    issues.push({
+      id: 'selfcheck-pass-active-total',
+      message: `Нарушена цепочка: прошли курс (${metrics.overallPass.passedTeachers}) <= вошли на платформу (${eligibleActive}) <= всего с классом (${eligible.length}).`,
+    });
+  }
+  if (metrics.averageScore.activeTeachers !== metrics.platform.entered) {
+    issues.push({
+      id: 'selfcheck-average-vs-entered',
+      message: `«Среднее решение» посчитано по ${metrics.averageScore.activeTeachers} учителям, а «Вошли на платформу» = ${metrics.platform.entered} — база должна совпадать.`,
+    });
+  }
+  // Прошедших курс по параллели не может быть больше, чем сдавших любой из
+  // открытых модулей этой параллели (иначе нарушено логическое «И»).
+  for (const stat of metrics.passByGroup) {
+    const openModules = metrics.moduleStatsByGroup[stat.group].filter((m) => m.assigned > 0);
+    if (openModules.length === 0) continue;
+    const minPassed = Math.min(...openModules.map((m) => m.passed));
+    if (stat.passedTeachers > minPassed) {
+      issues.push({
+        id: `selfcheck-pass-vs-modules-${stat.group}`,
+        message: `Параллель ${stat.group}: прошли курс (${stat.passedTeachers}) больше, чем сдавших один из открытых модулей (${minPassed}) — нарушено логическое «И».`,
+      });
+    }
   }
 
   return issues;

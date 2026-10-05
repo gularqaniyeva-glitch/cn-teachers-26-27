@@ -92,9 +92,7 @@ export function DashboardPage() {
           value={formatAverage(metrics.averageScore.average)}
           icon={Gauge}
           accent="blue"
-          sublabel={t.dashboard.averageScoreSublabel
-            .replace('{count}', String(metrics.averageScore.teachersCount))
-            .replace('{active}', String(metrics.averageScore.activeTeachers))}
+          sublabel={t.dashboard.averageScoreSublabel.replace('{active}', String(metrics.averageScore.activeTeachers))}
           tooltip={t.dashboard.averageScoreTooltip}
         />
       </div>
@@ -154,9 +152,7 @@ export function DashboardPage() {
             value={formatAverage(metrics.itClasses.average.average)}
             icon={Gauge}
             accent="blue"
-            sublabel={t.dashboard.averageScoreSublabel
-              .replace('{count}', String(metrics.itClasses.average.teachersCount))
-              .replace('{active}', String(metrics.itClasses.average.activeTeachers))}
+            sublabel={t.dashboard.averageScoreSublabel.replace('{active}', String(metrics.itClasses.average.activeTeachers))}
             tooltip={t.dashboard.averageScoreTooltip}
           />
           <StatCard
