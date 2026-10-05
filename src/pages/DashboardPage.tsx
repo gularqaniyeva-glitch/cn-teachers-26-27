@@ -84,7 +84,9 @@ export function DashboardPage() {
           value={`${overallTeacherPass.percent}%`}
           icon={TrendingUp}
           accent="violet"
-          sublabel={`${overallTeacherPass.passedTeachers} ${t.common.of} ${overallTeacherPass.totalTeachers} ${t.dashboard.ofTotal}`}
+          sublabel={t.dashboard.passedAllOpenFormat
+            .replace('{passed}', String(overallTeacherPass.passedTeachers))
+            .replace('{total}', String(overallTeacherPass.totalTeachers))}
           tooltip={t.dashboard.successRateTooltip}
         />
         <StatCard

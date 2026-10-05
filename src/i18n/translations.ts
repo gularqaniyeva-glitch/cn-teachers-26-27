@@ -97,6 +97,8 @@ export interface Dict {
     totalTeachersTooltip: string;
     moduleStatsTooltip: string;
     moduleDetailTooltip: string;
+    /** Подпись карточки «Прошли курс»: "{passed} из {total} сдали ВСЕ открытые модули" */
+    passedAllOpenFormat: string;
     averageScore: string;
     averageScoreTooltip: string;
     /** Подпись под значением карточки: "по {active} вошедшим учителям" */
@@ -382,6 +384,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachersTooltip: 'Общее количество учителей в базе — прямой подсчёт по листу «Все учителя 26/27».',
       moduleStatsTooltip: 'Доля учителей в разрезе параллелей 2–4, 5–9 и 10–11 классов, сдавших все сейчас открытые модули (по логическому «И»).',
       moduleDetailTooltip: 'Средняя успеваемость и процент сдавших отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели.',
+      passedAllOpenFormat: '{passed} из {total} сдали все открытые модули',
       averageScore: 'Среднее решение',
       averageScoreTooltip: 'Среднее арифметическое «Среднего балла (по решённым)» по ВСЕМ вошедшим на платформу учителям: сумма средних баллов / число вошедших (то же число, что на карточке «Вошли на платформу»). Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
       averageScoreSublabel: 'по {active} вошедшим учителям',
@@ -661,6 +664,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachersTooltip: 'Bazadakı ümumi müəllim sayı — "Bütün müəllimlər 26/27" vərəqinə əsasən birbaşa hesablama.',
       moduleStatsTooltip: '2–4, 5–9 və 10–11-ci siniflər üzrə hazırda açıq olan bütün modulları (məntiqi «VƏ») keçmiş müəllimlərin payı.',
       moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca orta göstərici və keçən faizi.',
+      passedAllOpenFormat: '{total} müəllimdən {passed}-i bütün açıq modulları keçib',
       averageScore: 'Orta nəticə',
       averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş BÜTÜN müəllimlər üzrə orta arifmetiği: orta balların cəmi / daxil olanların sayı («Platformaya daxil olanlar» kartındakı ilə eyni rəqəm). Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
       averageScoreSublabel: 'daxil olmuş {active} müəllim üzrə',
