@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users, LogIn, LogOut, TrendingUp } from 'lucide-react';
+import { Users, LogIn, LogOut, TrendingUp, Gauge } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
@@ -41,6 +41,7 @@ export function DashboardPage() {
   const overallTeacherPass = metrics.overallPass;
   const teacherPassByGroup = metrics.passByGroup;
   const activeGroupModules = metrics.moduleStatsByGroup[activeDetailGroup];
+  const formatAverage = (average: number | null) => (average === null ? '—' : `${average.toFixed(1).replace('.', ',')}%`);
 
   return (
     <div className="space-y-6">
@@ -54,7 +55,7 @@ export function DashboardPage() {
         <RefreshDataControl />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label={t.dashboard.totalTeachers}
           value={total}
@@ -86,6 +87,14 @@ export function DashboardPage() {
           sublabel={`${overallTeacherPass.passedTeachers} ${t.common.of} ${overallTeacherPass.totalTeachers} ${t.dashboard.ofTotal}`}
           tooltip={t.dashboard.successRateTooltip}
         />
+        <StatCard
+          label={t.dashboard.averageScore}
+          value={formatAverage(metrics.averageScore.average)}
+          icon={Gauge}
+          accent="blue"
+          sublabel={t.dashboard.averageScoreSublabel.replace('{count}', String(metrics.averageScore.teachersCount))}
+          tooltip={t.dashboard.averageScoreTooltip}
+        />
       </div>
 
       {/* KPI по ФИЗИЧЕСКИМ учителям (1 человек = 1 сущность), а не по сумме
@@ -111,6 +120,15 @@ export function DashboardPage() {
               color={g.percent >= 90 ? '#059669' : g.percent >= 70 ? '#d97706' : '#e11d48'}
             />
           ))}
+          <div className="space-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
+            {GRADE_GROUPS.map((g) => (
+              <p key={g}>
+                {t.dashboard.averageScoreByGroupFormat
+                  .replace('{group}', t.gradeGroup[g])
+                  .replace('{value}', formatAverage(metrics.averageScoreByGroup[g].average))}
+              </p>
+            ))}
+          </div>
         </div>
       </Card>
 

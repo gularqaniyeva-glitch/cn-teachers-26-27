@@ -61,10 +61,57 @@ export function getRawPlatformStats(teachers: Teacher[]): RawPlatformStats {
  * тянут средний процент вниз для тех, кто просто ещё не дошёл до модуля.
  */
 export function getTeacherAverageScore(teacher: Teacher): number | null {
-  const attempted = teacher.moduleResults.filter((r) => r.status !== 'not_started');
+  const mean = getTeacherMeanScore(teacher);
+  return mean === null ? null : Math.round(mean);
+}
+
+/** Модули, относящиеся к программе одной параллели: общие M1/M2 (где бы ни были сохранены) + модули с префиксом именно этой параллели — та же выборка, что в hasTeacherPassedGroup. */
+function moduleResultsOfGroup(teacher: Teacher, group: GradeGroup): ModuleResult[] {
+  return teacher.moduleResults.filter(
+    (r) => r.moduleId.endsWith('-M1') || r.moduleId.endsWith('-M2') || r.moduleId.startsWith(`${group}-`),
+  );
+}
+
+/** Тот же "средний балл по решённым" (до округления) и, при указании group, только по модулям этой параллели. */
+function getTeacherMeanScore(teacher: Teacher, group?: GradeGroup): number | null {
+  const results = group ? moduleResultsOfGroup(teacher, group) : teacher.moduleResults;
+  const attempted = results.filter((r) => r.status !== 'not_started');
   if (attempted.length === 0) return null;
-  const sum = attempted.reduce((acc, r) => acc + r.score, 0);
-  return Math.round(sum / attempted.length);
+  return attempted.reduce((acc, r) => acc + r.score, 0) / attempted.length;
+}
+
+export interface AverageScoreStat {
+  /** Среднее арифметическое "среднего балла по решённым" по учителям, % (1 знак после запятой); null — ни у кого ещё нет решённых модулей */
+  average: number | null;
+  /** Сколько учителей участвует в усреднении (с назначенным классом и хотя бы одним решённым модулем) */
+  teachersCount: number;
+}
+
+function averageOfTeacherMeans(teachers: Teacher[], group?: GradeGroup): AverageScoreStat {
+  let sum = 0;
+  let count = 0;
+  for (const teacher of teachers) {
+    const mean = getTeacherMeanScore(teacher, group);
+    if (mean === null) continue;
+    // Усредняем именно ОКРУГЛЁННЫЕ значения — те, что видны в колонке
+    // "Средний балл (по решённым)" таблицы, чтобы итог можно было
+    // перепроверить вручную по этой колонке (без тихого расхождения на
+    // десятые из-за округления x.5 вверх).
+    sum += Math.round(mean);
+    count += 1;
+  }
+  return { average: count > 0 ? Math.round((sum / count) * 10) / 10 : null, teachersCount: count };
+}
+
+/** Общий средний балл по платформе: среднее значений колонки "Средний балл (по решённым)" по учителям с назначенным классом. Учителя без решённых модулей ("нет данных") не участвуют. */
+export function getOverallAverageScore(teachers: Teacher[]): AverageScoreStat {
+  return averageOfTeacherMeans(teachers.filter((te) => te.hasAssignedClass));
+}
+
+/** То же по одной параллели: учителя этой параллели (getAssignedGradeGroups), балл каждого — только по модулям этой параллели. */
+export function getAverageScoreForGroup(teachers: Teacher[], group: GradeGroup): AverageScoreStat {
+  const inGroup = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
+  return averageOfTeacherMeans(inGroup, group);
 }
 
 /**
@@ -498,6 +545,10 @@ export interface AllMetricsSnapshot {
   overallPass: OverallTeacherPassStat;
   /** "Детализация по каждому модулю" — знаменатель/числитель для КАЖДОГО модуля каждой параллели */
   moduleStatsByGroup: Record<GradeGroup, ModuleStat[]>;
+  /** Общий средний балл по решённым модулям — карточка "Среднее решение" на Главной */
+  averageScore: AverageScoreStat;
+  /** Средний балл отдельно по каждой параллели */
+  averageScoreByGroup: Record<GradeGroup, AverageScoreStat>;
 }
 
 /**
@@ -530,5 +581,10 @@ export function recalculateAllMetrics(teachers: Teacher[]): AllMetricsSnapshot {
     GRADE_GROUPS.map((group) => [group, getModuleStatsForGroup(teachers, group)]),
   ) as Record<GradeGroup, ModuleStat[]>;
 
-  return { platform, passByGroup, overallPass, moduleStatsByGroup };
+  const averageScore = getOverallAverageScore(teachers);
+  const averageScoreByGroup = Object.fromEntries(
+    GRADE_GROUPS.map((group) => [group, getAverageScoreForGroup(teachers, group)]),
+  ) as Record<GradeGroup, AverageScoreStat>;
+
+  return { platform, passByGroup, overallPass, moduleStatsByGroup, averageScore, averageScoreByGroup };
 }

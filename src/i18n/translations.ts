@@ -97,6 +97,12 @@ export interface Dict {
     totalTeachersTooltip: string;
     moduleStatsTooltip: string;
     moduleDetailTooltip: string;
+    averageScore: string;
+    averageScoreTooltip: string;
+    /** Подпись под значением карточки: "по {count} учителям" */
+    averageScoreSublabel: string;
+    /** Строка под полосками "Прошли курс по параллелям": "{group}: Среднее решение — {value}" */
+    averageScoreByGroupFormat: string;
     teachersPassedFormat: string;
     moduleGridEmpty: string;
   };
@@ -365,6 +371,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachersTooltip: 'Общее количество учителей в базе — прямой подсчёт по листу «Все учителя 26/27».',
       moduleStatsTooltip: 'Доля учителей в разрезе параллелей 2–4, 5–9 и 10–11 классов, выполнивших уже актуальные (с наступившим дедлайном) задания.',
       moduleDetailTooltip: 'Средняя успеваемость и процент сдавших отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели.',
+      averageScore: 'Среднее решение',
+      averageScoreTooltip: 'Среднее арифметическое колонки «Средний балл (по решённым)» по всем учителям с назначенным классом. Балл каждого учителя считается только по модулям, которые он реально проходил (статус «Не начал» не учитывается); учителя без решённых модулей в расчёте не участвуют.',
+      averageScoreSublabel: 'по {count} учителям',
+      averageScoreByGroupFormat: '{group}: Среднее решение — {value}',
       teachersPassedFormat: '{passed} из {total} учителей прошли курс ({percent}%)',
       moduleGridEmpty: 'Нет данных по этой параллели',
     },
@@ -631,6 +641,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       totalTeachersTooltip: 'Bazadakı ümumi müəllim sayı — "Bütün müəllimlər 26/27" vərəqinə əsasən birbaşa hesablama.',
       moduleStatsTooltip: '2–4, 5–9 və 10–11-ci siniflər üzrə aktual (son tarixi çatmış) tapşırıqları yerinə yetirmiş müəllimlərin payı.',
       moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca orta göstərici və keçən faizi.',
+      averageScore: 'Orta nəticə',
+      averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» sütununun sinfi təyin olunmuş bütün müəllimlər üzrə orta arifmetik göstəricisi. Hər müəllimin balı yalnız həqiqətən keçdiyi modullar üzrə hesablanır («Başlamayıb» nəzərə alınmır); həll edilmiş modulu olmayan müəllimlər hesablamada iştirak etmir.',
+      averageScoreSublabel: '{count} müəllim üzrə',
+      averageScoreByGroupFormat: '{group}: Orta nəticə — {value}',
       teachersPassedFormat: '{total} müəllimdən {passed}-i kursu keçib ({percent}%)',
       moduleGridEmpty: 'Bu paralel üzrə məlumat yoxdur',
     },
