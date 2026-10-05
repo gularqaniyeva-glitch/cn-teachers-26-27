@@ -99,8 +99,19 @@ export interface Dict {
     moduleDetailTooltip: string;
     averageScore: string;
     averageScoreTooltip: string;
-    /** Подпись под значением карточки: "по {count} учителям" */
+    /** Подпись под значением карточки: "по {count} из {active} вошедших" */
     averageScoreSublabel: string;
+    /** Префикс успеваемости на линии параллели: "Успеваемость" */
+    performanceLabel: string;
+    /** Посещаемость на линии параллели: "Посещаемость: {active} из {total} вошли на платформу ({percent}%)" */
+    attendanceFormat: string;
+    itWidgetTitle: string;
+    itWidgetTooltip: string;
+    itAttendance: string;
+    itAttendanceTooltip: string;
+    itAverageScore: string;
+    itAttestation: string;
+    itAttestationTooltip: string;
     /** Строка под полосками "Прошли курс по параллелям": "{group}: Среднее решение — {value}" */
     averageScoreByGroupFormat: string;
     teachersPassedFormat: string;
@@ -372,8 +383,17 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleStatsTooltip: 'Доля учителей в разрезе параллелей 2–4, 5–9 и 10–11 классов, выполнивших уже актуальные (с наступившим дедлайном) задания.',
       moduleDetailTooltip: 'Средняя успеваемость и процент сдавших отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели.',
       averageScore: 'Среднее решение',
-      averageScoreTooltip: 'Среднее арифметическое колонки «Средний балл (по решённым)» по всем учителям с назначенным классом. Балл каждого учителя считается только по модулям, которые он реально проходил (статус «Не начал» не учитывается); учителя без решённых модулей в расчёте не участвуют.',
-      averageScoreSublabel: 'по {count} учителям',
+      averageScoreTooltip: 'Среднее арифметическое колонки «Средний балл (по решённым)» по учителям с назначенным классом, которые реально решали модули (есть балл > 0). Ниже — «по N из M вошедших»: M — то же число, что на карточке «Вошли на платформу»; N — те из них, кто что-то решил (вошедшие без единого решённого модуля в среднем не участвуют, иначе нули занизили бы показатель).',
+      averageScoreSublabel: 'по {count} из {active} вошедших',
+      performanceLabel: 'Успеваемость',
+      attendanceFormat: 'Посещаемость: {active} из {total} вошли на платформу ({percent}%)',
+      itWidgetTitle: 'IT-классы (10–11)',
+      itWidgetTooltip: 'Показатели по листу «IT-классы 26/27», считаются заново из сырых данных при каждой загрузке и по кнопке «Обновить данные».',
+      itAttendance: 'Посещаемость IT-учителей',
+      itAttendanceTooltip: 'Учителя IT-классов, вошедшие на платформу: статус входа «заходил» или хотя бы один модуль с баллом > 0 (единый флаг активности, как на «Главной»).',
+      itAverageScore: 'Среднее решение IT-классов',
+      itAttestation: 'Прошли аттестацию',
+      itAttestationTooltip: 'Учителя IT-классов, успешно сдавшие (≥70%) все открытые модули с наступившим дедлайном — то же значение, что на линии «10–11 классы» в «Прошли курс (по параллелям)».',
       averageScoreByGroupFormat: '{group}: Среднее решение — {value}',
       teachersPassedFormat: '{passed} из {total} учителей прошли курс ({percent}%)',
       moduleGridEmpty: 'Нет данных по этой параллели',
@@ -642,8 +662,17 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       moduleStatsTooltip: '2–4, 5–9 və 10–11-ci siniflər üzrə aktual (son tarixi çatmış) tapşırıqları yerinə yetirmiş müəllimlərin payı.',
       moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca orta göstərici və keçən faizi.',
       averageScore: 'Orta nəticə',
-      averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» sütununun sinfi təyin olunmuş bütün müəllimlər üzrə orta arifmetik göstəricisi. Hər müəllimin balı yalnız həqiqətən keçdiyi modullar üzrə hesablanır («Başlamayıb» nəzərə alınmır); həll edilmiş modulu olmayan müəllimlər hesablamada iştirak etmir.',
-      averageScoreSublabel: '{count} müəllim üzrə',
+      averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» sütununun sinfi təyin olunmuş və modulları həqiqətən həll etmiş (bal > 0) müəllimlər üzrə orta arifmetik göstəricisi. Aşağıda — «daxil olmuş M müəllimdən N-i»: M «Platformaya daxil olanlar» kartındakı ilə eyni rəqəmdir; N — onlardan nəsə həll edənlər (heç nə həll etməyən daxil olanlar ortalamaya girmir, əks halda sıfırlar göstəricini aşağı salardı).',
+      averageScoreSublabel: 'daxil olmuş {active} müəllimdən {count}-i üzrə',
+      performanceLabel: 'Uğur',
+      attendanceFormat: 'Davamiyyət: {total} müəllimdən {active}-i platformaya daxil olub ({percent}%)',
+      itWidgetTitle: 'IT siniflər (10–11)',
+      itWidgetTooltip: '«IT-классы 26/27» vərəqi üzrə göstəricilər, hər yükləmədə və «Məlumatları yenilə» düyməsi ilə xam məlumatlardan yenidən hesablanır.',
+      itAttendance: 'IT müəllimlərinin davamiyyəti',
+      itAttendanceTooltip: 'Platformaya daxil olmuş IT sinif müəllimləri: giriş statusu «daxil olub» və ya bal > 0 olan ən azı bir modul (Ana səhifədəki kimi vahid aktivlik göstəricisi).',
+      itAverageScore: 'IT siniflərin orta nəticəsi',
+      itAttestation: 'Attestasiyanı keçdi',
+      itAttestationTooltip: 'Son tarixi çatmış bütün açıq modulları (≥70%) uğurla tamamlamış IT sinif müəllimləri — «Paralellər üzrə kursu keçdi» blokunda «10–11» sətrindəki ilə eyni dəyər.',
       averageScoreByGroupFormat: '{group}: Orta nəticə — {value}',
       teachersPassedFormat: '{total} müəllimdən {passed}-i kursu keçib ({percent}%)',
       moduleGridEmpty: 'Bu paralel üzrə məlumat yoxdur',

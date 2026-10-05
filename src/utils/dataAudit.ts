@@ -63,6 +63,21 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
     });
   }
 
+  // Проверка 1б: учитель с баллом > 0 по какому-либо модулю, но со статусом
+  // входа, отличным от «заходил»/«daxil olub» — решить модуль, не зайдя на
+  // платформу, нельзя, значит статус в таблице не обновлён. Сайт считает
+  // такого учителя вошедшим (единый флаг isUserActive), но стоит поправить
+  // исходные данные.
+  const staleStatus = teachers.filter(
+    (t) => t.platformStatus !== 'entered' && t.moduleResults.some((r) => r.score > 0),
+  ).length;
+  if (staleStatus > 0) {
+    issues.push({
+      id: 'stale-login-status',
+      message: `${staleStatus} учител(ей) имеют балл > 0 по модулям, но статус входа не «заходил» — на сайте они учтены как вошедшие, статус в таблице стоит обновить.`,
+    });
+  }
+
   // Проверка 2: формат и наличие дат в графике "(АЗ) График 26/27" —
   // столбцы S (Açılmasını yoxla) и T (Deadline), ожидается DD.MM.YYYY.
   if (scheduleAudit.invalidDateCount > 0 || scheduleAudit.emptyDateCount > 0) {

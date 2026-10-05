@@ -49,8 +49,23 @@ export interface RawPlatformStats {
 export function getRawPlatformStats(teachers: Teacher[]): RawPlatformStats {
   const mainSheetTeachers = teachers.filter((t) => t.gradeGroup !== '10-11');
   const total = mainSheetTeachers.length;
-  const entered = mainSheetTeachers.filter((t) => t.platformStatus === 'entered').length;
+  const entered = mainSheetTeachers.filter(isUserActive).length;
   return { total, entered, notEntered: total - entered };
+}
+
+/**
+ * ЕДИНЫЙ флаг «учитель заходил на платформу» для ВСЕХ показателей сайта
+ * («Вошли на платформу», посещаемость по параллелям, виджет IT-классов,
+ * база «Среднего решения»): либо статус входа в таблице («заходил» /
+ * «daxil olub» — уже разобран в teacher.platformStatus), либо есть хоть
+ * один модуль с баллом > 0. Решить модуль, не зайдя на платформу,
+ * невозможно, поэтому балл > 0 — достаточное доказательство входа, даже
+ * если статус в таблице не обновили. (Модуль со статусом «Старый
+ * учитель»/«Не прошёл» и баллом 0% входом НЕ считается — это не
+ * доказательство.)
+ */
+export function isUserActive(teacher: Teacher): boolean {
+  return teacher.platformStatus === 'entered' || teacher.moduleResults.some((r) => r.score > 0);
 }
 
 /** Средний результат учителя по всем модулям его программы (0 — за "не начал"), % */
@@ -83,16 +98,24 @@ function getTeacherMeanScore(teacher: Teacher, group?: GradeGroup): number | nul
 export interface AverageScoreStat {
   /** Среднее арифметическое "среднего балла по решённым" по учителям, % (1 знак после запятой); null — ни у кого ещё нет решённых модулей */
   average: number | null;
-  /** Сколько учителей участвует в усреднении (с назначенным классом и хотя бы одним решённым модулем) */
+  /** Сколько учителей участвует в усреднении: реально решавшие (хотя бы один модуль с баллом > 0) — всегда подмножество «вошедших» */
   teachersCount: number;
+  /** Сколько учителей вошло на платформу в той же выборке (isUserActive) — то же число, что на карточке/линии «Вошли», teachersCount <= activeTeachers */
+  activeTeachers: number;
 }
 
-function averageOfTeacherMeans(teachers: Teacher[], group?: GradeGroup): AverageScoreStat {
+function averageOfTeacherMeans(
+  teachers: Teacher[],
+  activeTeachers: number,
+  group?: GradeGroup,
+): AverageScoreStat {
   let sum = 0;
   let count = 0;
   for (const teacher of teachers) {
     const mean = getTeacherMeanScore(teacher, group);
-    if (mean === null) continue;
+    // Не решал ничего (нет попыток ИЛИ все попытки с 0% — «Старый
+    // учитель»/«Не прошёл» без баллов): в «среднее по решённым» не входит.
+    if (mean === null || mean <= 0) continue;
     // Усредняем именно ОКРУГЛЁННЫЕ значения — те, что видны в колонке
     // "Средний балл (по решённым)" таблицы, чтобы итог можно было
     // перепроверить вручную по этой колонке (без тихого расхождения на
@@ -100,18 +123,32 @@ function averageOfTeacherMeans(teachers: Teacher[], group?: GradeGroup): Average
     sum += Math.round(mean);
     count += 1;
   }
-  return { average: count > 0 ? Math.round((sum / count) * 10) / 10 : null, teachersCount: count };
+  return {
+    average: count > 0 ? Math.round((sum / count) * 10) / 10 : null,
+    teachersCount: count,
+    activeTeachers,
+  };
 }
 
-/** Общий средний балл по платформе: среднее значений колонки "Средний балл (по решённым)" по учителям с назначенным классом. Учителя без решённых модулей ("нет данных") не участвуют. */
+/**
+ * Общий средний балл по платформе: среднее значений колонки «Средний
+ * балл (по решённым)» по учителям с назначенным классом, реально
+ * решавшим модули. База та же, что у карточки «Вошли на платформу» —
+ * лист «Все учителя 26/27» (IT-классы 10–11 считаются отдельным
+ * виджетом): activeTeachers совпадает с числом на карточке «Вошли».
+ */
 export function getOverallAverageScore(teachers: Teacher[]): AverageScoreStat {
-  return averageOfTeacherMeans(teachers.filter((te) => te.hasAssignedClass));
+  const mainSheet = teachers.filter((te) => te.gradeGroup !== '10-11');
+  return averageOfTeacherMeans(
+    mainSheet.filter((te) => te.hasAssignedClass),
+    mainSheet.filter(isUserActive).length,
+  );
 }
 
 /** То же по одной параллели: учителя этой параллели (getAssignedGradeGroups), балл каждого — только по модулям этой параллели. */
 export function getAverageScoreForGroup(teachers: Teacher[], group: GradeGroup): AverageScoreStat {
   const inGroup = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
-  return averageOfTeacherMeans(inGroup, group);
+  return averageOfTeacherMeans(inGroup, inGroup.filter(isUserActive).length, group);
 }
 
 /**
@@ -383,6 +420,10 @@ export interface GradeGroupTeacherPassStat {
   totalTeachers: number;
   passedTeachers: number;
   percent: number;
+  /** Посещаемость: сколько учителей этой параллели вошло на платформу (isUserActive) из totalTeachers */
+  activeTeachers: number;
+  /** Посещаемость, % от totalTeachers */
+  activePercent: number;
 }
 
 /**
@@ -416,11 +457,15 @@ export function getTeacherPassStatsByGradeGroup(teachers: Teacher[], groups: Gra
   return groups.map((group) => {
     const groupTeachers = teachers.filter((te) => te.hasAssignedClass && getAssignedGradeGroups(te).includes(group));
     const passedTeachers = groupTeachers.filter((te) => hasTeacherPassedGroup(te, group)).length;
+    const activeTeachers = groupTeachers.filter(isUserActive).length;
+    const pct = (n: number) => (groupTeachers.length > 0 ? Math.round((n / groupTeachers.length) * 100) : 0);
     return {
       group,
       totalTeachers: groupTeachers.length,
       passedTeachers,
-      percent: groupTeachers.length > 0 ? Math.round((passedTeachers / groupTeachers.length) * 100) : 0,
+      percent: pct(passedTeachers),
+      activeTeachers,
+      activePercent: pct(activeTeachers),
     };
   });
 }
@@ -549,6 +594,12 @@ export interface AllMetricsSnapshot {
   averageScore: AverageScoreStat;
   /** Средний балл отдельно по каждой параллели */
   averageScoreByGroup: Record<GradeGroup, AverageScoreStat>;
+  /** Виджет «IT-классы (10–11)»: посещаемость, среднее решение, прошли аттестацию — по листу «IT-классы 26/27» */
+  itClasses: {
+    /** Посещаемость и «прошли аттестацию»: те же totalTeachers/activeTeachers/passedTeachers, что на линии 10–11 в «Прошли курс по параллелям» */
+    pass: GradeGroupTeacherPassStat;
+    average: AverageScoreStat;
+  };
 }
 
 /**
@@ -586,5 +637,10 @@ export function recalculateAllMetrics(teachers: Teacher[]): AllMetricsSnapshot {
     GRADE_GROUPS.map((group) => [group, getAverageScoreForGroup(teachers, group)]),
   ) as Record<GradeGroup, AverageScoreStat>;
 
-  return { platform, passByGroup, overallPass, moduleStatsByGroup, averageScore, averageScoreByGroup };
+  const itClasses = {
+    pass: passByGroup.find((g) => g.group === '10-11')!,
+    average: averageScoreByGroup['10-11'],
+  };
+
+  return { platform, passByGroup, overallPass, moduleStatsByGroup, averageScore, averageScoreByGroup, itClasses };
 }

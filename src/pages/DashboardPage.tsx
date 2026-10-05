@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users, LogIn, LogOut, TrendingUp, Gauge } from 'lucide-react';
+import { Users, LogIn, LogOut, TrendingUp, Gauge, Laptop, Award } from 'lucide-react';
 import { useTeacherStore } from '../store/useTeacherStore';
 import { StatCard } from '../components/ui/StatCard';
 import { Card } from '../components/ui/Card';
@@ -92,7 +92,9 @@ export function DashboardPage() {
           value={formatAverage(metrics.averageScore.average)}
           icon={Gauge}
           accent="blue"
-          sublabel={t.dashboard.averageScoreSublabel.replace('{count}', String(metrics.averageScore.teachersCount))}
+          sublabel={t.dashboard.averageScoreSublabel
+            .replace('{count}', String(metrics.averageScore.teachersCount))
+            .replace('{active}', String(metrics.averageScore.activeTeachers))}
           tooltip={t.dashboard.averageScoreTooltip}
         />
       </div>
@@ -107,28 +109,64 @@ export function DashboardPage() {
       >
         <div ref={passByGroupRef} className="space-y-4 bg-white">
           {teacherPassByGroup.map((g) => (
-            <Bar
-              key={g.group}
-              label={`${t.gradeGroup[g.group]}: ${formatTeachersPassed(
-                t.dashboard.teachersPassedFormat,
-                g.passedTeachers,
-                g.totalTeachers,
-                g.percent,
-              )}`}
-              count={g.passedTeachers}
-              percent={g.percent}
-              color={g.percent >= 90 ? '#059669' : g.percent >= 70 ? '#d97706' : '#e11d48'}
-            />
-          ))}
-          <div className="space-y-1 border-t border-slate-100 pt-3 text-sm text-slate-600">
-            {GRADE_GROUPS.map((g) => (
-              <p key={g}>
-                {t.dashboard.averageScoreByGroupFormat
-                  .replace('{group}', t.gradeGroup[g])
-                  .replace('{value}', formatAverage(metrics.averageScoreByGroup[g].average))}
+            <div key={g.group} className="space-y-1.5">
+              <Bar
+                label={`${t.gradeGroup[g.group]} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
+                  t.dashboard.teachersPassedFormat,
+                  g.passedTeachers,
+                  g.totalTeachers,
+                  g.percent,
+                )}`}
+                count={g.passedTeachers}
+                percent={g.percent}
+                color={g.percent >= 90 ? '#059669' : g.percent >= 70 ? '#d97706' : '#e11d48'}
+              />
+              <p className="text-sm text-slate-600">
+                {t.dashboard.attendanceFormat
+                  .replace('{active}', String(g.activeTeachers))
+                  .replace('{total}', String(g.totalTeachers))
+                  .replace('{percent}', String(g.activePercent))}
               </p>
-            ))}
-          </div>
+              <p className="text-sm text-slate-600">
+                {t.dashboard.averageScoreByGroupFormat
+                  .replace('{group}', t.gradeGroup[g.group])
+                  .replace('{value}', formatAverage(metrics.averageScoreByGroup[g.group].average))}
+              </p>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Отдельный виджет IT-классов (10–11) — те же данные, что у линии
+          «10–11 классы» выше, но собранные в одном месте. */}
+      <Card title={t.dashboard.itWidgetTitle} titleTooltip={t.dashboard.itWidgetTooltip}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label={t.dashboard.itAttendance}
+            value={`${metrics.itClasses.pass.activePercent}%`}
+            icon={Laptop}
+            accent="emerald"
+            sublabel={`${metrics.itClasses.pass.activeTeachers} ${t.common.of} ${metrics.itClasses.pass.totalTeachers}`}
+            tooltip={t.dashboard.itAttendanceTooltip}
+          />
+          <StatCard
+            label={t.dashboard.itAverageScore}
+            value={formatAverage(metrics.itClasses.average.average)}
+            icon={Gauge}
+            accent="blue"
+            sublabel={t.dashboard.averageScoreSublabel
+              .replace('{count}', String(metrics.itClasses.average.teachersCount))
+              .replace('{active}', String(metrics.itClasses.average.activeTeachers))}
+            tooltip={t.dashboard.averageScoreTooltip}
+          />
+          <StatCard
+            label={t.dashboard.itAttestation}
+            value={`${metrics.itClasses.pass.percent}%`}
+            icon={Award}
+            accent="violet"
+            sublabel={`${metrics.itClasses.pass.passedTeachers} ${t.common.of} ${metrics.itClasses.pass.totalTeachers}`}
+            tooltip={t.dashboard.itAttestationTooltip}
+          />
         </div>
       </Card>
 
