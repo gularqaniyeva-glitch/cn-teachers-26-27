@@ -426,23 +426,40 @@ export function formatTeachersPassed(template: string, passed: number, total: nu
 
 export interface TrainingTypeSummary {
   type: TrainingType;
+  /** Всего учителей этого типа обучения (столбец S), оба листа */
   count: number;
-  /** % учителей этого типа обучения, хотя бы раз заходивших на платформу */
-  enteredPercent: number;
-  /** % "Сдал" среди начатых модулей (см. OverviewStats.successRate) */
-  successRate: number;
+  /** Посещаемость: вошли на платформу (isUserActive) */
+  activeTeachers: number;
+  activePercent: number;
+  /** Из них с назначенным классом — база для «Успеваемости» */
+  withClass: number;
+  /** Успеваемость: прошли курс (все модули, которые нужно сдать сейчас) — каждый учитель один раз */
+  passedTeachers: number;
+  passedPercent: number;
 }
 
-/** Сводка "Кол-во учителей | % заходивших | % успеваемости" по каждому типу обучения */
-export function getTrainingTypeSummary(teachers: Teacher[]): TrainingTypeSummary[] {
-  return TRAINING_TYPES.map((type) => {
+/**
+ * Сводка по типам обучения (столбец S «Təlim tipi»): учителей, посещаемость
+ * и успеваемость отдельно внутри каждого типа — считается заново из
+ * массива teachers при каждой загрузке/«Обновить данные». Типы: Asinxron,
+ * Onlayn, Əyani и «не указан» (пустое/нераспознанное значение либо лист
+ * без такого столбца — IT-классы), чтобы они не раздували остальные.
+ */
+export function getTrainingTypeSummary(teachers: Teacher[], now: Date = new Date()): TrainingTypeSummary[] {
+  const types: TrainingType[] = [...TRAINING_TYPES, 'unknown'];
+  return types.map((type) => {
     const subset = teachers.filter((te) => te.trainingType === type);
-    const overview = getOverviewStats(subset);
+    const active = subset.filter(isUserActive).length;
+    const members = subset.filter((te) => te.hasAssignedClass);
+    const passed = members.filter((te) => hasTeacherPassedCourse(te, now)).length;
     return {
       type,
       count: subset.length,
-      enteredPercent: subset.length > 0 ? Math.round((overview.entered / subset.length) * 100) : 0,
-      successRate: overview.successRate,
+      activeTeachers: active,
+      activePercent: subset.length > 0 ? Math.round((active / subset.length) * 100) : 0,
+      withClass: members.length,
+      passedTeachers: passed,
+      passedPercent: members.length > 0 ? Math.round((passed / members.length) * 100) : 0,
     };
   });
 }

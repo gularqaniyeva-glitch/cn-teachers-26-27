@@ -79,11 +79,20 @@ function mapSector(raw: string): TeachingLanguage {
   return v === 'ru' ? 'ru' : 'az';
 }
 
+/**
+ * Тип обучения — значение столбца S ("Təlim tipi"), trim + lowerCase, все
+ * известные написания: Asinxron/Асинхрон, Onlayn/Online/Онлайн,
+ * Əyani/Eyani/Эяны/Очно. Пустое или нераспознанное значение — 'unknown'
+ * (НЕ "Əyani" по умолчанию: раньше пустые строки и английское "online"
+ * молча попадали в "Əyani").
+ */
 function mapFormat(raw: string): TrainingType {
-  const v = raw.trim().toLowerCase();
-  if (v.startsWith('asinx') || v.includes('асинх')) return 'asinxron';
-  if (v.startsWith('onlay') || v.includes('онлайн')) return 'onlayn';
-  return 'əyani';
+  const v = (raw ?? '').trim().toLowerCase();
+  if (!v) return 'unknown';
+  if (v.includes('asinx') || v.includes('async') || v.includes('асинх')) return 'asinxron';
+  if (v.includes('onlay') || v.includes('onlin') || v.includes('онлайн')) return 'onlayn';
+  if (v.includes('əyani') || v.includes('eyani') || v.includes('эяны') || v.includes('очн')) return 'əyani';
+  return 'unknown';
 }
 
 /** OLD/NEW в реальной таблице нет — выводим из года начала работы в LMS */
@@ -401,7 +410,9 @@ export function mapSeniorSheetRow(
     email,
     lmsId,
     language: mapSector(findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.sector])),
-    trainingType: 'əyani',
+    // В листе IT-классов столбца "Тип обучения" нет — если он появится, он
+    // подхватится по тем же названиям, иначе тип не указан (не "Əyani").
+    trainingType: mapFormat(findValueFuzzy(row, [...FIELD_CANDIDATES.format])),
     lifecycleStatus: mapLifecycleFromStartYear(seniorStartYear),
     startYear: seniorStartYear,
     gradeGroup: '10-11',

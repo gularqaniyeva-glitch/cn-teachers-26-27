@@ -239,6 +239,7 @@ export interface Dict {
     kpiAttestationTooltip: string;
     kpiPlatformActivityTitle: string;
     kpiPlatformActivityTooltip: string;
+    rowTotal: string;
     trainingTypeSummaryTitle: string;
     columnTeacherCount: string;
     columnEnteredPercent: string;
@@ -352,6 +353,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       asinxron: 'Asinxron',
       onlayn: 'Onlayn',
       əyani: 'Əyani',
+      unknown: 'Не указан',
     },
     language: {
       az: 'Азербайджанский',
@@ -514,7 +516,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       byModule: 'По результатам модулей (доля прошедших)',
       passedOf: 'сдали',
       expandHint: 'Подробности по каждому модулю — во вкладках «2–4 классы» и «5–9 классы» выше',
-      tooltipTrainingType: 'Распределение учителей по способу обучения: асинхронно, онлайн или очно.',
+      tooltipTrainingType: 'Распределение учителей по способу обучения (столбец «Тип обучения»): асинхронно, онлайн или очно; «Не указан» — значение пустое/нераспознано либо у листа (IT-классы) нет такого столбца. Посещаемость и успеваемость считаются внутри каждого типа.',
       tooltipGradeGroup: 'Доля учителей каждой категории (только 2–4 / только 5–9 / обе параллели / IT), сдавших все модули, которые нужно сдать сейчас. Каждый учитель считается один раз; действуют правило «Старый учитель» и отсрочка по дедлайну.',
       tooltipLifecycle: 'OLD — учителя, уже работавшие в системе ранее. NEW — новые учителя, добавленные в этом цикле обучения.',
       tooltipPlatformStatus: 'Доля учителей, которые хотя бы раз заходили на обучающую платформу.',
@@ -525,10 +527,11 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       kpiAttestationTooltip: 'Процент и количество учителей с назначенным классом (каждый — один раз), сдавших (≥70%) ВСЕ модули, которые нужно сдать сейчас, по логическому «И»: M1 и M2 обязательны сразу; остальные открытые модули — после наступления их дедлайна (до дедлайна действует ОТСРОЧКА: отсутствие сдачи не считается провалом). Модуль со статусом «Старый учитель» и баллом <70% не считается провалом и не блокирует зачёт. Ещё не открытые по графику модули не учитываются.',
       kpiPlatformActivityTitle: 'Активность на платформе',
       kpiPlatformActivityTooltip: 'Доля учителей, совершивших хотя бы один вход в LMS — прямой подсчёт по листу «Все учителя 26/27».',
+      rowTotal: 'Итого',
       trainingTypeSummaryTitle: 'Сводка по типам обучения',
       columnTeacherCount: 'Учителей',
-      columnEnteredPercent: '% заходивших',
-      columnSuccessRatePercent: '% успеваемости',
+      columnEnteredPercent: 'Посещаемость (вошли)',
+      columnSuccessRatePercent: 'Успеваемость (прошли курс)',
       moduleByTrainingTypeTitle: 'По типам обучения (Tədris növü)',
       moduleByLifecycleTitle: 'По стажу (Old / New)',
       downloadPng: 'Скачать PNG',
@@ -636,6 +639,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       asinxron: 'Asinxron',
       onlayn: 'Onlayn',
       əyani: 'Əyani',
+      unknown: 'Göstərilməyib',
     },
     language: {
       az: 'Azərbaycan',
@@ -798,7 +802,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       byModule: 'Modul nəticələri üzrə (keçmə payı)',
       passedOf: 'keçdi',
       expandHint: 'Hər modul üzrə təfərrüat — yuxarıdakı «2–4 sinif» və «5–9 sinif» sekmelerinde',
-      tooltipTrainingType: 'Müəllimlərin təhsil üsuluna görə bölgüsü: asinxron, onlayn və ya əyani.',
+      tooltipTrainingType: 'Müəllimlərin təhsil üsuluna görə bölgüsü («Təlim tipi» sütunu): asinxron, onlayn və ya əyani; «Göstərilməyib» — dəyər boşdur/tanınmır və ya vərəqdə (IT siniflər) belə sütun yoxdur. Davamiyyət və uğur hər tipin daxilində hesablanır.',
       tooltipGradeGroup: 'Hər kateqoriya (yalnız 2–4 / yalnız 5–9 / hər iki paralel / IT) üzrə indi keçilməli olan bütün modulları keçmiş müəllimlərin payı. Hər müəllim bir dəfə sayılır; «Köhnə müəllim» qaydası və son tarixə qədər möhlət tətbiq olunur.',
       tooltipLifecycle: 'OLD — sistemdə əvvəllər işləmiş müəllimlər. NEW — bu tədris dövründə əlavə olunan yeni müəllimlər.',
       tooltipPlatformStatus: 'Ən azı bir dəfə tədris platformasına daxil olmuş müəllimlərin payı.',
@@ -809,10 +813,11 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       kpiAttestationTooltip: 'Sinfi təyin olunmuş müəllimlərin (hər biri bir dəfə) indi keçilməli olan BÜTÜN modulları (≥70%) məntiqi «VƏ» ilə keçənlərin faizi və sayı: M1 və M2 dərhal məcburidir; digər açıq modullar — son tarixləri çatdıqdan sonra (son tarixə qədər möhlət: keçməmək uğursuzluq sayılmır). «Köhnə müəllim» statuslu və balı <70% olan modul uğursuzluq sayılmır və keçidi bloklamır. Qrafikə görə hələ açılmamış modullar nəzərə alınmır.',
       kpiPlatformActivityTitle: 'Platformada aktivlik',
       kpiPlatformActivityTooltip: '"Bütün müəllimlər 26/27" vərəqinə əsasən birbaşa hesablama — LMS-ə ən azı bir dəfə daxil olmuş müəllimlərin payı.',
+      rowTotal: 'Cəmi',
       trainingTypeSummaryTitle: 'Təhsil növləri üzrə xülasə',
       columnTeacherCount: 'Müəllim',
-      columnEnteredPercent: '% daxil olub',
-      columnSuccessRatePercent: '% müvəffəqiyyət',
+      columnEnteredPercent: 'Davamiyyət (daxil olub)',
+      columnSuccessRatePercent: 'Uğur (kursu keçib)',
       moduleByTrainingTypeTitle: 'Tədris növü üzrə',
       moduleByLifecycleTitle: 'Təcrübəyə görə (Old / New)',
       downloadPng: 'PNG yüklə',

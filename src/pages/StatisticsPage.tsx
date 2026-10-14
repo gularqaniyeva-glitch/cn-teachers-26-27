@@ -89,7 +89,7 @@ export function StatisticsPage() {
     both: t.dashboard.categoryBoth,
     it: t.dashboard.categoryIt,
   } as const;
-  const trainingTypeSummary = getTrainingTypeSummary(eligibleTeachers);
+  const trainingTypeSummary = getTrainingTypeSummary(teachers).filter((row) => row.count > 0);
 
   const byLifecycle = countByKey(
     eligibleTeachers,
@@ -190,10 +190,23 @@ export function StatisticsPage() {
                     <tr key={row.type}>
                       <td className="py-2 pr-3 font-medium text-slate-800">{t.trainingType[row.type]}</td>
                       <td className="px-3 py-2 text-center text-slate-600">{row.count}</td>
-                      <td className="px-3 py-2 text-center text-slate-600">{row.enteredPercent}%</td>
-                      <td className="px-3 py-2 text-center text-slate-600">{row.successRate}%</td>
+                      <td className="px-3 py-2 text-center text-slate-600">
+                        {row.activeTeachers} ({row.activePercent}%)
+                      </td>
+                      <td className="px-3 py-2 text-center text-slate-600">
+                        {row.passedTeachers} {t.common.of} {row.withClass} ({row.passedPercent}%)
+                      </td>
                     </tr>
                   ))}
+                  <tr className="font-semibold text-slate-900">
+                    <td className="py-2 pr-3">{t.statistics.rowTotal}</td>
+                    <td className="px-3 py-2 text-center">{trainingTypeSummary.reduce((a, r) => a + r.count, 0)}</td>
+                    <td className="px-3 py-2 text-center">{trainingTypeSummary.reduce((a, r) => a + r.activeTeachers, 0)}</td>
+                    <td className="px-3 py-2 text-center">
+                      {trainingTypeSummary.reduce((a, r) => a + r.passedTeachers, 0)} {t.common.of}{' '}
+                      {trainingTypeSummary.reduce((a, r) => a + r.withClass, 0)}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

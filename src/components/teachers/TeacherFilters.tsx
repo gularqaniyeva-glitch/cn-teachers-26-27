@@ -49,7 +49,7 @@ export function TeacherFiltersBar({ filters, districts, startYears, classesTaugh
           onChange={(v) => onChange('trainingType', v)}
           options={[
             { value: '', label: t.common.any },
-            ...TRAINING_TYPES.map((type) => ({ value: type, label: t.trainingType[type] })),
+            ...[...TRAINING_TYPES, 'unknown' as const].map((type) => ({ value: type, label: t.trainingType[type] })),
           ]}
         />
         <MultiSelectFilter

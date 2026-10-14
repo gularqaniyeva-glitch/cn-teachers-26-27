@@ -4,7 +4,13 @@
 
 export type GradeGroup = '2-4' | '5-9' | '10-11';
 
-export type TrainingType = 'asinxron' | 'onlayn' | 'əyani';
+/**
+ * Тип обучения из столбца S ("Təlim tipi") листа "Все учителя 26/27".
+ * 'unknown' — значение в таблице пустое/нераспознанное либо у листа нет
+ * такого столбца (IT-классы): такого учителя нельзя молча записывать в
+ * "Əyani" и тем самым раздувать эту категорию.
+ */
+export type TrainingType = 'asinxron' | 'onlayn' | 'əyani' | 'unknown';
 
 export type TeacherLifecycleStatus = 'OLD' | 'NEW';
 
