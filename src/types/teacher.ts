@@ -12,7 +12,7 @@ export type GradeGroup = '2-4' | '5-9' | '10-11';
  */
 export type TrainingType = 'asinxron' | 'onlayn' | 'əyani' | 'unknown';
 
-export type TeacherLifecycleStatus = 'OLD' | 'NEW';
+export type TeacherLifecycleStatus = 'OLD' | 'NEW' | 'UNKNOWN';
 
 export type TeachingLanguage = 'az' | 'ru';
 

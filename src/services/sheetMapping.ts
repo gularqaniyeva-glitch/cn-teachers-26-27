@@ -95,10 +95,14 @@ function mapFormat(raw: string): TrainingType {
   return 'unknown';
 }
 
-/** OLD/NEW в реальной таблице нет — выводим из года начала работы в LMS */
+/**
+ * OLD/NEW в реальной таблице нет — выводим из года начала работы в LMS.
+ * Нет распознаваемого года (пусто, #N/A, текст) — 'UNKNOWN' («Не указано»):
+ * раньше такие учителя молча считались OLD.
+ */
 function mapLifecycleFromStartYear(raw: string): TeacherLifecycleStatus {
   const years = raw.match(/20\d{2}/g);
-  if (!years) return 'OLD';
+  if (!years) return 'UNKNOWN';
   const latestYear = Math.max(...years.map(Number));
   return latestYear >= 2025 ? 'NEW' : 'OLD';
 }
@@ -380,7 +384,8 @@ export function mapSeniorSheetRow(
   // "Старый учитель" для 10–11: начал IT раньше сезона 2024/2025 (тот же
   // порог, что и в mapLifecycleFromStartYear) — таким учителям низкий/
   // нулевой балл не должен считаться провалом.
-  const isOldTeacher = mapLifecycleFromStartYear(seniorStartYear) === 'OLD';
+  // Без года (UNKNOWN) освобождение действует как раньше — только явный NEW его лишён.
+  const isOldTeacher = mapLifecycleFromStartYear(seniorStartYear) !== 'NEW';
 
   const moduleResults: ModuleResult[] = [];
   for (const n of SENIOR_MODULE_NUMBERS) {

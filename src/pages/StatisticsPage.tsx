@@ -11,6 +11,7 @@ import { DownloadPngButton } from '../components/ui/DownloadPngButton';
 import { ModuleBreakdownTable } from '../components/statistics/ModuleBreakdownTable';
 import { ModulePassRateChart } from '../components/statistics/ModulePassRateChart';
 import {
+  CLASS_SEGMENTS,
   countByKey,
   formatPercentComma,
   formatTeachersPassed,
@@ -77,11 +78,11 @@ export function StatisticsPage() {
   const total = metrics.platform.total || 1;
   const platformEntered = metrics.platform.entered;
   const platformNotEntered = metrics.platform.notEntered;
-  // "Сдали аттестацию" и остальные разбивки ниже (по классам/по стажу/по
-  // типу обучения) — отдельная база: учителя С НАЗНАЧЕННЫМ классом, сразу
-  // по всем параллелям (включая 10–11) — без класса у учителя структурно
-  // нет назначенных модулей.
-  const eligibleTeachers = teachers.filter((te) => te.hasAssignedClass);
+  // "Сдали аттестацию" — база учителей С НАЗНАЧЕННЫМ классом (включая
+  // 10–11): без класса у учителя структурно нет назначенных модулей. Все
+  // остальные разбивки ниже (статус, параллели, типы обучения) считаются по
+  // 100% строк основного листа — их Итого = «Всего учителей» на Главной.
+  const { breakdown } = metrics;
   const overallTeacherPass = metrics.overallPass;
   const categoryLabels = {
     only24: t.dashboard.categoryOnly24,
@@ -89,14 +90,25 @@ export function StatisticsPage() {
     both: t.dashboard.categoryBoth,
     it: t.dashboard.categoryIt,
   } as const;
-  const trainingTypeSummary = getTrainingTypeSummary(teachers).filter((row) => row.count > 0);
+  const mainSheetTeachers = teachers.filter((te) => te.gradeGroup !== '10-11');
+  const trainingTypeSummary = getTrainingTypeSummary(mainSheetTeachers).filter((row) => row.count > 0);
+  const itTeachersCount = breakdown.itTeachers;
 
-  const byLifecycle = countByKey(
-    eligibleTeachers,
-    (te) => te.lifecycleStatus,
-    { OLD: 'OLD', NEW: 'NEW' },
-    LIFECYCLE_STATUSES,
-  );
+  const lifecycleEntries: { key: 'OLD' | 'NEW' | 'UNKNOWN'; label: string; count: number }[] = [
+    { key: 'OLD', label: 'OLD', count: breakdown.lifecycle.OLD },
+    { key: 'NEW', label: 'NEW', count: breakdown.lifecycle.NEW },
+    { key: 'UNKNOWN', label: t.statistics.lifecycleUnknown, count: breakdown.lifecycle.UNKNOWN },
+  ];
+  const classEntries = CLASS_SEGMENTS.map((key) => ({
+    key,
+    label:
+      key === 'only24' ? t.dashboard.categoryOnly24
+      : key === 'only59' ? t.dashboard.categoryOnly59
+      : key === 'both' ? t.dashboard.categoryBoth
+      : t.statistics.classesNone,
+    count: breakdown.classes[key],
+  }));
+  const sharePercent = (count: number) => Math.round((count / total) * 100);
   // Та же сырая база, что и карточка "Активность на платформе" выше —
   // иначе итоговая сумма столбиков разойдётся с цифрами в карточке.
   const platformStatusTeachers = teachers.filter((te) => te.gradeGroup !== '10-11');
@@ -207,6 +219,11 @@ export function StatisticsPage() {
                       {trainingTypeSummary.reduce((a, r) => a + r.withClass, 0)}
                     </td>
                   </tr>
+                  <tr className="text-slate-500">
+                    <td className="py-2 pr-3">{t.statistics.itSeparateRow}</td>
+                    <td className="px-3 py-2 text-center">{itTeachersCount}</td>
+                    <td colSpan={2} className="px-3 py-2" />
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -243,10 +260,43 @@ export function StatisticsPage() {
               action={<DownloadPngButton targetRef={byLifecycleRef} filename="po-stazhu-old-new.png" />}
             >
               <div ref={byLifecycleRef} className="space-y-4 bg-white">
-                {byLifecycle.map((e, i) => (
-                  <Bar key={e.key} label={e.label} count={e.count} percent={e.percent} color={PALETTE[i % PALETTE.length]} />
+                {lifecycleEntries.map((e, i) => (
+                  <Bar
+                    key={e.key}
+                    label={e.label}
+                    count={e.count}
+                    percent={sharePercent(e.count)}
+                    color={e.key === 'UNKNOWN' ? '#d97706' : PALETTE[i % PALETTE.length]}
+                  />
                 ))}
+                <p className="text-sm font-semibold text-slate-900">
+                  {t.statistics.rowTotal}: {lifecycleEntries.reduce((a, e) => a + e.count, 0)}
+                </p>
               </div>
+            </Card>
+
+            <Card title={t.statistics.byParallelTitle} titleTooltip={t.statistics.byParallelHint}>
+              <table className="w-full text-left text-sm">
+                <tbody className="divide-y divide-slate-100">
+                  {classEntries.map((e) => (
+                    <tr key={e.key}>
+                      <td className="py-2 pr-3 font-medium text-slate-800">{e.label}</td>
+                      <td className="px-3 py-2 text-center text-slate-600">{e.count}</td>
+                      <td className="px-3 py-2 text-right text-slate-500">{sharePercent(e.count)}%</td>
+                    </tr>
+                  ))}
+                  <tr className="font-semibold text-slate-900">
+                    <td className="py-2 pr-3">{t.statistics.rowTotal}</td>
+                    <td className="px-3 py-2 text-center">{classEntries.reduce((a, e) => a + e.count, 0)}</td>
+                    <td className="px-3 py-2 text-right">100%</td>
+                  </tr>
+                  <tr className="text-slate-500">
+                    <td className="py-2 pr-3">{t.statistics.itSeparateRow}</td>
+                    <td className="px-3 py-2 text-center">{itTeachersCount}</td>
+                    <td className="px-3 py-2" />
+                  </tr>
+                </tbody>
+              </table>
             </Card>
 
             <Card

@@ -147,5 +147,23 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
     });
   }
 
+  // Контрольные суммы вкладки «Статистика»: каждая разбивка основного листа —
+  // полное разбиение, её сумма обязана равняться «Всего учителей».
+  const sumOf = (rec: Record<string, number>) => Object.values(rec).reduce((a, n) => a + n, 0);
+  const { breakdown } = metrics;
+  const breakdownSums: [string, number][] = [
+    ['OLD + NEW + Не указано', sumOf(breakdown.lifecycle)],
+    ['параллели + Без классов', sumOf(breakdown.classes)],
+    ['типы обучения', sumOf(breakdown.trainingTypes)],
+  ];
+  for (const [name, sum] of breakdownSums) {
+    if (sum !== metrics.platform.total) {
+      issues.push({
+        id: `selfcheck-breakdown-${name}`,
+        message: `Контрольная сумма «${name}» = ${sum}, а «Всего учителей» = ${metrics.platform.total} — вкладка «Статистика» расходится с Главной.`,
+      });
+    }
+  }
+
   return issues;
 }

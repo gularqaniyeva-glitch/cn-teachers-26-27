@@ -240,6 +240,11 @@ export interface Dict {
     kpiPlatformActivityTitle: string;
     kpiPlatformActivityTooltip: string;
     rowTotal: string;
+    lifecycleUnknown: string;
+    classesNone: string;
+    byParallelTitle: string;
+    byParallelHint: string;
+    itSeparateRow: string;
     trainingTypeSummaryTitle: string;
     columnTeacherCount: string;
     columnEnteredPercent: string;
@@ -518,7 +523,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       expandHint: 'Подробности по каждому модулю — во вкладках «2–4 классы» и «5–9 классы» выше',
       tooltipTrainingType: 'Распределение учителей по способу обучения (столбец «Тип обучения»): асинхронно, онлайн или очно; «Не указан» — значение пустое/нераспознано либо у листа (IT-классы) нет такого столбца. Посещаемость и успеваемость считаются внутри каждого типа.',
       tooltipGradeGroup: 'Доля учителей каждой категории (только 2–4 / только 5–9 / обе параллели / IT), сдавших все модули, которые нужно сдать сейчас. Каждый учитель считается один раз; действуют правило «Старый учитель» и отсрочка по дедлайну.',
-      tooltipLifecycle: 'OLD — учителя, уже работавшие в системе ранее. NEW — новые учителя, добавленные в этом цикле обучения.',
+      tooltipLifecycle: 'OLD — учителя, уже работавшие в системе ранее. NEW — новые учителя, добавленные в этом цикле обучения. «Не указано» — год начала работы в таблице пуст или нераспознан. Сумма всех трёх = «Всего учителей».',
       tooltipPlatformStatus: 'Доля учителей, которые хотя бы раз заходили на обучающую платформу.',
       tooltipModule: 'Доля со статусом «Сдал» среди учителей, которые уже начали проходить этот модуль.',
       tabOverview: 'Общая статистика',
@@ -528,6 +533,11 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       kpiPlatformActivityTitle: 'Активность на платформе',
       kpiPlatformActivityTooltip: 'Доля учителей, совершивших хотя бы один вход в LMS — прямой подсчёт по листу «Все учителя 26/27».',
       rowTotal: 'Итого',
+      lifecycleUnknown: 'Не указано',
+      classesNone: 'Без классов',
+      byParallelTitle: 'Распределение по параллелям',
+      byParallelHint: 'Все учителя листа «Все учителя 26/27»: каждый — ровно в одной строке, поэтому Итого = «Всего учителей» на Главной.',
+      itSeparateRow: 'IT-классы (10–11, отдельный лист) — в Итого не входят',
       trainingTypeSummaryTitle: 'Сводка по типам обучения',
       columnTeacherCount: 'Учителей',
       columnEnteredPercent: 'Посещаемость (вошли)',
@@ -814,6 +824,11 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       kpiPlatformActivityTitle: 'Platformada aktivlik',
       kpiPlatformActivityTooltip: '"Bütün müəllimlər 26/27" vərəqinə əsasən birbaşa hesablama — LMS-ə ən azı bir dəfə daxil olmuş müəllimlərin payı.',
       rowTotal: 'Cəmi',
+      lifecycleUnknown: 'Göstərilməyib',
+      classesNone: 'Sinifsiz',
+      byParallelTitle: 'Paralellər üzrə bölgü',
+      byParallelHint: '"Bütün müəllimlər 26/27" vərəqinin bütün müəllimləri: hər biri yalnız bir sətirdə, ona görə Cəmi = Əsas səhifədəki «Ümumi müəllim sayı».',
+      itSeparateRow: 'IT siniflər (10–11, ayrıca vərəq) — Cəmi-yə daxil deyil',
       trainingTypeSummaryTitle: 'Təhsil növləri üzrə xülasə',
       columnTeacherCount: 'Müəllim',
       columnEnteredPercent: 'Davamiyyət (daxil olub)',

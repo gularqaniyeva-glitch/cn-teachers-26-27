@@ -1,4 +1,4 @@
-import type { GradeGroup, ModuleDefinition, ModuleResult, Teacher, TrainingType } from '../types/teacher';
+import type { GradeGroup, ModuleDefinition, ModuleResult, Teacher, TeacherLifecycleStatus, TrainingType } from '../types/teacher';
 import { GRADE_GROUPS, LIFECYCLE_STATUSES, TRAINING_TYPES, getModule, modulesForGrade } from '../data/constants';
 
 export interface OverviewStats {
@@ -521,7 +521,53 @@ export function getModulePassRateByLifecycle(teachers: Teacher[], group: GradeGr
   return getModulePassRateBySegment(teachers, group, LIFECYCLE_STATUSES, (te) => te.lifecycleStatus);
 }
 
+export type ClassSegment = 'only24' | 'only59' | 'both' | 'none';
+export const CLASS_SEGMENTS: ClassSegment[] = ['only24', 'only59', 'both', 'none'];
+
+export interface MainSheetBreakdown {
+  /** Всего учителей листа «Все учителя 26/27» — то же число, что карточка «Всего учителей» */
+  total: number;
+  /** OLD + NEW + «Не указано» — каждый учитель ровно в одной строке, сумма = total */
+  lifecycle: Record<TeacherLifecycleStatus, number>;
+  /** Только 2–4 / только 5–9 / обе / без классов — сумма = total */
+  classes: Record<ClassSegment, number>;
+  /** asinxron / onlayn / əyani / unknown (столбец S) — сумма = total */
+  trainingTypes: Record<TrainingType, number>;
+  /** Учителя отдельного листа IT-классов (10–11) — в total НЕ входят */
+  itTeachers: number;
+}
+
+/**
+ * Разбивки для вкладки «Статистика» по 100% строк основного листа (без
+ * фильтра по классу/статусу): каждая разбивка — полное разбиение, поэтому
+ * её сумма обязана равняться total. Ничего не зашито — только подсчёт.
+ */
+export function getMainSheetBreakdown(teachers: Teacher[]): MainSheetBreakdown {
+  const main = teachers.filter((te) => te.gradeGroup !== '10-11');
+  const lifecycle: Record<TeacherLifecycleStatus, number> = { OLD: 0, NEW: 0, UNKNOWN: 0 };
+  const classes: Record<ClassSegment, number> = { only24: 0, only59: 0, both: 0, none: 0 };
+  const trainingTypes: Record<TrainingType, number> = { asinxron: 0, onlayn: 0, 'əyani': 0, unknown: 0 };
+  for (const te of main) {
+    lifecycle[te.lifecycleStatus] += 1;
+    trainingTypes[te.trainingType] += 1;
+    if (!te.hasAssignedClass) classes.none += 1;
+    else {
+      const category = getTeacherCategory(te);
+      classes[category === 'it' ? 'none' : category] += 1;
+    }
+  }
+  return {
+    total: main.length,
+    lifecycle,
+    classes,
+    trainingTypes,
+    itTeachers: teachers.length - main.length,
+  };
+}
+
 export interface AllMetricsSnapshot {
+  /** Разбивки вкладки «Статистика» (Σ каждой = platform.total) */
+  breakdown: MainSheetBreakdown;
   /** "Всего учителей"/"Вошли"/"Не вошли" — прямой подсчёт по листу "Все учителя 26/27" */
   platform: RawPlatformStats;
   /** "Прошли курс" по непересекающимся категориям: только 2–4 / только 5–9 / обе параллели / IT-классы */
@@ -553,5 +599,7 @@ export function recalculateAllMetrics(teachers: Teacher[]): AllMetricsSnapshot {
   const averageScore = getOverallAverageScore(teachers);
   const itClasses = passByCategory.find((c) => c.category === 'it')!;
 
-  return { platform, passByCategory, overallPass, moduleStatsByGroup, averageScore, itClasses };
+  const breakdown = getMainSheetBreakdown(teachers);
+
+  return { breakdown, platform, passByCategory, overallPass, moduleStatsByGroup, averageScore, itClasses };
 }
