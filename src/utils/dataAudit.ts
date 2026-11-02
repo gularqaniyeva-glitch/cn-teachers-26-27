@@ -11,7 +11,7 @@
 import type { Teacher } from '../types/teacher';
 import { getCurrentScheduleIndex, isModuleConfirmedOpen, type ScheduleAuditInfo } from '../services/scheduleMapping';
 import { findGroupAnomalies } from './anomalies';
-import { isPassBaseTeacher, isUserActive, recalculateAllMetrics } from './stats';
+import { getTeacherCategory, isPassBaseTeacher, isUserActive, recalculateAllMetrics } from './stats';
 
 export interface AuditIssue {
   id: string;
@@ -154,6 +154,19 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
       id: 'selfcheck-categories-sum',
       message: `Категории учителей пересекаются или теряют учителей: всего ${catTotal} из ${eligible.length}, NEW-база ${catPassBase} из ${metrics.overallPass.totalTeachers}, прошли ${catPassed} из ${metrics.overallPass.passedTeachers}.`,
     });
+  }
+
+  // Здравый смысл по КАЖДОЙ категории (включая IT): прошли курс <= вошли на
+  // платформу <= база NEW. Фиксированных лимитов нет — только эта цепочка.
+  for (const c of metrics.passByCategory) {
+    const base = teachers.filter((t) => t.hasAssignedClass && isPassBaseTeacher(t) && getTeacherCategory(t) === c.category);
+    const baseActive = base.filter(isUserActive).length;
+    if (c.passedTeachers > baseActive || baseActive > c.passBaseTeachers) {
+      issues.push({
+        id: `selfcheck-chain-${c.category}`,
+        message: `Категория «${c.category}»: прошли курс (${c.passedTeachers}) должно быть <= вошли на платформу (${baseActive}) <= база NEW (${c.passBaseTeachers}).`,
+      });
+    }
   }
 
   // Контрольные суммы вкладки «Статистика»: каждая разбивка основного листа —
