@@ -184,7 +184,11 @@ const SHARED_MODULE_SHORT_TITLES = new Set(['M1', 'M2']);
  * любого знаменателя — их отсутствие параллели не портит процент другим.
  */
 export function getModuleStatsForGroup(teachers: Teacher[], group: GradeGroup): ModuleStat[] {
-  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  // 2–4 и 5–9 — только NEW-учителя (OLD не входят ни в «сдали», ни в «из»);
+  // IT-классы (10–11) считаются по всем, как раньше.
+  const eligible = teachers.filter(
+    (te) => te.hasAssignedClass && (group === '10-11' || te.lifecycleStatus === 'NEW'),
+  );
   const population = eligible.filter((te) => getAssignedGradeGroups(te).includes(group));
 
   return modulesForGrade(group).map((m) => {
