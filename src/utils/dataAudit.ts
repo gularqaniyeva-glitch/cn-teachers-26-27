@@ -132,10 +132,11 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
       message: `Нарушена цепочка: прошли курс (${metrics.overallPass.passedTeachers}) <= вошли на платформу (${passBaseActive}) <= всего NEW с классом (${passBase.length}).`,
     });
   }
-  if (metrics.averageScore.activeTeachers !== metrics.platform.entered) {
+  const enteredNew = teachers.filter((t) => t.gradeGroup !== '10-11' && t.lifecycleStatus === 'NEW' && isUserActive(t)).length;
+  if (metrics.averageScore.activeTeachers !== enteredNew) {
     issues.push({
       id: 'selfcheck-average-vs-entered',
-      message: `«Среднее решение» посчитано по ${metrics.averageScore.activeTeachers} учителям, а «Вошли на платформу» = ${metrics.platform.entered} — база должна совпадать.`,
+      message: `«Среднее решение» посчитано по ${metrics.averageScore.activeTeachers} учителям, а вошедших NEW-учителей = ${enteredNew} — база должна совпадать.`,
     });
   }
   // Категории учителей непересекающиеся: каждый учитель — ровно в одной,

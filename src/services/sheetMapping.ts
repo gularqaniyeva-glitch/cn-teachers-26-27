@@ -26,7 +26,9 @@ export type RawSheetRow = Record<string, string>;
 // вида "S.A.A." и наш кандидат "S.A.A" (без точки на конце) иначе не
 // совпадут при строгом сравнении, хотя это один и тот же столбец.
 function normalizeHeader(header: string): string {
-  return header.trim().toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  // Кириллическая «М» перед номером модуля («М1 Статус») и латинская («M2 Статус»)
+  // в таблице перемешаны — приводим к латинской, иначе столбец не находится.
+  return header.trim().toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').replace(/м(?=\d)/g, 'm').trim();
 }
 
 function normalizedEntries(row: RawSheetRow | null | undefined): Map<string, string> {

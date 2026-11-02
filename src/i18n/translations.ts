@@ -107,6 +107,8 @@ export interface Dict {
     averageScoreTooltip: string;
     /** Подпись под значением карточки: "по {active} вошедшим учителям" */
     averageScoreSublabel: string;
+    averageScoreSublabelAll: string;
+    averageScoreTooltipAll: string;
     /** Префикс успеваемости на линии параллели: "Успеваемость" */
     performanceLabel: string;
     /** Посещаемость на линии параллели: "Посещаемость: {active} из {total} вошли на платформу ({percent}%)" */
@@ -402,8 +404,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       categoryIt: 'IT-классы (10–11)',
       passedAllOpenFormat: '{passed} из {total} новых учителей (NEW) сдали все модули, которые нужно сдать сейчас',
       averageScore: 'Среднее решение',
-      averageScoreTooltip: 'Среднее арифметическое «Среднего балла (по решённым)» по ВСЕМ вошедшим на платформу учителям: сумма средних баллов / число вошедших (то же число, что на карточке «Вошли на платформу»). Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
-      averageScoreSublabel: 'по {active} вошедшим учителям',
+      averageScoreTooltip: 'Среднее арифметическое «Среднего балла (по решённым)» по вошедшим на платформу NEW-учителям 2–9 классов (начали работу в 2024/25 и позже; OLD не входят): сумма средних баллов / число вошедших NEW. Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
+      averageScoreTooltipAll: 'Среднее арифметическое «Среднего балла (по решённым)» по ВСЕМ вошедшим на платформу учителям: сумма средних баллов / число вошедших (то же число, что на карточке «Вошли на платформу»). Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
+      averageScoreSublabel: 'по {active} вошедшим новым учителям (NEW)',
+      averageScoreSublabelAll: 'по {active} вошедшим учителям',
       performanceLabel: 'Успеваемость',
       attendanceFormat: 'Посещаемость: {active} из {total} вошли на платформу ({percent}%)',
       itWidgetTitle: 'IT-классы (10–11)',
@@ -694,8 +698,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       categoryIt: 'IT siniflər (10–11)',
       passedAllOpenFormat: '{total} yeni (NEW) müəllimdən {passed}-i indi keçilməli olan bütün modulları keçib',
       averageScore: 'Orta nəticə',
-      averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş BÜTÜN müəllimlər üzrə orta arifmetiği: orta balların cəmi / daxil olanların sayı («Platformaya daxil olanlar» kartındakı ilə eyni rəqəm). Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
-      averageScoreSublabel: 'daxil olmuş {active} müəllim üzrə',
+      averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş 2–9 siniflərin NEW müəllimləri üzrə orta arifmetiği (2024/25 və sonra başlayanlar; OLD daxil deyil): orta balların cəmi / daxil olmuş NEW-lərin sayı. Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
+      averageScoreTooltipAll: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş BÜTÜN müəllimlər üzrə orta arifmetiği: orta balların cəmi / daxil olanların sayı («Platformaya daxil olanlar» kartındakı ilə eyni rəqəm). Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
+      averageScoreSublabel: 'daxil olmuş {active} yeni (NEW) müəllim üzrə',
+      averageScoreSublabelAll: 'daxil olmuş {active} müəllim üzrə',
       performanceLabel: 'Uğur',
       attendanceFormat: 'Davamiyyət: {total} müəllimdən {active}-i platformaya daxil olub ({percent}%)',
       itWidgetTitle: 'IT siniflər (10–11)',

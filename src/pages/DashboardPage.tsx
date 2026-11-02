@@ -134,7 +134,7 @@ export function DashboardPage() {
               </p>
               <p className="text-sm text-slate-600">
                 {t.dashboard.averageScoreByGroupFormat
-                  .replace('{group}', categoryLabels[c.category])
+                  .replace('{group}', `${categoryLabels[c.category]}${c.category === 'it' ? '' : ' (NEW)'}`)
                   .replace('{value}', formatAverage(c.averageScore.average))}
               </p>
             </div>
@@ -159,8 +159,8 @@ export function DashboardPage() {
             value={formatAverage(metrics.itClasses.averageScore.average)}
             icon={Gauge}
             accent="blue"
-            sublabel={t.dashboard.averageScoreSublabel.replace('{active}', String(metrics.itClasses.averageScore.activeTeachers))}
-            tooltip={t.dashboard.averageScoreTooltip}
+            sublabel={t.dashboard.averageScoreSublabelAll.replace('{active}', String(metrics.itClasses.averageScore.activeTeachers))}
+            tooltip={t.dashboard.averageScoreTooltipAll}
           />
           <StatCard
             label={t.dashboard.itAttestation}

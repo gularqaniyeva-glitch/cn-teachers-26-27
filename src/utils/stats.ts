@@ -115,12 +115,13 @@ function averageOfActiveTeachers(activeTeachers: Teacher[]): AverageScoreStat {
 }
 
 /**
- * Общий средний балл: по всем вошедшим учителям листа «Все учителя
- * 26/27» — та же база, что у карточки «Вошли на платформу» (IT-классы
- * 10–11 считаются отдельным виджетом).
+ * Общий средний балл: по вошедшим на платформу NEW-учителям листа «Все
+ * учителя 26/27» (OLD не входят; IT-классы 10–11 — отдельный виджет).
  */
 export function getOverallAverageScore(teachers: Teacher[]): AverageScoreStat {
-  return averageOfActiveTeachers(teachers.filter((te) => te.gradeGroup !== '10-11').filter(isUserActive));
+  return averageOfActiveTeachers(
+    teachers.filter((te) => te.gradeGroup !== '10-11' && te.lifecycleStatus === 'NEW').filter(isUserActive),
+  );
 }
 
 export interface TeacherOverallStats {
@@ -402,7 +403,10 @@ export function getTeacherCategoryStats(teachers: Teacher[], now: Date = new Dat
       percent: passBase.length > 0 ? Math.round((passedTeachers / passBase.length) * 100) : 0,
       activeTeachers: active.length,
       activePercent: pct(active.length),
-      averageScore: averageOfActiveTeachers(active),
+      // 2–9 классы — среднее только по вошедшим NEW-учителям; IT — по всем.
+      averageScore: averageOfActiveTeachers(
+        category === 'it' ? active : active.filter((te) => te.lifecycleStatus === 'NEW'),
+      ),
     };
   });
 }
