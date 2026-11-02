@@ -360,11 +360,23 @@ export function getTeacherCategory(teacher: Teacher): TeacherCategory {
   return teacher.gradeGroup === '5-9' ? 'only59' : 'only24';
 }
 
+/**
+ * «Прошли курс» по 2–9 классам считается ТОЛЬКО среди NEW-учителей (начали
+ * работу в последние сезоны — 2024/25 и позже): OLD в этот расчёт не входят
+ * ни в числитель, ни в знаменатель. IT-классы (10–11) считаются как раньше.
+ */
+export function isPassBaseTeacher(teacher: Teacher): boolean {
+  if (!teacher.hasAssignedClass) return false;
+  return teacher.gradeGroup === '10-11' || teacher.lifecycleStatus === 'NEW';
+}
+
 export interface CategoryStat {
   category: TeacherCategory;
-  /** Учителей в категории (с назначенным классом) */
+  /** Учителей в категории (с назначенным классом) — база посещаемости и среднего решения */
   totalTeachers: number;
-  /** Из них прошли курс — каждый учитель считается один раз */
+  /** База «Прошли курс»: для 2–9 — только NEW-учителя категории, для IT — все */
+  passBaseTeachers: number;
+  /** Из базы прошли курс — каждый учитель считается один раз */
   passedTeachers: number;
   percent: number;
   /** Посещаемость: вошли на платформу (isUserActive) */
@@ -378,14 +390,16 @@ export function getTeacherCategoryStats(teachers: Teacher[], now: Date = new Dat
   const eligible = teachers.filter((te) => te.hasAssignedClass);
   return TEACHER_CATEGORIES.map((category) => {
     const members = eligible.filter((te) => getTeacherCategory(te) === category);
-    const passedTeachers = members.filter((te) => hasTeacherPassedCourse(te, now)).length;
+    const passBase = members.filter(isPassBaseTeacher);
+    const passedTeachers = passBase.filter((te) => hasTeacherPassedCourse(te, now)).length;
     const active = members.filter(isUserActive);
     const pct = (n: number) => (members.length > 0 ? Math.round((n / members.length) * 100) : 0);
     return {
       category,
       totalTeachers: members.length,
+      passBaseTeachers: passBase.length,
       passedTeachers,
-      percent: pct(passedTeachers),
+      percent: passBase.length > 0 ? Math.round((passedTeachers / passBase.length) * 100) : 0,
       activeTeachers: active.length,
       activePercent: pct(active.length),
       averageScore: averageOfActiveTeachers(active),
@@ -401,7 +415,8 @@ export interface OverallTeacherPassStat {
 
 /** То же самое, но по всем учителям сразу (для верхней KPI-карточки) */
 export function getOverallTeacherPassStat(teachers: Teacher[]): OverallTeacherPassStat {
-  const eligible = teachers.filter((te) => te.hasAssignedClass);
+  // Только 2–9 классы и только NEW: IT-классы — в своём виджете.
+  const eligible = teachers.filter((te) => te.gradeGroup !== '10-11' && isPassBaseTeacher(te));
   const passedTeachers = eligible.filter((te) => hasTeacherPassedCourse(te)).length;
   return {
     totalTeachers: eligible.length,
@@ -450,7 +465,7 @@ export function getTrainingTypeSummary(teachers: Teacher[], now: Date = new Date
   return types.map((type) => {
     const subset = teachers.filter((te) => te.trainingType === type);
     const active = subset.filter(isUserActive).length;
-    const members = subset.filter((te) => te.hasAssignedClass);
+    const members = subset.filter(isPassBaseTeacher);
     const passed = members.filter((te) => hasTeacherPassedCourse(te, now)).length;
     return {
       type,
@@ -471,7 +486,7 @@ export interface ModuleSegmentRow {
   values: Record<string, number>;
 }
 
-const PASS_THRESHOLD = 70;
+export const PASS_THRESHOLD = 70;
 
 /** Общий движок разбивки модулей одной параллели по произвольному сегменту (тип обучения, стаж, ...) — один проход по всем результатам */
 function getModulePassRateBySegment<K extends string>(

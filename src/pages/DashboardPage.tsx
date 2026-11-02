@@ -116,10 +116,10 @@ export function DashboardPage() {
           {metrics.passByCategory.map((c) => (
             <div key={c.category} className="space-y-1.5">
               <Bar
-                label={`${categoryLabels[c.category]} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
+                label={`${categoryLabels[c.category]}${c.category === 'it' ? '' : ' (NEW)'} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
                   t.dashboard.teachersPassedFormat,
                   c.passedTeachers,
-                  c.totalTeachers,
+                  c.passBaseTeachers,
                   c.percent,
                 )}`}
                 count={c.passedTeachers}
@@ -167,7 +167,7 @@ export function DashboardPage() {
             value={`${metrics.itClasses.percent}%`}
             icon={Award}
             accent="violet"
-            sublabel={`${metrics.itClasses.passedTeachers} ${t.common.of} ${metrics.itClasses.totalTeachers}`}
+            sublabel={`${metrics.itClasses.passedTeachers} ${t.common.of} ${metrics.itClasses.passBaseTeachers}`}
             tooltip={t.dashboard.itAttestationTooltip}
           />
         </div>

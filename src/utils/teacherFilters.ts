@@ -1,5 +1,5 @@
 import type { GradeGroup, Teacher, TeacherLifecycleStatus } from '../types/teacher';
-import { getTeacherAverageScore } from './stats';
+import { PASS_THRESHOLD, getTeacherAverageScore } from './stats';
 import { getEffectiveModuleStatus } from './anomalies';
 
 export interface TeacherFilters {
@@ -46,6 +46,16 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   scoreMax: null,
 };
 
+/**
+ * Сдал абсолютно все назначенные модули (по всем назначенным параллелям):
+ * у каждого результата балл >= порога либо статус «Сдал». Учитель без
+ * назначенных модулей в список не попадает.
+ */
+export function hasPassedAllAssignedModules(teacher: Teacher): boolean {
+  const results = teacher.moduleResults;
+  return results.length > 0 && results.every((r) => r.status === 'passed' || r.score >= PASS_THRESHOLD);
+}
+
 export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Teacher[] {
   const search = filters.search.trim().toLowerCase();
 
@@ -67,6 +77,9 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
 
     if (filters.moduleId && filters.moduleResult) {
       if (getEffectiveModuleStatus(t, filters.moduleId) !== filters.moduleResult) return false;
+    } else if (!filters.moduleId && filters.moduleResult === 'passed') {
+      // «Сдал» без выбора модуля — учитель сдал ВСЕ назначенные ему модули.
+      if (!hasPassedAllAssignedModules(t)) return false;
     }
 
     if (filters.scoreMin !== null || filters.scoreMax !== null) {

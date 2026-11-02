@@ -294,7 +294,7 @@ export function TeacherFilterTree({
                 ].map((opt) => (
                   <button
                     key={opt.value}
-                    disabled={!filters.moduleId}
+                    disabled={!filters.moduleId && opt.value !== '' && opt.value !== 'passed'}
                     onClick={() => onModuleResultChange(opt.value)}
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset disabled:cursor-not-allowed disabled:opacity-40 ${
                       filters.moduleResult === opt.value
@@ -306,6 +306,9 @@ export function TeacherFilterTree({
                   </button>
                 ))}
               </div>
+              {!filters.moduleId && (
+                <p className="text-xs text-slate-400">{t.filters.passedAllAssignedHint}</p>
+              )}
             </div>
           )}
         </div>

@@ -11,7 +11,7 @@
 import type { Teacher } from '../types/teacher';
 import { getCurrentScheduleIndex, isModuleConfirmedOpen, type ScheduleAuditInfo } from '../services/scheduleMapping';
 import { findGroupAnomalies } from './anomalies';
-import { isUserActive, recalculateAllMetrics } from './stats';
+import { isPassBaseTeacher, isUserActive, recalculateAllMetrics } from './stats';
 
 export interface AuditIssue {
   id: string;
@@ -123,11 +123,13 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
   // (учителя с классом) и согласованность чисел между блоками дашборда.
   const metrics = recalculateAllMetrics(teachers);
   const eligible = teachers.filter((t) => t.hasAssignedClass);
-  const eligibleActive = eligible.filter(isUserActive).length;
-  if (metrics.overallPass.passedTeachers > eligibleActive || eligibleActive > eligible.length) {
+  // «Прошли курс» по 2–9 считается только среди NEW с назначенным классом.
+  const passBase = teachers.filter((t) => t.gradeGroup !== '10-11' && isPassBaseTeacher(t));
+  const passBaseActive = passBase.filter(isUserActive).length;
+  if (metrics.overallPass.passedTeachers > passBaseActive || passBaseActive > passBase.length) {
     issues.push({
       id: 'selfcheck-pass-active-total',
-      message: `Нарушена цепочка: прошли курс (${metrics.overallPass.passedTeachers}) <= вошли на платформу (${eligibleActive}) <= всего с классом (${eligible.length}).`,
+      message: `Нарушена цепочка: прошли курс (${metrics.overallPass.passedTeachers}) <= вошли на платформу (${passBaseActive}) <= всего NEW с классом (${passBase.length}).`,
     });
   }
   if (metrics.averageScore.activeTeachers !== metrics.platform.entered) {
@@ -139,11 +141,17 @@ export function runDataAudit(teachers: Teacher[], scheduleAudit: ScheduleAuditIn
   // Категории учителей непересекающиеся: каждый учитель — ровно в одной,
   // поэтому суммы по категориям обязаны совпадать с общим числом.
   const catTotal = metrics.passByCategory.reduce((sum, c) => sum + c.totalTeachers, 0);
-  const catPassed = metrics.passByCategory.reduce((sum, c) => sum + c.passedTeachers, 0);
-  if (catTotal !== eligible.length || catPassed !== metrics.overallPass.passedTeachers) {
+  const mainCats = metrics.passByCategory.filter((c) => c.category !== 'it');
+  const catPassed = mainCats.reduce((sum, c) => sum + c.passedTeachers, 0);
+  const catPassBase = mainCats.reduce((sum, c) => sum + c.passBaseTeachers, 0);
+  if (
+    catTotal !== eligible.length ||
+    catPassed !== metrics.overallPass.passedTeachers ||
+    catPassBase !== metrics.overallPass.totalTeachers
+  ) {
     issues.push({
       id: 'selfcheck-categories-sum',
-      message: `Категории учителей пересекаются или теряют учителей: всего ${catTotal} из ${eligible.length}, прошли ${catPassed} из ${metrics.overallPass.passedTeachers}.`,
+      message: `Категории учителей пересекаются или теряют учителей: всего ${catTotal} из ${eligible.length}, NEW-база ${catPassBase} из ${metrics.overallPass.totalTeachers}, прошли ${catPassed} из ${metrics.overallPass.passedTeachers}.`,
     });
   }
 
