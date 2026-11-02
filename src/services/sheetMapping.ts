@@ -102,12 +102,21 @@ function mapFormat(raw: string): TrainingType {
  * Нет распознаваемого года (пусто, #N/A, текст) — 'UNKNOWN' («Не указано»):
  * раньше такие учителя молча считались OLD.
  */
-function mapLifecycleFromStartYear(raw: string): TeacherLifecycleStatus {
+function mapLifecycleFromStartYear(raw: string, seasons: number = NEW_SEASONS_MAIN): TeacherLifecycleStatus {
   const years = raw.match(/20\d{2}/g);
   if (!years) return 'UNKNOWN';
   const latestYear = Math.max(...years.map(Number));
-  return latestYear >= 2025 ? 'NEW' : 'OLD';
+  return latestYear >= currentSeasonEndYear() - seasons + 1 ? 'NEW' : 'OLD';
 }
+
+/** Год окончания текущего учебного сезона: с сентября — следующий календарный год (11.2026 → 2027). */
+function currentSeasonEndYear(now: Date = new Date()): number {
+  return now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+/** Сколько последних сезонов считается «новым» учителем: 2–9 классы — 3 (24/25, 25/26, 26/27), IT — 2. */
+const NEW_SEASONS_MAIN = 3;
+const NEW_SEASONS_IT = 2;
 
 // ВАЖНО: отрицание проверяем ПЕРВЫМ и через startsWith — "не заходил"/
 // "не вошёл"/"daxil olmayıb" содержат "заходил"/"вошёл"/"daxil" как
@@ -387,7 +396,7 @@ export function mapSeniorSheetRow(
   // порог, что и в mapLifecycleFromStartYear) — таким учителям низкий/
   // нулевой балл не должен считаться провалом.
   // Без года (UNKNOWN) освобождение действует как раньше — только явный NEW его лишён.
-  const isOldTeacher = mapLifecycleFromStartYear(seniorStartYear) !== 'NEW';
+  const isOldTeacher = mapLifecycleFromStartYear(seniorStartYear, NEW_SEASONS_MAIN) !== 'NEW';
 
   const moduleResults: ModuleResult[] = [];
   for (const n of SENIOR_MODULE_NUMBERS) {
@@ -420,7 +429,8 @@ export function mapSeniorSheetRow(
     // В листе IT-классов столбца "Тип обучения" нет — если он появится, он
     // подхватится по тем же названиям, иначе тип не указан (не "Əyani").
     trainingType: mapFormat(findValueFuzzy(row, [...FIELD_CANDIDATES.format])),
-    lifecycleStatus: mapLifecycleFromStartYear(seniorStartYear),
+    // IT: «новый» — только последние два сезона (исключение «Старый учитель» выше — по прежнему порогу).
+    lifecycleStatus: mapLifecycleFromStartYear(seniorStartYear, NEW_SEASONS_IT),
     startYear: seniorStartYear,
     gradeGroup: '10-11',
     platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',

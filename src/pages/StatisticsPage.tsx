@@ -239,7 +239,7 @@ export function StatisticsPage() {
                 {metrics.passByCategory.map((c, i) => (
                   <Bar
                     key={c.category}
-                    label={`${categoryLabels[c.category]}${c.category === 'it' ? '' : ' (NEW)'}: ${formatTeachersPassed(
+                    label={`${categoryLabels[c.category]} (${c.category === 'it' ? t.dashboard.newTagIt : 'NEW'}): ${formatTeachersPassed(
                       t.dashboard.teachersPassedFormat,
                       c.passedTeachers,
                       c.passBaseTeachers,

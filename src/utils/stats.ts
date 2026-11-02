@@ -184,11 +184,9 @@ const SHARED_MODULE_SHORT_TITLES = new Set(['M1', 'M2']);
  * любого знаменателя — их отсутствие параллели не портит процент другим.
  */
 export function getModuleStatsForGroup(teachers: Teacher[], group: GradeGroup): ModuleStat[] {
-  // 2–4 и 5–9 — только NEW-учителя (OLD не входят ни в «сдали», ни в «из»);
-  // IT-классы (10–11) считаются по всем, как раньше.
-  const eligible = teachers.filter(
-    (te) => te.hasAssignedClass && (group === '10-11' || te.lifecycleStatus === 'NEW'),
-  );
+  // Только NEW-учителя (OLD не входят ни в «сдали», ни в «из»); для IT-классов
+  // (10–11) «новый» — последние два сезона.
+  const eligible = teachers.filter((te) => te.hasAssignedClass && te.lifecycleStatus === 'NEW');
   const population = eligible.filter((te) => getAssignedGradeGroups(te).includes(group));
 
   return modulesForGrade(group).map((m) => {
@@ -368,18 +366,19 @@ export function getTeacherCategory(teacher: Teacher): TeacherCategory {
 /**
  * «Прошли курс» по 2–9 классам считается ТОЛЬКО среди NEW-учителей (начали
  * работу в последние сезоны — 2024/25 и позже): OLD в этот расчёт не входят
- * ни в числитель, ни в знаменатель. IT-классы (10–11) считаются как раньше.
+ * ни в числитель, ни в знаменатель. IT-классы (10–11) — то же правило, но «новый» =
+ * последние два сезона (см. sheetMapping).
  */
 export function isPassBaseTeacher(teacher: Teacher): boolean {
   if (!teacher.hasAssignedClass) return false;
-  return teacher.gradeGroup === '10-11' || teacher.lifecycleStatus === 'NEW';
+  return teacher.lifecycleStatus === 'NEW';
 }
 
 export interface CategoryStat {
   category: TeacherCategory;
   /** Учителей в категории (с назначенным классом) — база посещаемости и среднего решения */
   totalTeachers: number;
-  /** База «Прошли курс»: для 2–9 — только NEW-учителя категории, для IT — все */
+  /** База «Прошли курс»: только NEW-учителя категории (для IT — NEW за последние два сезона) */
   passBaseTeachers: number;
   /** Из базы прошли курс — каждый учитель считается один раз */
   passedTeachers: number;
@@ -407,10 +406,8 @@ export function getTeacherCategoryStats(teachers: Teacher[], now: Date = new Dat
       percent: passBase.length > 0 ? Math.round((passedTeachers / passBase.length) * 100) : 0,
       activeTeachers: active.length,
       activePercent: pct(active.length),
-      // 2–9 классы — среднее только по вошедшим NEW-учителям; IT — по всем.
-      averageScore: averageOfActiveTeachers(
-        category === 'it' ? active : active.filter((te) => te.lifecycleStatus === 'NEW'),
-      ),
+      // Среднее — только по вошедшим NEW-учителям категории.
+      averageScore: averageOfActiveTeachers(active.filter((te) => te.lifecycleStatus === 'NEW')),
     };
   });
 }

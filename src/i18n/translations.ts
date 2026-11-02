@@ -108,6 +108,7 @@ export interface Dict {
     /** Подпись под значением карточки: "по {active} вошедшим учителям" */
     averageScoreSublabel: string;
     averageScoreSublabelAll: string;
+    newTagIt: string;
     averageScoreTooltipAll: string;
     /** Префикс успеваемости на линии параллели: "Успеваемость" */
     performanceLabel: string;
@@ -397,7 +398,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       notEnteredTooltip: 'Количество и процент учителей, пока не активировавших профиль — ни разу не заходивших на платформу.',
       totalTeachersTooltip: 'Общее количество учителей в базе — прямой подсчёт по листу «Все учителя 26/27».',
       moduleStatsTooltip: 'Считаются только NEW-учителя 2–9 классов (начали работу в 2024/25 и позже): OLD-учителя не входят ни в числитель, ни в знаменатель. Непересекающиеся категории: только 2–4, только 5–9, обе параллели, IT-классы. Каждый учитель считается ОДИН раз (двухпараллельный — как один человек: прошёл всё по обеим параллелям = 1, иначе 0), поэтому суммы по категориям равны общему числу.',
-      moduleDetailTooltip: 'Процент сдавших (балл ≥70%) отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели. Для 2–4 и 5–9 классов считаются только NEW-учителя (начали в 2024/25 и позже), OLD не входят; IT-классы — все учителя.',
+      moduleDetailTooltip: 'Процент сдавших (балл ≥70%) отдельно по каждому активному (уже открытому по графику) модулю выбранной параллели. Считаются только NEW-учителя: для 2–4 и 5–9 классов — начавшие в последние три сезона (2024/25 и позже), для IT-классов — в последние два сезона; OLD не входят.',
       categoryOnly24: 'Только 2–4 классы',
       categoryOnly59: 'Только 5–9 классы',
       categoryBoth: 'Обе параллели (2–4 и 5–9)',
@@ -405,9 +406,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedAllOpenFormat: '{passed} из {total} новых учителей (NEW) сдали все модули, которые нужно сдать сейчас',
       averageScore: 'Среднее решение',
       averageScoreTooltip: 'Среднее арифметическое «Среднего балла (по решённым)» по вошедшим на платформу NEW-учителям 2–9 классов (начали работу в 2024/25 и позже; OLD не входят): сумма средних баллов / число вошедших NEW. Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
-      averageScoreTooltipAll: 'Среднее арифметическое «Среднего балла (по решённым)» по ВСЕМ вошедшим на платформу учителям: сумма средних баллов / число вошедших (то же число, что на карточке «Вошли на платформу»). Учителя, которые зашли, но пока ничего не решили, участвуют с 0% — исключать нули нельзя.',
+      averageScoreTooltipAll: 'Среднее арифметическое «Среднего балла (по решённым)» по вошедшим на платформу NEW-учителям IT-классов (год начала в столбце «IT-yə başladıqları il» — один из последних двух сезонов; остальные не входят): сумма средних баллов / число вошедших NEW. Учителя, которые зашли, но пока ничего не решили, участвуют с 0%.',
       averageScoreSublabel: 'по {active} вошедшим новым учителям (NEW)',
-      averageScoreSublabelAll: 'по {active} вошедшим учителям',
+      averageScoreSublabelAll: 'по {active} вошедшим новым учителям (NEW, 2 года)',
+      newTagIt: 'NEW, 2 года',
       performanceLabel: 'Успеваемость',
       attendanceFormat: 'Посещаемость: {active} из {total} вошли на платформу ({percent}%)',
       itWidgetTitle: 'IT-классы (10–11)',
@@ -416,7 +418,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       itAttendanceTooltip: 'Учителя IT-классов, вошедшие на платформу: статус входа «заходил» или хотя бы один модуль с баллом > 0 (единый флаг активности, как на «Главной»).',
       itAverageScore: 'Среднее решение IT-классов',
       itAttestation: 'Прошли аттестацию',
-      itAttestationTooltip: 'Учителя IT-классов, сдавшие (≥70%) все модули, которые нужно сдать сейчас, по логическому «И» (отсрочка по дедлайну и правило «Старый учитель» действуют так же, как в общей карточке; ещё не открытые модули не учитываются) — то же значение, что в категории «IT-классы» блока «Прошли курс».',
+      itAttestationTooltip: 'Считаются только NEW-учителя IT-классов (начали в последние два сезона); остальные не входят в числитель и знаменатель. Учителя IT-классов, сдавшие (≥70%) все модули, которые нужно сдать сейчас, по логическому «И» (отсрочка по дедлайну и правило «Старый учитель» действуют так же, как в общей карточке; ещё не открытые модули не учитываются) — то же значение, что в категории «IT-классы» блока «Прошли курс».',
       averageScoreByGroupFormat: '{group}: Среднее решение — {value}',
       teachersPassedFormat: '{passed} из {total} учителей прошли курс ({percent}%)',
       moduleGridEmpty: 'Нет данных по этой параллели',
@@ -691,7 +693,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       notEnteredTooltip: 'Hələ profilini aktivləşdirməmiş — platformaya heç vaxt daxil olmayan müəllimlərin sayı və faizi.',
       totalTeachersTooltip: 'Bazadakı ümumi müəllim sayı — "Bütün müəllimlər 26/27" vərəqinə əsasən birbaşa hesablama.',
       moduleStatsTooltip: 'Yalnız 2–9 siniflərin NEW müəllimləri sayılır (2024/25 və sonra başlayanlar): OLD müəllimlər nə surətə, nə də məxrəcə daxil deyil. Kəsişməyən kateqoriyalar: yalnız 2–4, yalnız 5–9, hər iki paralel, IT siniflər. Hər müəllim BİR dəfə sayılır (iki paralelli — bir nəfər kimi: hər iki paralel üzrə hamısını keçibsə = 1, əks halda 0), ona görə kateqoriyalar üzrə cəmlər ümumi saya bərabərdir.',
-      moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca keçən faizi (≥70%). 2–4 və 5–9 siniflər üçün yalnız NEW müəllimlər (2024/25 və sonra başlayanlar) sayılır, OLD daxil deyil; IT siniflər — bütün müəllimlər.',
+      moduleDetailTooltip: 'Seçilmiş paralelin hər aktiv (qrafikə görə artıq açılmış) modulu üzrə ayrıca keçən faizi (≥70%). Yalnız NEW müəllimlər sayılır: 2–4 və 5–9 siniflər üçün son üç mövsümdə (2024/25 və sonra), IT siniflər üçün son iki mövsümdə başlayanlar; OLD daxil deyil.',
       categoryOnly24: 'Yalnız 2–4-cü siniflər',
       categoryOnly59: 'Yalnız 5–9-cu siniflər',
       categoryBoth: 'Hər iki paralel (2–4 və 5–9)',
@@ -699,9 +701,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedAllOpenFormat: '{total} yeni (NEW) müəllimdən {passed}-i indi keçilməli olan bütün modulları keçib',
       averageScore: 'Orta nəticə',
       averageScoreTooltip: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş 2–9 siniflərin NEW müəllimləri üzrə orta arifmetiği (2024/25 və sonra başlayanlar; OLD daxil deyil): orta balların cəmi / daxil olmuş NEW-lərin sayı. Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
-      averageScoreTooltipAll: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş BÜTÜN müəllimlər üzrə orta arifmetiği: orta balların cəmi / daxil olanların sayı («Platformaya daxil olanlar» kartındakı ilə eyni rəqəm). Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir — sıfırları çıxarmaq olmaz.',
+      averageScoreTooltipAll: '«Orta bal (həll edilənlər üzrə)» göstəricisinin platformaya daxil olmuş IT siniflərin NEW müəllimləri üzrə orta arifmetiği («IT-yə başladıqları il» sütununda son iki mövsümdən biri; qalanları daxil deyil). Daxil olub hələ heç nə həll etməyən müəllimlər 0% ilə iştirak edir.',
       averageScoreSublabel: 'daxil olmuş {active} yeni (NEW) müəllim üzrə',
-      averageScoreSublabelAll: 'daxil olmuş {active} müəllim üzrə',
+      averageScoreSublabelAll: 'daxil olmuş {active} yeni (NEW, 2 il) müəllim üzrə',
+      newTagIt: 'NEW, 2 il',
       performanceLabel: 'Uğur',
       attendanceFormat: 'Davamiyyət: {total} müəllimdən {active}-i platformaya daxil olub ({percent}%)',
       itWidgetTitle: 'IT siniflər (10–11)',
@@ -710,7 +713,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       itAttendanceTooltip: 'Platformaya daxil olmuş IT sinif müəllimləri: giriş statusu «daxil olub» və ya bal > 0 olan ən azı bir modul (Ana səhifədəki kimi vahid aktivlik göstəricisi).',
       itAverageScore: 'IT siniflərin orta nəticəsi',
       itAttestation: 'Attestasiyanı keçdi',
-      itAttestationTooltip: 'Hazırda keçilməli olan bütün modulları (≥70%) məntiqi «VƏ» ilə keçmiş IT sinif müəllimləri (son tarixə qədər möhlət və «Köhnə müəllim» qaydası ümumi kartdakı kimidir; hələ açılmamış modullar nəzərə alınmır) — «Kursu keçdi» blokunda «IT siniflər» kateqoriyasındakı ilə eyni dəyər.',
+      itAttestationTooltip: 'Yalnız IT siniflərin NEW müəllimləri sayılır (son iki mövsümdə başlayanlar); qalanları nə surətə, nə də məxrəcə daxil deyil. Hazırda keçilməli olan bütün modulları (≥70%) məntiqi «VƏ» ilə keçmiş IT sinif müəllimləri (son tarixə qədər möhlət və «Köhnə müəllim» qaydası ümumi kartdakı kimidir; hələ açılmamış modullar nəzərə alınmır) — «Kursu keçdi» blokunda «IT siniflər» kateqoriyasındakı ilə eyni dəyər.',
       averageScoreByGroupFormat: '{group}: Orta nəticə — {value}',
       teachersPassedFormat: '{total} müəllimdən {passed}-i kursu keçib ({percent}%)',
       moduleGridEmpty: 'Bu paralel üzrə məlumat yoxdur',

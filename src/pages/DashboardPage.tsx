@@ -116,7 +116,7 @@ export function DashboardPage() {
           {metrics.passByCategory.map((c) => (
             <div key={c.category} className="space-y-1.5">
               <Bar
-                label={`${categoryLabels[c.category]}${c.category === 'it' ? '' : ' (NEW)'} · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
+                label={`${categoryLabels[c.category]} (${c.category === 'it' ? t.dashboard.newTagIt : 'NEW'}) · ${t.dashboard.performanceLabel}: ${formatTeachersPassed(
                   t.dashboard.teachersPassedFormat,
                   c.passedTeachers,
                   c.passBaseTeachers,
@@ -134,7 +134,7 @@ export function DashboardPage() {
               </p>
               <p className="text-sm text-slate-600">
                 {t.dashboard.averageScoreByGroupFormat
-                  .replace('{group}', `${categoryLabels[c.category]}${c.category === 'it' ? '' : ' (NEW)'}`)
+                  .replace('{group}', `${categoryLabels[c.category]} (${c.category === 'it' ? t.dashboard.newTagIt : 'NEW'})`)
                   .replace('{value}', formatAverage(c.averageScore.average))}
               </p>
             </div>
