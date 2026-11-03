@@ -16,9 +16,11 @@ interface TeacherFilterTreeProps {
   onModuleChange: (moduleId: string) => void;
   onModuleResultChange: (result: string) => void;
   onSectorChange: (sector: string) => void;
+  onStudentsStartedChange: (value: string) => void;
+  onStudentsRangeChange: (key: 'studentsMin' | 'studentsMax', value: number | null) => void;
 }
 
-type SectionKey = 'location' | 'grade' | 'lifecycle' | 'module' | 'sector';
+type SectionKey = 'location' | 'grade' | 'lifecycle' | 'module' | 'students' | 'sector';
 
 function SectionHeader({
   title,
@@ -51,10 +53,12 @@ export function TeacherFilterTree({
   onModuleChange,
   onModuleResultChange,
   onSectorChange,
+  onStudentsStartedChange,
+  onStudentsRangeChange,
 }: TeacherFilterTreeProps) {
   const t = useT();
   const [expandedSections, setExpandedSections] = useState<Set<SectionKey>>(
-    new Set<SectionKey>(['location', 'grade', 'lifecycle', 'module', 'sector']),
+    new Set<SectionKey>(['location', 'grade', 'lifecycle', 'module', 'students', 'sector']),
   );
   const [expandedDistricts, setExpandedDistricts] = useState<Set<string>>(new Set());
 
@@ -309,6 +313,54 @@ export function TeacherFilterTree({
               {!filters.moduleId && (
                 <p className="text-xs text-slate-400">{t.filters.passedAllAssignedHint}</p>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Ученики: «% по ученикам» из таблицы — начали / не начали / срез от–до */}
+        <div className="py-1">
+          <SectionHeader
+            title={t.filters.studentsSection}
+            expanded={expandedSections.has('students')}
+            onToggle={() => toggleSection('students')}
+          />
+          {expandedSections.has('students') && (
+            <div className="space-y-2 pb-2 pl-1">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { value: '', label: t.common.any },
+                  { value: 'started', label: t.filters.studentsStarted },
+                  { value: 'not_started', label: t.filters.studentsNotStarted },
+                  { value: 'no_data', label: t.filters.studentsNoData },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onStudentsStartedChange(opt.value)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                      filters.studentsStarted === opt.value
+                        ? 'bg-brand-600 text-white ring-brand-600'
+                        : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-end gap-2">
+                {(['studentsMin', 'studentsMax'] as const).map((key) => (
+                  <label key={key} className="flex flex-col gap-1 text-xs font-medium text-slate-500">
+                    {key === 'studentsMin' ? t.filters.scoreFromLabel : t.filters.scoreToLabel}
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={filters[key] ?? ''}
+                      onChange={(e) => onStudentsRangeChange(key, e.target.value === '' ? null : Number(e.target.value))}
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  </label>
+                ))}
+              </div>
             </div>
           )}
         </div>

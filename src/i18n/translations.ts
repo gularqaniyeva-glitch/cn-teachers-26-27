@@ -152,7 +152,7 @@ export interface Dict {
     anyStatus: string;
     passedAllAssignedHint: string;
     trainingTypeLabel: string;
-    studentsStartedLabel: string;
+    studentsSection: string;
     studentsStarted: string;
     studentsNotStarted: string;
     studentsNoData: string;
@@ -384,7 +384,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatus: 'Платформа',
       result: 'Результат',
       averageScore: 'Среднее решение',
-      studentsPercent: 'Ученики, % (из таблицы)',
+      studentsPercent: 'Ученики, %',
       note: 'Заметка',
       moduleColumns: 'Отдельные модули (M1, M2, M3…)',
     },
@@ -455,7 +455,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'Любой статус',
       passedAllAssignedHint: 'Без выбора модуля «Сдал» показывает учителей, сдавших ВСЕ назначенные им модули.',
       trainingTypeLabel: 'Тип обучения',
-      studentsStartedLabel: 'Ученики начали',
+      studentsSection: 'Ученики (% из таблицы)',
       studentsStarted: 'Начали (% > 0)',
       studentsNotStarted: 'Не начали (0%)',
       studentsNoData: 'Нет данных',
@@ -685,7 +685,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatus: 'Platforma',
       result: 'Nəticə',
       averageScore: 'Ortalama bal (həll edilənlər)',
-      studentsPercent: 'Şagirdlər, % (cədvəldən)',
+      studentsPercent: 'Şagirdlər, %',
       note: 'Qeyd',
       moduleColumns: 'Ayrı-ayrı modullar (M1, M2, M3…)',
     },
@@ -756,7 +756,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'İstənilən status',
       passedAllAssignedHint: 'Modul seçilmədikdə «Keçib» ona təyin edilmiş BÜTÜN modulları keçmiş müəllimləri göstərir.',
       trainingTypeLabel: 'Təhsil növü',
-      studentsStartedLabel: 'Şagirdlər başlayıb',
+      studentsSection: 'Şagirdlər (cədvəldən %)',
       studentsStarted: 'Başlayıb (% > 0)',
       studentsNotStarted: 'Başlamayıb (0%)',
       studentsNoData: 'Məlumat yoxdur',

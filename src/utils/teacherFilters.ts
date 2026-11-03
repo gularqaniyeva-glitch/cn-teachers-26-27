@@ -16,6 +16,9 @@ export interface TeacherFilters {
   trainingType: string;
   /** '' — все, 'started' — % по ученикам > 0, 'not_started' — 0%, 'no_data' — в таблице нет данных */
   studentsStarted: string;
+  /** Срез «% по ученикам» от–до (0–100); null — без ограничения. Учителя без данных в срез не попадают. */
+  studentsMin: number | null;
+  studentsMax: number | null;
   /** Множественный выбор — 'entered' | 'not_entered' */
   platformStatuses: string[];
   /** '' — все, 'az' | 'ru' */
@@ -40,6 +43,8 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   lifecycleStatuses: [],
   trainingType: '',
   studentsStarted: '',
+  studentsMin: null,
+  studentsMax: null,
   platformStatuses: [],
   sector: '',
   moduleId: '',
@@ -79,6 +84,12 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
       if (filters.studentsStarted === 'started' && !(p !== null && p > 0)) return false;
       if (filters.studentsStarted === 'not_started' && p !== 0) return false;
       if (filters.studentsStarted === 'no_data' && p !== null) return false;
+    }
+    if (filters.studentsMin !== null || filters.studentsMax !== null) {
+      const p = t.studentsPercent ?? null;
+      if (p === null) return false;
+      if (filters.studentsMin !== null && p < filters.studentsMin) return false;
+      if (filters.studentsMax !== null && p > filters.studentsMax) return false;
     }
     if (filters.platformStatuses.length && !filters.platformStatuses.includes(t.platformStatus)) return false;
     if (filters.sector && t.language !== filters.sector) return false;

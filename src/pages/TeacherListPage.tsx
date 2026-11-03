@@ -322,6 +322,8 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
                 onModuleChange={(id) => handleFilterChange('moduleId', id)}
                 onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
                 onSectorChange={(sector) => handleFilterChange('sector', sector)}
+                onStudentsStartedChange={(v) => handleFilterChange('studentsStarted', v)}
+                onStudentsRangeChange={(key, v) => handleFilterChange(key, v)}
               />
               <TeacherFiltersBar
                 filters={filters}
