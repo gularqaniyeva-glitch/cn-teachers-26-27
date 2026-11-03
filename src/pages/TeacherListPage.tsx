@@ -82,6 +82,8 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
     load();
   }, [load]);
 
+  const onlyNewActive = filters.lifecycleStatuses.length === 1 && filters.lifecycleStatuses[0] === 'NEW';
+
   const scopedTeachers = useMemo(
     () => allTeachers.filter((teacher) => gradeGroups.includes(teacher.gradeGroup)),
     [allTeachers, gradeGroups],
@@ -272,13 +274,27 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
         />
       </div>
 
-      <button
-        onClick={() => setFiltersOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
-        <Settings2 size={15} />
-        {t.common.filtersToggle}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setFiltersOpen((v) => !v)}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Settings2 size={15} />
+          {t.common.filtersToggle}
+        </button>
+        {/* Быстрый фильтр: убрать старых (OLD) — оставить только NEW */}
+        <button
+          onClick={() => handleFilterChange('lifecycleStatuses', onlyNewActive ? [] : ['NEW'])}
+          aria-pressed={onlyNewActive}
+          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium ${
+            onlyNewActive
+              ? 'border-brand-600 bg-brand-600 text-white'
+              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          {t.filters.hideOldTeachers}
+        </button>
+      </div>
 
       {filtersOpen && (
         <div className="fixed inset-0 z-40">

@@ -143,6 +143,7 @@ export interface Dict {
     locationSection: string;
     gradeSection: string;
     lifecycleSection: string;
+    hideOldTeachers: string;
     moduleSection: string;
     sectorSection: string;
     sectorAll: string;
@@ -440,6 +441,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       locationSection: 'Tabeçilik и школа',
       gradeSection: 'Параллель',
       lifecycleSection: 'Статус учителя (OLD / NEW)',
+      hideOldTeachers: 'Убрать OLD (только NEW)',
       moduleSection: 'Статус модуля',
       sectorSection: 'Сектор',
       sectorAll: 'Все',
@@ -735,6 +737,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       locationSection: 'Tabeçilik və məktəb',
       gradeSection: 'Paralel',
       lifecycleSection: 'Müəllim statusu (OLD / NEW)',
+      hideOldTeachers: 'OLD-ları gizlət (yalnız NEW)',
       moduleSection: 'Modul statusu',
       sectorSection: 'Bölmə',
       sectorAll: 'Hamısı',

@@ -126,7 +126,9 @@ export function TeacherTable({
       case 'trainingType':
         return t.trainingType[teacher.trainingType];
       case 'lifecycleStatus':
-        return <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>{teacher.lifecycleStatus}</Badge>;
+        return <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : teacher.lifecycleStatus === 'OLD' ? 'warning' : 'neutral'}>
+            {teacher.lifecycleStatus === 'UNKNOWN' ? t.statistics.lifecycleUnknown : teacher.lifecycleStatus}
+          </Badge>;
       case 'platformStatus':
         return (
           <Badge variant={teacher.platformStatus === 'entered' ? 'success' : 'danger'} dot>

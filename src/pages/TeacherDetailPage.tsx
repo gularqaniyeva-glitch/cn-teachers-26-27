@@ -113,7 +113,7 @@ export function TeacherDetailPage() {
               <div className="flex items-center justify-between gap-4 py-2 text-sm">
                 <span className="text-slate-500">{t.detail.fields.lifecycleStatus}</span>
                 <Badge variant={teacher.lifecycleStatus === 'NEW' ? 'purple' : 'neutral'}>
-                  {teacher.lifecycleStatus}
+                  {teacher.lifecycleStatus === 'UNKNOWN' ? t.statistics.lifecycleUnknown : teacher.lifecycleStatus}
                 </Badge>
               </div>
               <div className="flex items-center justify-between gap-4 py-2 text-sm">

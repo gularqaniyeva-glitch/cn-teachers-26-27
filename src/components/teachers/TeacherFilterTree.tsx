@@ -215,7 +215,7 @@ export function TeacherFilterTree({
           />
           {expandedSections.has('lifecycle') && (
             <div className="space-y-0.5 pb-2 pl-1">
-              {LIFECYCLE_STATUSES.map((s) => (
+              {([...LIFECYCLE_STATUSES, 'UNKNOWN'] as TeacherLifecycleStatus[]).map((s) => (
                 <label key={s} className="flex items-center justify-between gap-2 py-1 text-sm text-slate-700">
                   <span className="flex items-center gap-2">
                     <input
@@ -224,7 +224,7 @@ export function TeacherFilterTree({
                       onChange={() => onToggleLifecycle(s)}
                       className="accent-brand-600"
                     />
-                    {s}
+                    {s === 'UNKNOWN' ? t.statistics.lifecycleUnknown : s}
                   </span>
                   <span className="text-xs text-slate-400">{lifecycleCounts.get(s) ?? 0}</span>
                 </label>
