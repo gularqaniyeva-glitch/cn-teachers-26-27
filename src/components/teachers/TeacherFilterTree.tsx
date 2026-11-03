@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { GradeGroup, Teacher, TeacherLifecycleStatus } from '../../types/teacher';
-import type { TeacherFilters } from '../../utils/teacherFilters';
+import type { ArrayFilterKey, TeacherFilters } from '../../utils/teacherFilters';
 import { LIFECYCLE_STATUSES, MODULES } from '../../data/constants';
 import { useT } from '../../i18n/useLocaleStore';
 
@@ -13,10 +13,10 @@ interface TeacherFilterTreeProps {
   onToggleSchool: (school: string) => void;
   onToggleGradeGroup: (group: GradeGroup) => void;
   onToggleLifecycle: (status: TeacherLifecycleStatus) => void;
-  onModuleChange: (moduleId: string) => void;
-  onModuleResultChange: (result: string) => void;
-  onSectorChange: (sector: string) => void;
-  onStudentsStartedChange: (value: string) => void;
+  /** Отметить/снять значение в множественном фильтре */
+  onToggleValue: (key: ArrayFilterKey, value: string) => void;
+  /** Сбросить множественный фильтр («Все») */
+  onClearValues: (key: ArrayFilterKey) => void;
   onStudentsRangeChange: (key: 'studentsMin' | 'studentsMax', value: number | null) => void;
 }
 
@@ -50,10 +50,8 @@ export function TeacherFilterTree({
   onToggleSchool,
   onToggleGradeGroup,
   onToggleLifecycle,
-  onModuleChange,
-  onModuleResultChange,
-  onSectorChange,
-  onStudentsStartedChange,
+  onToggleValue,
+  onClearValues,
   onStudentsRangeChange,
 }: TeacherFilterTreeProps) {
   const t = useT();
@@ -237,7 +235,7 @@ export function TeacherFilterTree({
           )}
         </div>
 
-        {/* Сектор */}
+        {/* Сектор — множественный выбор; «Все» = без ограничения */}
         <div className="py-1">
           <SectionHeader
             title={t.filters.sectorSection}
@@ -246,19 +244,28 @@ export function TeacherFilterTree({
           />
           {expandedSections.has('sector') && (
             <div className="flex flex-wrap gap-1.5 pb-2 pl-1">
+              <button
+                onClick={() => onClearValues('sectors')}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                  filters.sectors.length === 0
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {t.filters.sectorAll}
+              </button>
               {[
-                { value: '', label: t.filters.sectorAll },
                 { value: 'az', label: t.language.az },
                 { value: 'ru', label: t.language.ru },
               ].map((opt) => (
                 <button
                   key={opt.value}
-                  onClick={() => onSectorChange(opt.value)}
+                  onClick={() => onToggleValue('sectors', opt.value)}
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-                    filters.sector === opt.value
-                      ? 'bg-brand-600 text-white ring-brand-600'
-                      : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-                  }`}
+                  filters.sectors.includes(opt.value)
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
                 >
                   {opt.label}
                 </button>
@@ -267,7 +274,7 @@ export function TeacherFilterTree({
           )}
         </div>
 
-        {/* Статус прохождения модуля */}
+        {/* Статус прохождения модуля — можно отметить несколько модулей и несколько статусов */}
         <div className="py-1">
           <SectionHeader
             title={t.filters.moduleSection}
@@ -276,21 +283,43 @@ export function TeacherFilterTree({
           />
           {expandedSections.has('module') && (
             <div className="space-y-2 pb-2 pl-1">
-              <select
-                value={filters.moduleId}
-                onChange={(e) => onModuleChange(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              >
-                <option value="">{t.filters.anyModule}</option>
-                {moduleOptions.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {multiGrade ? `${t.gradeGroup[m.group]} · ${m.shortTitle}` : m.shortTitle}
-                  </option>
-                ))}
-              </select>
               <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onClearValues('moduleIds')}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                  filters.moduleIds.length === 0
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {t.filters.anyModule}
+              </button>
+                {moduleOptions.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => onToggleValue('moduleIds', m.id)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                  filters.moduleIds.includes(m.id)
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
+                  >
+                    {multiGrade ? `${t.gradeGroup[m.group]} · ${m.shortTitle}` : m.shortTitle}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onClearValues('moduleResults')}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                  filters.moduleResults.length === 0
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {t.filters.anyStatus}
+              </button>
                 {[
-                  { value: '', label: t.filters.anyStatus },
                   { value: 'passed', label: t.moduleStatus.passed },
                   { value: 'failed', label: t.moduleStatus.failed },
                   { value: 'not_started', label: t.moduleStatus.notStarted },
@@ -298,26 +327,26 @@ export function TeacherFilterTree({
                 ].map((opt) => (
                   <button
                     key={opt.value}
-                    disabled={!filters.moduleId && opt.value !== '' && opt.value !== 'passed'}
-                    onClick={() => onModuleResultChange(opt.value)}
+                    disabled={filters.moduleIds.length === 0 && opt.value !== 'passed'}
+                    onClick={() => onToggleValue('moduleResults', opt.value)}
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset disabled:cursor-not-allowed disabled:opacity-40 ${
-                      filters.moduleResult === opt.value
-                        ? 'bg-brand-600 text-white ring-brand-600'
-                        : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-                    }`}
+                  filters.moduleResults.includes(opt.value)
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
-              {!filters.moduleId && (
-                <p className="text-xs text-slate-400">{t.filters.passedAllAssignedHint}</p>
-              )}
+              <p className="text-xs text-slate-400">
+                {filters.moduleIds.length === 0 ? t.filters.passedAllAssignedHint : t.filters.multiModuleHint}
+              </p>
             </div>
           )}
         </div>
 
-        {/* Ученики: «% по ученикам» из таблицы — начали / не начали / срез от–до */}
+        {/* Ученики: «% по ученикам» из таблицы — начали / не начали / нет данных (можно несколько) и срез от–до */}
         <div className="py-1">
           <SectionHeader
             title={t.filters.studentsSection}
@@ -327,20 +356,29 @@ export function TeacherFilterTree({
           {expandedSections.has('students') && (
             <div className="space-y-2 pb-2 pl-1">
               <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onClearValues('studentsStarted')}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                  filters.studentsStarted.length === 0
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {t.common.any}
+              </button>
                 {[
-                  { value: '', label: t.common.any },
                   { value: 'started', label: t.filters.studentsStarted },
                   { value: 'not_started', label: t.filters.studentsNotStarted },
                   { value: 'no_data', label: t.filters.studentsNoData },
                 ].map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => onStudentsStartedChange(opt.value)}
+                    onClick={() => onToggleValue('studentsStarted', opt.value)}
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
-                      filters.studentsStarted === opt.value
-                        ? 'bg-brand-600 text-white ring-brand-600'
-                        : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
-                    }`}
+                  filters.studentsStarted.includes(opt.value)
+                    ? 'bg-brand-600 text-white ring-brand-600'
+                    : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'
+                }`}
                   >
                     {opt.label}
                   </button>

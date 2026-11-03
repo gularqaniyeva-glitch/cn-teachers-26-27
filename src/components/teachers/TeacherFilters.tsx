@@ -1,5 +1,4 @@
 import { RotateCcw } from 'lucide-react';
-import { FilterSelect } from './FilterSelect';
 import { MultiSelectFilter } from './MultiSelectFilter';
 import type { TeacherFilters as TeacherFiltersState } from '../../utils/teacherFilters';
 import { TRAINING_TYPES } from '../../data/constants';
@@ -43,14 +42,12 @@ export function TeacherFiltersBar({ filters, districts, startYears, classesTaugh
           onChange={(next) => onChange('classesTaught', next)}
           options={classesTaught.map((c) => ({ value: c, label: c }))}
         />
-        <FilterSelect
+        <MultiSelectFilter
           label={t.filters.trainingTypeLabel}
-          value={filters.trainingType}
-          onChange={(v) => onChange('trainingType', v)}
-          options={[
-            { value: '', label: t.common.any },
-            ...[...TRAINING_TYPES, 'unknown' as const].map((type) => ({ value: type, label: t.trainingType[type] })),
-          ]}
+          selected={filters.trainingTypes}
+          onChange={(next) => onChange('trainingTypes', next)}
+          options={[...TRAINING_TYPES, 'unknown' as const].map((type) => ({ value: type, label: t.trainingType[type] }))}
+          searchable={false}
         />
         <MultiSelectFilter
           label={t.filters.platformStatusLabel}

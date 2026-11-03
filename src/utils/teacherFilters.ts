@@ -13,19 +13,21 @@ export interface TeacherFilters {
   classesTaught: string[];
   gradeGroups: GradeGroup[];
   lifecycleStatuses: TeacherLifecycleStatus[];
-  trainingType: string;
+  trainingTypes: string[];
   /** '' — все, 'started' — % по ученикам > 0, 'not_started' — 0%, 'no_data' — в таблице нет данных */
-  studentsStarted: string;
+  /** Множественный выбор: 'started' | 'not_started' | 'no_data' (любой из отмеченных) */
+  studentsStarted: string[];
   /** Срез «% по ученикам» от–до (0–100); null — без ограничения. Учителя без данных в срез не попадают. */
   studentsMin: number | null;
   studentsMax: number | null;
   /** Множественный выбор — 'entered' | 'not_entered' */
   platformStatuses: string[];
   /** '' — все, 'az' | 'ru' */
-  sector: string;
-  moduleId: string;
+  sectors: string[];
+  /** Множественный выбор модулей: учитель должен подходить по КАЖДОМУ отмеченному модулю */
+  moduleIds: string[];
   /** '' — любой, 'passed' | 'failed' | 'not_started' | 'on_review' */
-  moduleResult: string;
+  moduleResults: string[];
   /** Показывать только учителей, которым ещё не назначили класс/параллель */
   unassignedClassOnly: boolean;
   /** Фильтр по среднему баллу учителя (getTeacherAverageScore) — null означает "без ограничения" */
@@ -41,14 +43,14 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   classesTaught: [],
   gradeGroups: [],
   lifecycleStatuses: [],
-  trainingType: '',
-  studentsStarted: '',
+  trainingTypes: [],
+  studentsStarted: [],
   studentsMin: null,
   studentsMax: null,
   platformStatuses: [],
-  sector: '',
-  moduleId: '',
-  moduleResult: '',
+  sectors: [],
+  moduleIds: [],
+  moduleResults: [],
   unassignedClassOnly: false,
   scoreMin: null,
   scoreMax: null,
@@ -78,12 +80,13 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.classesTaught.length && !filters.classesTaught.includes(t.classesTaught)) return false;
     if (filters.gradeGroups.length && !filters.gradeGroups.includes(t.gradeGroup)) return false;
     if (filters.lifecycleStatuses.length && !filters.lifecycleStatuses.includes(t.lifecycleStatus)) return false;
-    if (filters.trainingType && t.trainingType !== filters.trainingType) return false;
-    if (filters.studentsStarted) {
+    if (filters.trainingTypes.length && !filters.trainingTypes.includes(t.trainingType)) return false;
+    if (filters.studentsStarted.length) {
       const p = t.studentsPercent ?? null;
-      if (filters.studentsStarted === 'started' && !(p !== null && p > 0)) return false;
-      if (filters.studentsStarted === 'not_started' && p !== 0) return false;
-      if (filters.studentsStarted === 'no_data' && p !== null) return false;
+      const matches = filters.studentsStarted.some(
+        (k) => (k === 'started' && p !== null && p > 0) || (k === 'not_started' && p === 0) || (k === 'no_data' && p === null),
+      );
+      if (!matches) return false;
     }
     if (filters.studentsMin !== null || filters.studentsMax !== null) {
       const p = t.studentsPercent ?? null;
@@ -92,12 +95,13 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
       if (filters.studentsMax !== null && p > filters.studentsMax) return false;
     }
     if (filters.platformStatuses.length && !filters.platformStatuses.includes(t.platformStatus)) return false;
-    if (filters.sector && t.language !== filters.sector) return false;
+    if (filters.sectors.length && !filters.sectors.includes(t.language)) return false;
     if (filters.unassignedClassOnly && t.hasAssignedClass) return false;
 
-    if (filters.moduleId && filters.moduleResult) {
-      if (getEffectiveModuleStatus(t, filters.moduleId) !== filters.moduleResult) return false;
-    } else if (!filters.moduleId && filters.moduleResult === 'passed') {
+    if (filters.moduleIds.length && filters.moduleResults.length) {
+      // По каждому отмеченному модулю статус должен быть одним из отмеченных.
+      if (!filters.moduleIds.every((id) => filters.moduleResults.includes(getEffectiveModuleStatus(t, id)))) return false;
+    } else if (!filters.moduleIds.length && filters.moduleResults.includes('passed')) {
       // «Сдал» без выбора модуля — учитель сдал ВСЕ назначенные ему модули.
       if (!hasPassedAllAssignedModules(t)) return false;
     }
@@ -113,6 +117,17 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     return true;
   });
 }
+
+export type ArrayFilterKey =
+  | 'districts'
+  | 'schools'
+  | 'gradeGroups'
+  | 'lifecycleStatuses'
+  | 'trainingTypes'
+  | 'sectors'
+  | 'moduleIds'
+  | 'moduleResults'
+  | 'studentsStarted';
 
 export type SortKey =
   | 'fullName'

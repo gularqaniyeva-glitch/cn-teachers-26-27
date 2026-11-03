@@ -153,6 +153,7 @@ export interface Dict {
     passedAllAssignedHint: string;
     trainingTypeLabel: string;
     studentsSection: string;
+    multiModuleHint: string;
     studentsStarted: string;
     studentsNotStarted: string;
     studentsNoData: string;
@@ -456,6 +457,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedAllAssignedHint: 'Без выбора модуля «Сдал» показывает учителей, сдавших ВСЕ назначенные им модули.',
       trainingTypeLabel: 'Тип обучения',
       studentsSection: 'Ученики (% из таблицы)',
+      multiModuleHint: 'Можно отметить несколько модулей и несколько статусов: учитель должен подходить по каждому из выбранных модулей.',
       studentsStarted: 'Начали (% > 0)',
       studentsNotStarted: 'Не начали (0%)',
       studentsNoData: 'Нет данных',
@@ -757,6 +759,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       passedAllAssignedHint: 'Modul seçilmədikdə «Keçib» ona təyin edilmiş BÜTÜN modulları keçmiş müəllimləri göstərir.',
       trainingTypeLabel: 'Təhsil növü',
       studentsSection: 'Şagirdlər (cədvəldən %)',
+      multiModuleHint: 'Bir neçə modul və bir neçə status seçmək olar: müəllim seçilmiş hər modul üzrə uyğun olmalıdır.',
       studentsStarted: 'Başlayıb (% > 0)',
       studentsNotStarted: 'Başlamayıb (0%)',
       studentsNoData: 'Məlumat yoxdur',

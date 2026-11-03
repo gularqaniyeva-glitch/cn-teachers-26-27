@@ -13,7 +13,7 @@ import { ExportMenu } from '../components/teachers/ExportMenu';
 import { DEFAULT_VISIBLE_TEACHER_COLUMNS } from '../components/teachers/teacherTableColumns';
 import { Pagination } from '../components/teachers/Pagination';
 import { TeacherQuickViewModal } from '../components/teacher/TeacherQuickViewModal';
-import { DEFAULT_FILTERS, filterTeachers, sortTeachers } from '../utils/teacherFilters';
+import { DEFAULT_FILTERS, filterTeachers, sortTeachers, type ArrayFilterKey } from '../utils/teacherFilters';
 import type { SortKey, SortState } from '../utils/teacherFilters';
 import { exportTeachersToCsv } from '../utils/csvExport';
 import { moduleAppliesToTeacher, upsertModuleResult } from '../utils/bulkActions';
@@ -31,11 +31,12 @@ const TRACKED_FILTER_KEYS = new Set([
   'classesTaught',
   'gradeGroups',
   'lifecycleStatuses',
-  'trainingType',
+  'trainingTypes',
   'platformStatuses',
-  'sector',
-  'moduleId',
-  'moduleResult',
+  'sectors',
+  'moduleIds',
+  'moduleResults',
+  'studentsStarted',
   'unassignedClassOnly',
   'scoreMin',
   'scoreMax',
@@ -135,10 +136,7 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
     }
   }
 
-  function toggleArrayValue<K extends 'districts' | 'schools' | 'gradeGroups' | 'lifecycleStatuses'>(
-    key: K,
-    value: string,
-  ) {
+  function toggleArrayValue(key: ArrayFilterKey, value: string) {
     setFilters((prev) => {
       const arr = prev[key] as string[];
       const next = arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
@@ -319,10 +317,8 @@ export function TeacherListPage({ gradeGroups, title, subtitle }: TeacherListPag
                 onToggleSchool={(s) => toggleArrayValue('schools', s)}
                 onToggleGradeGroup={(g) => toggleArrayValue('gradeGroups', g)}
                 onToggleLifecycle={(s) => toggleArrayValue('lifecycleStatuses', s)}
-                onModuleChange={(id) => handleFilterChange('moduleId', id)}
-                onModuleResultChange={(result) => handleFilterChange('moduleResult', result)}
-                onSectorChange={(sector) => handleFilterChange('sector', sector)}
-                onStudentsStartedChange={(v) => handleFilterChange('studentsStarted', v)}
+                onToggleValue={toggleArrayValue}
+                onClearValues={(key) => handleFilterChange(key, [])}
                 onStudentsRangeChange={(key, v) => handleFilterChange(key, v)}
               />
               <TeacherFiltersBar
