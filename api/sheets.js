@@ -163,7 +163,19 @@ export default async function handler(req, res) {
       firstRowHeaders: scheduleObjects.length > 0 ? Object.keys(scheduleObjects[0]) : [],
     };
 
+    // Диагностика колонок: реальные буквы столбцов Google-листа (toObject() пропускает
+
+    // колонки с пустым заголовком, поэтому порядковый номер ключа ≠ буква в таблице).
+
+    const columnLetter = (i) => (i < 26 ? '' : String.fromCharCode(64 + Math.floor(i / 26))) + String.fromCharCode(65 + (i % 26));
+
+    const describeColumns = (sheet) => (sheet.headerValues || []).map((h, i) => ({ letter: columnLetter(i), header: h || '' }));
+
+    const columnDebug = { teachers: describeColumns(teachersSheet), senior: describeColumns(seniorSheet) };
+
+
     res.status(200).json({
+      columnDebug,
       teachers: rowsToObjects(teacherRows),
       senior: rowsToObjects(seniorRows),
       schedule: scheduleObjects,
