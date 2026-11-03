@@ -446,9 +446,9 @@ export function mapSeniorSheetRow(
     platformStatus: moduleResults.some((r) => r.status !== 'not_started') ? 'entered' : 'not_entered',
     classesTaught: findValueFuzzy(row, [...SENIOR_FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: true,
-    // IT-лист: «Решаемость учеников 10-11 по всем урокам» («нет 10-11 кл» и ошибки формул → нет данных).
+    // IT-лист, столбец AU «Sinif ortalaması» (среднее по классу учеников; #N/A и пусто → нет данных).
     studentsPercent: parseStudentsPercent(
-      findValueFuzzy(row, ['Решаемость учеников 10-11 по всем урокам', 'Решаемость учеников']),
+      findValue(row, ['Sinif ortalaması']),
     ),
     moduleResults,
     note: '',
