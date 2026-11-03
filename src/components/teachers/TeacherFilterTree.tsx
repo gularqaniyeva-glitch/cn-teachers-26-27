@@ -327,7 +327,6 @@ export function TeacherFilterTree({
                 ].map((opt) => (
                   <button
                     key={opt.value}
-                    disabled={filters.moduleIds.length === 0 && opt.value !== 'passed'}
                     onClick={() => onToggleValue('moduleResults', opt.value)}
                     className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset disabled:cursor-not-allowed disabled:opacity-40 ${
                   filters.moduleResults.includes(opt.value)
