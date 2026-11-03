@@ -52,6 +52,17 @@ export function TeacherFiltersBar({ filters, districts, startYears, classesTaugh
             ...[...TRAINING_TYPES, 'unknown' as const].map((type) => ({ value: type, label: t.trainingType[type] })),
           ]}
         />
+        <FilterSelect
+          label={t.filters.studentsStartedLabel}
+          value={filters.studentsStarted}
+          onChange={(v) => onChange('studentsStarted', v)}
+          options={[
+            { value: '', label: t.common.any },
+            { value: 'started', label: t.filters.studentsStarted },
+            { value: 'not_started', label: t.filters.studentsNotStarted },
+            { value: 'no_data', label: t.filters.studentsNoData },
+          ]}
+        />
         <MultiSelectFilter
           label={t.filters.platformStatusLabel}
           selected={filters.platformStatuses}

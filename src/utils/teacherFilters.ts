@@ -14,6 +14,8 @@ export interface TeacherFilters {
   gradeGroups: GradeGroup[];
   lifecycleStatuses: TeacherLifecycleStatus[];
   trainingType: string;
+  /** '' — все, 'started' — % по ученикам > 0, 'not_started' — 0%, 'no_data' — в таблице нет данных */
+  studentsStarted: string;
   /** Множественный выбор — 'entered' | 'not_entered' */
   platformStatuses: string[];
   /** '' — все, 'az' | 'ru' */
@@ -37,6 +39,7 @@ export const DEFAULT_FILTERS: TeacherFilters = {
   gradeGroups: [],
   lifecycleStatuses: [],
   trainingType: '',
+  studentsStarted: '',
   platformStatuses: [],
   sector: '',
   moduleId: '',
@@ -71,6 +74,12 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
     if (filters.gradeGroups.length && !filters.gradeGroups.includes(t.gradeGroup)) return false;
     if (filters.lifecycleStatuses.length && !filters.lifecycleStatuses.includes(t.lifecycleStatus)) return false;
     if (filters.trainingType && t.trainingType !== filters.trainingType) return false;
+    if (filters.studentsStarted) {
+      const p = t.studentsPercent ?? null;
+      if (filters.studentsStarted === 'started' && !(p !== null && p > 0)) return false;
+      if (filters.studentsStarted === 'not_started' && p !== 0) return false;
+      if (filters.studentsStarted === 'no_data' && p !== null) return false;
+    }
     if (filters.platformStatuses.length && !filters.platformStatuses.includes(t.platformStatus)) return false;
     if (filters.sector && t.language !== filters.sector) return false;
     if (filters.unassignedClassOnly && t.hasAssignedClass) return false;
@@ -102,7 +111,8 @@ export type SortKey =
   | 'trainingType'
   | 'lifecycleStatus'
   | 'platformStatus'
-  | 'averageScore';
+  | 'averageScore'
+  | 'studentsPercent';
 
 export interface SortState {
   key: SortKey;
@@ -111,6 +121,7 @@ export interface SortState {
 
 function getSortValue(t: Teacher, key: SortKey): string | number {
   if (key === 'averageScore') return getTeacherAverageScore(t) ?? -1;
+  if (key === 'studentsPercent') return t.studentsPercent ?? -1;
   return t[key];
 }
 

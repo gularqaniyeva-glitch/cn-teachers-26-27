@@ -76,6 +76,7 @@ export interface Dict {
     platformStatus: string;
     result: string;
     averageScore: string;
+    studentsPercent: string;
     note: string;
     moduleColumns: string;
   };
@@ -151,6 +152,10 @@ export interface Dict {
     anyStatus: string;
     passedAllAssignedHint: string;
     trainingTypeLabel: string;
+    studentsStartedLabel: string;
+    studentsStarted: string;
+    studentsNotStarted: string;
+    studentsNoData: string;
     platformStatusLabel: string;
     districtLabel: string;
     allDistricts: string;
@@ -379,6 +384,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatus: 'Платформа',
       result: 'Результат',
       averageScore: 'Среднее решение',
+      studentsPercent: 'Ученики, % (из таблицы)',
       note: 'Заметка',
       moduleColumns: 'Отдельные модули (M1, M2, M3…)',
     },
@@ -449,6 +455,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'Любой статус',
       passedAllAssignedHint: 'Без выбора модуля «Сдал» показывает учителей, сдавших ВСЕ назначенные им модули.',
       trainingTypeLabel: 'Тип обучения',
+      studentsStartedLabel: 'Ученики начали',
+      studentsStarted: 'Начали (% > 0)',
+      studentsNotStarted: 'Не начали (0%)',
+      studentsNoData: 'Нет данных',
       platformStatusLabel: 'Статус прохождения',
       districtLabel: 'Tabeçilik / Управление',
       allDistricts: 'Все',
@@ -675,6 +685,7 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       platformStatus: 'Platforma',
       result: 'Nəticə',
       averageScore: 'Ortalama bal (həll edilənlər)',
+      studentsPercent: 'Şagirdlər, % (cədvəldən)',
       note: 'Qeyd',
       moduleColumns: 'Ayrı-ayrı modullar (M1, M2, M3…)',
     },
@@ -745,6 +756,10 @@ export const TRANSLATIONS: Record<Locale, Dict> = {
       anyStatus: 'İstənilən status',
       passedAllAssignedHint: 'Modul seçilmədikdə «Keçib» ona təyin edilmiş BÜTÜN modulları keçmiş müəllimləri göstərir.',
       trainingTypeLabel: 'Təhsil növü',
+      studentsStartedLabel: 'Şagirdlər başlayıb',
+      studentsStarted: 'Başlayıb (% > 0)',
+      studentsNotStarted: 'Başlamayıb (0%)',
+      studentsNoData: 'Məlumat yoxdur',
       platformStatusLabel: 'Keçmə statusu',
       districtLabel: 'Tabeçilik',
       allDistricts: 'Hamısı',

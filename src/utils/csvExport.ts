@@ -76,6 +76,11 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
   },
   { key: 'trainingType', header: (t) => t.columns.trainingType, value: (te, t) => t.trainingType[te.trainingType] },
   {
+    key: 'studentsPercent',
+    header: (t) => t.columns.studentsPercent,
+    value: (te) => (te.studentsPercent == null ? '' : String(te.studentsPercent)),
+  },
+  {
     key: 'averageScore',
     header: (t) => t.columns.averageScore,
     value: (te) => {

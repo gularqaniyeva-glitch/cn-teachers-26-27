@@ -187,6 +187,15 @@ function parseScorePercent(raw: string): number {
  * вообще не назначен учителю — тогда возвращаем null, и модуль просто не
  * попадает в его личную ведомость.
  */
+/** «% по ученикам»: число 0–100, либо null (пусто, #N/A и прочие ошибки формул — данных нет). */
+function parseStudentsPercent(raw: string): number | null {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed || trimmed.startsWith('#')) return null;
+  const numeric = parseFloat(trimmed.replace(',', '.').replace('%', ''));
+  if (Number.isNaN(numeric)) return null;
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
 function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleStatus; score: number } | null {
   const statusText = statusRaw.trim().toLowerCase();
   const score = parseScorePercent(scoreRaw);
@@ -335,6 +344,7 @@ export function mapTeachersSheetRow(
     platformStatus: mapPlatformStatus(findValueFuzzy(row, [...FIELD_CANDIDATES.platformStatus])),
     classesTaught: findValueFuzzy(row, [...FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: active1to4 || active5to9,
+    studentsPercent: parseStudentsPercent(findValueFuzzy(row, ['% по ученикам', 'Şagird nəticələri %'])),
     moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9, schedule),
     note: '',
     updatedAt: new Date().toISOString(),

@@ -25,6 +25,7 @@ export const TEACHER_TABLE_COLUMNS: TeacherColumnDef[] = [
   { key: 'lmsId', defaultVisible: false, label: (t) => t.detail.fields.lmsId },
   { key: 'classesTaught', defaultVisible: true, label: (t) => t.detail.fields.classesTaught },
   { key: 'trainingType', sortKey: 'trainingType', defaultVisible: true, label: (t) => t.columns.trainingType },
+  { key: 'studentsPercent', sortKey: 'studentsPercent', defaultVisible: true, label: (t) => t.columns.studentsPercent },
   { key: 'averageScore', sortKey: 'averageScore', defaultVisible: true, label: (t) => t.columns.averageScore },
   { key: 'result', defaultVisible: true, label: (t) => t.quickList.columnScore },
   { key: 'sector', defaultVisible: false, label: (t) => t.filters.sectorSection },

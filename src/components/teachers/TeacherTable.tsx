@@ -135,6 +135,11 @@ export function TeacherTable({
             {teacher.platformStatus === 'entered' ? t.platformStatus.entered : t.platformStatus.notEntered}
           </Badge>
         );
+      case 'studentsPercent': {
+        const p = teacher.studentsPercent ?? null;
+        if (p === null) return <Badge variant="neutral">{t.common.noData}</Badge>;
+        return <Badge variant={p > 0 ? 'success' : 'danger'}>{p}%</Badge>;
+      }
       case 'averageScore': {
         const score = getTeacherAverageScore(teacher);
         return <Badge variant={scoreVariant(score)}>{score === null ? t.common.noData : `${score}%`}</Badge>;

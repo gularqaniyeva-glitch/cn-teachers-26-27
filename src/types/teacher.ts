@@ -62,6 +62,8 @@ export interface Teacher {
    * показываются как есть.
    */
   hasAssignedClass: boolean;
+  /** «% по ученикам» из листа: доля учеников учителя, начавших работу (0–100); null — в таблице нет данных (#N/A/пусто) или столбца нет */
+  studentsPercent?: number | null;
   moduleResults: ModuleResult[];
   /** Внутренняя заметка администратора, не видна учителю */
   note: string;
