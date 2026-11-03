@@ -188,7 +188,23 @@ async function fetchFromSheetsApi(): Promise<Teacher[]> {
     notEnteredCount: allTeachersCount - allEnteredCount,
   });
 
-  return [...teachers2to9, ...teachersSenior];
+  return makeTeacherIdsUnique([...teachers2to9, ...teachersSenior]);
+}
+
+/**
+ * id учителя = LMS ID, но в таблице один человек может стоять в двух строках
+ * (работает в двух школах — одинаковые LMS ID/FIN). Одинаковые id ломают
+ * React-ключи строк (на экране появляются лишние копии строк) и правки по id
+ * затрагивали бы сразу обе строки. Первая строка сохраняет прежний id, повтор
+ * получает суффикс «-dup2», «-dup3»… — это отдельные строки таблицы, как и в листе.
+ */
+function makeTeacherIdsUnique(teachers: Teacher[]): Teacher[] {
+  const seen = new Map<string, number>();
+  return teachers.map((teacher) => {
+    const count = (seen.get(teacher.id) ?? 0) + 1;
+    seen.set(teacher.id, count);
+    return count === 1 ? teacher : { ...teacher, id: `${teacher.id}-dup${count}` };
+  });
 }
 
 async function loadTeachers(): Promise<Teacher[]> {
