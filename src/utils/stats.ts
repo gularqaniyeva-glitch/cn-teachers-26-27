@@ -431,6 +431,11 @@ export function getOverallTeacherPassStat(teachers: Teacher[]): OverallTeacherPa
 }
 
 /** "46,58%" — 2 знака после запятой, запятая вместо точки (для точной сводки "Вошли/Не вошли") */
+/** «% по ученикам»: целое без дробной части, иначе две цифры через запятую («83,97%») — как в таблице. */
+export function formatStudentsPercent(percent: number): string {
+  return Number.isInteger(percent) ? `${percent}%` : `${percent.toFixed(2).replace('.', ',')}%`;
+}
+
 export function formatPercentComma(part: number, total: number): string {
   if (!total) return '0,00%';
   return `${((part / total) * 100).toFixed(2).replace('.', ',')}%`;

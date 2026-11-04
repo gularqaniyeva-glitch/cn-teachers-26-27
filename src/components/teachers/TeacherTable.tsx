@@ -6,7 +6,12 @@ import { NoTranslate } from '../ui/NoTranslate';
 import { LmsLink } from '../ui/LmsLink';
 import { ModuleScoreCell } from './ModuleScoreCell';
 import { ModuleColumnHeader } from './ModuleColumnHeader';
-import { formatAssignedClassesLabel, getTeacherAverageScore, getTeacherOverallStats } from '../../utils/stats';
+import {
+  formatAssignedClassesLabel,
+  formatStudentsPercent,
+  getTeacherAverageScore,
+  getTeacherOverallStats,
+} from '../../utils/stats';
 import { buildModuleDeadlineMap } from '../../utils/deadlines';
 import { filterOpenModuleColumns } from '../../services/scheduleMapping';
 import { hasAnomaly } from '../../utils/anomalies';
@@ -138,7 +143,7 @@ export function TeacherTable({
       case 'studentsPercent': {
         const p = teacher.studentsPercent ?? null;
         if (p === null) return <Badge variant="neutral">{t.common.noData}</Badge>;
-        return <Badge variant={p > 0 ? 'success' : 'danger'}>{p}%</Badge>;
+        return <Badge variant={p > 0 ? 'success' : 'danger'}>{formatStudentsPercent(p)}</Badge>;
       }
       case 'averageScore': {
         const score = getTeacherAverageScore(teacher);

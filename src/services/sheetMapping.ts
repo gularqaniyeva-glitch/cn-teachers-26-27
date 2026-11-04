@@ -193,7 +193,8 @@ function parseStudentsPercent(raw: string): number | null {
   if (!trimmed || trimmed.startsWith('#')) return null;
   const numeric = parseFloat(trimmed.replace(',', '.').replace('%', ''));
   if (Number.isNaN(numeric)) return null;
-  return Math.max(0, Math.min(100, Math.round(numeric)));
+  // Две цифры после запятой — как в таблице (83,97%).
+  return Math.max(0, Math.min(100, Math.round(numeric * 100) / 100));
 }
 
 function parseModuleCell(statusRaw: string, scoreRaw: string): { status: ModuleStatus; score: number } | null {
@@ -344,7 +345,8 @@ export function mapTeachersSheetRow(
     platformStatus: mapPlatformStatus(findValueFuzzy(row, [...FIELD_CANDIDATES.platformStatus])),
     classesTaught: findValueFuzzy(row, [...FIELD_CANDIDATES.classesTaught]),
     hasAssignedClass: active1to4 || active5to9,
-    studentsPercent: parseStudentsPercent(findValueFuzzy(row, ['% по ученикам', 'Şagird nəticələri %'])),
+    // 2–9: столбец BP «Şagird nəticələri» (раньше был Z «% по ученикам»; он остаётся запасным).
+    studentsPercent: parseStudentsPercent(findValueFuzzy(row, ['Şagird nəticələri', '% по ученикам'])),
     moduleResults: buildTeacherModuleResults(row, primary, active1to4, active5to9, schedule),
     note: '',
     updatedAt: new Date().toISOString(),

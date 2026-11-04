@@ -2,6 +2,7 @@ import type { GradeGroup, Teacher } from '../types/teacher';
 import { GRADE_GROUPS, findModuleResultForColumn, getModule, getModuleColumnsForGroups } from '../data/constants';
 import {
   formatAssignedClassesLabel,
+  formatStudentsPercent,
   getApplicableModules,
   getAssignedGradeGroups,
   getTeacherAverageScore,
@@ -78,7 +79,7 @@ const EXPORT_FIELDS: ExportFieldDef[] = [
   {
     key: 'studentsPercent',
     header: (t) => t.columns.studentsPercent,
-    value: (te) => (te.studentsPercent == null ? '' : String(te.studentsPercent)),
+    value: (te) => (te.studentsPercent == null ? '' : formatStudentsPercent(te.studentsPercent)),
   },
   {
     key: 'averageScore',
