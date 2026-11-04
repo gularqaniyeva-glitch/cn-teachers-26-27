@@ -314,7 +314,7 @@ export function getOverallPassPercent(teachers: Teacher[]): number {
  *   дедлайн И он уже наступил (CurrentDate > Deadline) — до этого
  *   отсутствие сдачи не считается ни просрочкой, ни провалом.
  */
-function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
+export function isModuleDueForPassRate(result: ModuleResult, now: Date): boolean {
   if (result.status !== 'not_started') return true;
   if (result.moduleId.endsWith('-M1') || result.moduleId.endsWith('-M2')) return true;
   if (!result.deadline) return false;

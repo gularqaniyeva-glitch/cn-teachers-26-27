@@ -1,5 +1,5 @@
 import type { GradeGroup, Teacher, TeacherLifecycleStatus } from '../types/teacher';
-import { PASS_THRESHOLD, getTeacherAverageScore } from './stats';
+import { PASS_THRESHOLD, getTeacherAverageScore, isModuleDueForPassRate } from './stats';
 import { getEffectiveModuleStatus } from './anomalies';
 
 export interface TeacherFilters {
@@ -66,7 +66,22 @@ export function hasPassedAllAssignedModules(teacher: Teacher): boolean {
   return results.length > 0 && results.every((r) => r.status === 'passed' || r.score >= PASS_THRESHOLD);
 }
 
+/**
+ * Подходит ли модуль учителя под отмеченный статус. «Не сдал» ('failed') —
+ * это «Не прошёл» ЛИБО «Не начал», если модуль уже должен быть сдан (дедлайн
+ * наступил; M1/M2 — сразу): та же логика, что и в «Прошли курс».
+ */
+function moduleMatchesStatus(teacher: Teacher, moduleId: string, status: string, now: Date): boolean {
+  const effective = getEffectiveModuleStatus(teacher, moduleId);
+  if (status !== 'failed') return effective === status;
+  if (effective === 'failed') return true;
+  if (effective !== 'not_started') return false;
+  const result = teacher.moduleResults.find((r) => r.moduleId === moduleId);
+  return !!result && isModuleDueForPassRate(result, now);
+}
+
 export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Teacher[] {
+  const now = new Date();
   const search = filters.search.trim().toLowerCase();
 
   return teachers.filter((t) => {
@@ -100,7 +115,7 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
 
     if (filters.moduleIds.length && filters.moduleResults.length) {
       // По каждому отмеченному модулю статус должен быть одним из отмеченных.
-      if (!filters.moduleIds.every((id) => filters.moduleResults.includes(getEffectiveModuleStatus(t, id)))) return false;
+      if (!filters.moduleIds.every((id) => filters.moduleResults.some((st) => moduleMatchesStatus(t, id, st, now)))) return false;
     } else if (!filters.moduleIds.length && filters.moduleResults.length) {
       // Без выбора модуля статус смотрим по ВСЕМ назначенным модулям учителя:
       // «Сдал» — сданы все; «Не сдал» / «Не начал» / «На проверку» — есть хотя бы
@@ -108,7 +123,7 @@ export function filterTeachers(teachers: Teacher[], filters: TeacherFilters): Te
       const wantsAllPassed = filters.moduleResults.includes('passed') && hasPassedAllAssignedModules(t);
       const otherStatuses = filters.moduleResults.filter((st) => st !== 'passed');
       const hasOtherStatus = otherStatuses.some((st) =>
-        t.moduleResults.some((r) => getEffectiveModuleStatus(t, r.moduleId) === st),
+        t.moduleResults.some((r) => moduleMatchesStatus(t, r.moduleId, st, now)),
       );
       if (!wantsAllPassed && !hasOtherStatus) return false;
     }
