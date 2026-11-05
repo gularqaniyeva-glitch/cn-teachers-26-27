@@ -73,7 +73,7 @@ export function DashboardPage() {
           value={entered}
           icon={LogIn}
           accent="emerald"
-          sublabel={`${formatPercentComma(entered, total)} ${t.dashboard.ofTotal}`}
+          sublabel={`${formatPercentComma(entered, total)} ${t.dashboard.ofTotal}${t.dashboard.byAttestationSuffix}`}
           tooltip={t.dashboard.enteredTooltip}
         />
         <StatCard
@@ -81,7 +81,7 @@ export function DashboardPage() {
           value={notEntered}
           icon={LogOut}
           accent="rose"
-          sublabel={`${formatPercentComma(notEntered, total)} ${t.dashboard.ofTotal}`}
+          sublabel={`${formatPercentComma(notEntered, total)} ${t.dashboard.ofTotal}${t.dashboard.byAttestationSuffix}`}
           tooltip={t.dashboard.notEnteredTooltip}
         />
         <StatCard
